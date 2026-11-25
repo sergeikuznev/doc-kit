@@ -424,9 +424,13 @@ def _replayed(prompt):
         return False, None
     if isinstance(REPLAY[0], _Ask):
         marker = REPLAY.pop(0)
-        CURRENT = marker.item
-        if marker.item is not None:
+        # Only offer the old answer if this is the same question (the flow
+        # may have changed, e.g. a different command was chosen).
+        if marker.item is not None and marker.item[0] == _key(prompt):
+            CURRENT = marker.item
             PREFILL[_key(prompt)] = marker.item[2]
+        else:
+            CURRENT = None
         return False, None
     key = _key(prompt)
     # The saved answer for this question may be further along if an edit
@@ -569,9 +573,18 @@ def ask_lines(prompt, required=True, hint=None):
         if restart:
             continue
 
-def ask_choice(prompt, options, default=None, details=None):
+def _branch(prompt, value, branch):
+    """A branching choice decides which questions come next (which command,
+    which item, which field). If it changed, the queued later answers belong
+    to the old path: drop them."""
+    if branch and CURRENT is not None and CURRENT[0] == _key(prompt) and CURRENT[2] != value:
+        REPLAY.clear()
+    return _record(prompt, value)
+
+def ask_choice(prompt, options, default=None, details=None, branch=False):
     """options: list of (key, label). Returns the key. details: full text
-    per option for the preview pane (terminal menus only)."""
+    per option for the preview pane (terminal menus only). branch=True when
+    the answer decides which questions follow."""
     done, val = _replayed(prompt)
     if done:
         return val
@@ -579,7 +592,7 @@ def ask_choice(prompt, options, default=None, details=None):
     if prev in [k for k, _ in options]:
         default = prev
     if interactive():
-        return _record(prompt, menu(prompt, options, default, details=details))
+        return _branch(prompt, menu(prompt, options, default, details=details), branch)
     keys = [k.lower() for k, _ in options]
     width = max(len(k) for k, _ in options)
     while True:
@@ -591,11 +604,11 @@ def ask_choice(prompt, options, default=None, details=None):
             if _special(ans):
                 break
             if not ans and default:
-                return _record(prompt, default)
+                return _branch(prompt, default, branch)
             if ans.isdigit() and 1 <= int(ans) <= len(options):
-                return _record(prompt, options[int(ans) - 1][0])
+                return _branch(prompt, options[int(ans) - 1][0], branch)
             if ans.lower() in keys:
-                return _record(prompt, options[keys.index(ans.lower())][0])
+                return _branch(prompt, options[keys.index(ans.lower())][0], branch)
             warn("Type a number or a key from the list.")
 
 def yes(prompt, default=False):
@@ -977,7 +990,7 @@ def cmd_test(rid=None):
         active.sort(key=lambda r: r[4] == "Verified")      # untested first
         rid = ask_choice("Which requirement did you test?",
                          [(r[0], f"{r[4]:<9} {_short(r[1], 70)}") for r in active],
-                         details=[_req_detail(r) for r in active])
+                         details=[_req_detail(r) for r in active], branch=True)
     rid = rid.upper()
     match = [r for r in rows if r[0] == rid]
     if not match:
@@ -1104,7 +1117,7 @@ def update_decision(num=None):
         sys.exit("No decision records yet.")
     if not num:
         num = ask_choice("Which decision?", [(d[0], f"{d[3]:<22} {_short(d[2], 60)}") for d in decs],
-                         details=[_decision_detail(d) for d in decs])
+                         details=[_decision_detail(d) for d in decs], branch=True)
     num = num.zfill(3)
     match = [d for d in decs if d[0] == num]
     if not match:
@@ -1114,7 +1127,7 @@ def update_decision(num=None):
     print(c(f"\n{n}. {title}", "1;34"))
     rel_now = re.search(r"\*\*Related:\*\*\s*(.*)$", read(path), re.M)
     field = ask_choice("Which field?", [("status", f"Status [{status}]"), ("related", "Related issues / requirement IDs")],
-                       details=[f"Status\n{status or '-'}", f"Related\n{rel_now.group(1).strip() if rel_now else '(none)'}"])
+                       details=[f"Status\n{status or '-'}", f"Related\n{rel_now.group(1).strip() if rel_now else '(none)'}"], branch=True)
     text = read(path)
     if field == "status":
         new = ask_choice("New status", DEC_STATUSES)
@@ -1144,7 +1157,7 @@ def update_requirement(rid=None):
         sys.exit("No requirements yet.")
     if not rid:
         rid = ask_choice("Which requirement?", [(r[0], f"{(r[4] if len(r) > 4 else ''):<9} {_short(r[1], 70)}") for r in rows],
-                         details=[_req_detail(r) for r in rows])
+                         details=[_req_detail(r) for r in rows], branch=True)
     rid = rid.upper()
     match = [r for r in rows if r[0] == rid]
     if not match:
@@ -1155,7 +1168,7 @@ def update_requirement(rid=None):
                                         ("rationale", "Rationale"), ("method", f"Verification method [{row[3]}]")],
                        details=[f"Status now\n{row[4] or '-'}", f"Requirement now\n{_plain(row[1])}",
                                 f"Rationale now\n{_plain(row[2]) or '-'}",
-                                f"Verification method now\n{dict(METHODS).get(row[3], row[3]) or '-'}"])
+                                f"Verification method now\n{dict(METHODS).get(row[3], row[3]) or '-'}"], branch=True)
     new = list(row)
     if field == "status":
         val = ask_choice("New status", REQ_STATUSES)
@@ -1211,7 +1224,7 @@ def update_fault(fid=None):
         sys.exit("No fault table rows yet.")
     if not fid:
         fid = ask_choice("Which failure mode?", [(r[0], f"sev {r[6] if len(r) > 6 else '?'}  req {(r[7] if len(r) > 7 else '') or '-':<9} {_short(r[1], 60)}") for r in rows],
-                         details=[_fault_detail(r) for r in rows])
+                         details=[_fault_detail(r) for r in rows], branch=True)
     fid = fid.upper()
     match = [r for r in rows if r[0] == fid]
     if not match:
@@ -1221,7 +1234,7 @@ def update_fault(fid=None):
     names = ["Failure", "Effect", "Detection", "Response", "Recovery", "Severity", "Requirement"]
     opts = [(str(i), f"{n} [{_short(row[i], 40) or '-'}]") for i, n in enumerate(names, 1)]
     col = int(ask_choice("Which field?", opts,
-                         details=[f"{n} now\n{_plain(row[i]) or '-'}" for i, n in enumerate(names, 1)]))
+                         details=[f"{n} now\n{_plain(row[i]) or '-'}" for i, n in enumerate(names, 1)], branch=True))
     new = list(row)
     if col == 6:
         new[6] = ask_choice("Severity", SEVERITY)
@@ -1249,7 +1262,7 @@ def cmd_update(target=None):
         if re.fullmatch(r"FM-\d+", t, re.I):
             return update_fault(t.upper())
         return update_requirement(t.upper())
-    kind = ask_choice("\nWhat do you want to update?", [
+    kind = ask_choice("\nWhat do you want to update?", branch=True, options=[
         ("decision", "Decision record (status, related)"),
         ("req", "Requirement (status, text, rationale, method)"),
         ("fault", "Fault table row (any column, e.g. the linked requirement)")])
@@ -1492,7 +1505,7 @@ COMMANDS = {"decision": cmd_decision, "req": cmd_req, "test": cmd_test, "fault":
             "bug": cmd_bug, "update": cmd_update, "report": lambda: cmd_report([])}
 
 def cmd_menu():
-    key = ask_choice("What just happened?", [(k, v) for k, v in MENU])
+    key = ask_choice("What just happened?", [(k, v) for k, v in MENU], branch=True)
     COMMANDS[key]()
 
 def cmd_hook():
@@ -1509,7 +1522,8 @@ def cmd_hook():
 
     def flow():
         key = ask_choice("", [("decision", "Decision"), ("req", "Requirement"), ("test", "Test result"),
-                              ("procedure", "Procedure"), ("fault", "Fault row"), ("no", "Nothing")], default="no")
+                              ("procedure", "Procedure"), ("fault", "Fault row"), ("no", "Nothing")], default="no",
+                         branch=True)
         if key != "no":
             COMMANDS[key]()
     run_with_back(flow)
