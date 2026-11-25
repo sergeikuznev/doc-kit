@@ -244,6 +244,17 @@ def _pane(text, room):
     out += [c("  │ ", "36") + r for r in rows[1:]]
     return out + [c("  └", "36")]
 
+_ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
+
+def _rows(lines):
+    """Terminal rows these lines occupy, counting embedded newlines and wrapping."""
+    width = _width()
+    total = 0
+    for line in lines:
+        for part in _ANSI_RE.sub("", line).split("\n"):
+            total += max(1, -(-_cells(part) // width))
+    return total
+
 def menu(prompt, options, default=None, nav=True, details=None):
     """Arrow-key menu. options: list of (key, label). Returns the chosen key.
     details: optional full text per option, shown in a preview pane under the
@@ -255,6 +266,12 @@ def menu(prompt, options, default=None, nav=True, details=None):
     keys = [k for k, _ in options]
     idx = keys.index(default) if default in keys else 0
     flt, top, drawn = "", 0, 0
+    # Leading blank lines in the prompt are printed once, not redrawn:
+    # the redraw moves the cursor up by the number of rows it drew.
+    lead = len(prompt) - len(prompt.lstrip("\n"))
+    if lead:
+        sys.stdout.write("\n" * lead)
+        prompt = prompt.lstrip("\n")
 
     def clear():
         nonlocal drawn
@@ -294,7 +311,7 @@ def menu(prompt, options, default=None, nav=True, details=None):
             clear()
             sys.stdout.write("\n".join(out) + "\n")
             sys.stdout.flush()
-            drawn = len(out)
+            drawn = _rows(out)
 
             key = _read_key(raw.fd)
             if key in ("up", "down") and shown:
