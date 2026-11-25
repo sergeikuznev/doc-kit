@@ -1,15 +1,19 @@
 # doc-kit
 
-**Fill-in-the-blanks engineering documentation for hardware and robotics projects.**
+**An event-driven, docs-as-code engineering record with built-in traceability,
+for hardware and robotics projects.**
+
+doc-kit captures ideas, decisions, requirements, failure modes and test evidence
+at the moment they happen, links them together, and reports what is verified,
+failing or not yet covered. It is a lightweight version of the systems
+engineering loop used in aerospace: requirements, design decisions, FMEA and
+verification, scaled down for one person or a small team.
 
 You run `doc`, it asks what just happened, then asks the right questions and writes
-your answers into the right file with the right structure: decision records,
-requirements with IDs, a fault table (FMEA), procedures, a pre-power checklist,
-a weekly devlog, and GitHub issues.
-
-It is a single Python file with no dependencies, and it never writes anything you
-did not say. No AI, no guessing: you supply every word, it handles the format,
-the numbering and the cross-links.
+your answers into the right file with the right structure. It is a single Python
+file with no dependencies, and it never writes anything you did not say. No AI,
+no guessing: you supply every word, it handles the format, the numbering and the
+cross-links.
 
 ```
 $ doc
@@ -38,12 +42,42 @@ Write this?
 Written: docs/requirements.md
 ```
 
+## The loop: Decide, Verify, Learn
+
+Like FDIR (Fault Detection, Isolation and Recovery) names a loop of functions,
+doc-kit implements a loop. Each stage has a trigger in your work and a command:
+
+| Stage | What it does | Trigger | Command |
+|---|---|---|---|
+| **Capture** | Record an idea or problem before it is lost | You notice something | `doc idea`, `doc bug` |
+| **Decide** | Choose between options and record why | You compare alternatives | `doc decision` |
+| **Commit** | Turn a choice into a measurable promise | You decide to build it | `doc req` |
+| **Anticipate** | Plan how failures are detected and handled | You ask "what if it breaks?" | `doc fault` |
+| **Verify** | Prove the promise with evidence | You test it | `doc test` |
+| **Learn** | Turn incidents and experience into rules | Something breaks, or the week ends | `doc check`, `doc procedure`, `doc log` |
+
+Around the loop: **Trace** (`doc report` shows how faults, requirements, evidence
+and issues connect) and **Revise** (`doc update` changes earlier entries, and
+requirement changes are logged).
+
+The core is **Decide, Verify, Learn**: reasons are recorded, claims are proven,
+and mistakes turn into rules. That is what separates it from a notes folder.
+
 ## Why
 
 Documentation written upfront becomes fiction; documentation written at the end
 forgets *why* things were done. The habit that works is writing a little at the
 moment something happens: a decision, a test, a near miss. `doc` makes that a
 30-second job, so it actually happens.
+
+It builds on three established practices:
+
+- **Docs-as-code:** documentation in plain text, in the repo, versioned with git
+  and reviewed like code.
+- **Requirements traceability:** every requirement linked to its rationale, the
+  failures it covers, and the evidence that it is met.
+- **Lightweight systems engineering:** the cycle of requirements, design
+  decisions, failure analysis and verification, without the heavyweight tools.
 
 See [docs/GUIDE.md](docs/GUIDE.md) for the method behind it, and
 [examples/](examples/) for what the output looks like.
