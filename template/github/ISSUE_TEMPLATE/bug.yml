@@ -1,0 +1,44 @@
+name: Bug / fault
+description: Something broke or behaved wrong
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened
+      placeholder: Robot kept driving for 10 s after the radio link was lost.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should have happened
+      placeholder: Stop within 1 s after 5 s without heartbeat (e.g. COMM-004).
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Power on, manual radio mode
+        2. Drive forward
+        3. Turn off the base station radio
+  - type: dropdown
+    id: subsystem
+    attributes:
+      label: Subsystem
+      options: [comms, power, motors, sensors, software, mech, fdir, other]
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: Firmware version / commit
+      placeholder: fw-v0.2.0 or a1b2c3d
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs, photos, videos
+      description: rosbag file name, serial output, or drag files here.

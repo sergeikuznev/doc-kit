@@ -1,0 +1,39 @@
+name: Idea
+description: Something the robot might do or have
+title: "[Idea] "
+labels: ["idea"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What
+      description: The idea in one or two sentences.
+      placeholder: Robot and base station exchange a heartbeat. No reply for 5 s -> stop motors.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: What problem it solves or what it enables.
+      placeholder: If the link drops in manual mode, the robot keeps driving.
+    validations:
+      required: true
+  - type: dropdown
+    id: subsystem
+    attributes:
+      label: Subsystem
+      options: [comms, power, motors, sensors, software, mech, fdir, other]
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options: ["must", "should", "could"]
+      default: 1
+  - type: textarea
+    id: questions
+    attributes:
+      label: Open questions
+      placeholder: "- 1-byte ping or full status packet?"
