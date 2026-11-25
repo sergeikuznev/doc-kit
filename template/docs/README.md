@@ -14,6 +14,7 @@ Documents are written **when something happens**, not filled in upfront.
 | You assemble something with steps | A procedure | `doc procedure` | `procedures/` |
 | Something breaks or nearly breaks | A checklist line | `doc check` | `procedures/pre_power_checklist.md` |
 | You test a requirement | Result and evidence | `doc test ID` | `requirements.md` |
+| Something written earlier changed | The updated status, text or link | `doc update` | where it was written |
 | End of the week | A devlog entry | `doc log` | `devlog.md` |
 
 ## Naming
@@ -52,6 +53,7 @@ doc fault        # new row in fdir.md
 doc procedure    # new procedure file
 doc check        # new pre-power checklist line, with history
 doc log          # devlog entry for this week
+doc update [ID]  # change a status, text or link (e.g. Proposed -> Accepted)
 doc tidy         # regroup requirements.md by subsystem
 doc install-hook # after commits with "fixes #N", ask if a document is needed
 ```

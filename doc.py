@@ -21,6 +21,7 @@ Then, from anywhere inside that project:
     python3 tools/doc.py procedure    new procedure
     python3 tools/doc.py check        new pre-power checklist line
     python3 tools/doc.py log          devlog entry for this week
+    python3 tools/doc.py update [ID]  change a status, text or link written earlier
     python3 tools/doc.py tidy         regroup requirements.md by subsystem
     python3 tools/doc.py install-hook ask after commits that close an issue
 
@@ -610,6 +611,15 @@ def cmd_test(rid=None):
 
 # ----------------------------------------------------------------- fault table
 
+def check_req_link(rid):
+    """Warn if a fault row links to a requirement that is missing or deleted."""
+    status = {r[0]: (r[4] if len(r) > 4 else "") for r in table_rows(p("docs", "requirements.md"), REQ_HEADER)}
+    rid = rid.upper()
+    if rid not in status:
+        warn(f"{rid} is not in requirements.md yet. Add it with: doc req")
+    elif status[rid] == "Deleted":
+        warn(f"{rid} is marked Deleted. Link a requirement that is still active.")
+
 def cmd_fault():
     path = p("docs", "fdir.md")
     rows = table_rows(path, FDIR_HEADER)
@@ -623,14 +633,210 @@ def cmd_fault():
     sev = ask_choice("Severity", SEVERITY)
     req = ask("Requirement that covers it (ID)", required=False, hint="Enter to skip")
     if req:
-        known = {r[0] for r in table_rows(p("docs", "requirements.md"), REQ_HEADER)}
-        if req.upper() not in known:
-            warn(f"{req.upper()} is not in requirements.md yet. Add it with: doc req")
+        check_req_link(req)
     cells = [fid] + [cell(x) for x in (failure, effect, detection, response, recovery)] + [sev, req.upper()]
     base = read(path) if os.path.exists(path) else "# Fault table (FDIR / FMEA)\n"
     if not confirm_write(path, join_row(cells)):
         return info("Nothing written.")
     write(path, insert_row(base, FDIR_HEADER, cells))
+
+
+# ----------------------------------------------------------------- update
+
+CHANGE_HEADER = "| Date | ID | Change |"
+DEC_STATUSES = [("Proposed", "Proposed"), ("Accepted", "Accepted"),
+                ("Rejected", "Rejected"), ("Superseded", "Superseded by a newer decision")]
+REQ_STATUSES = [("Draft", "Draft"), ("Approved", "Approved"), ("Verified", "Verified"),
+                ("Failed", "Failed"), ("Deleted", "Deleted (dropped; the ID is never reused)")]
+
+def _short(text, n=60):
+    text = text.replace("\\|", "|")
+    return text if len(text) <= n else text[:n - 3] + "..."
+
+def _replace_row(lines, header, rid, new_cells):
+    for h, e in find_tables(lines, header):
+        for i in range(h + 2, e):
+            if split_row(lines[i])[0] == rid:
+                lines[i] = join_row(new_cells)
+                return True
+    return False
+
+def _decisions():
+    folder = p("docs", "decisions")
+    out = []
+    if os.path.isdir(folder):
+        for f in sorted(os.listdir(folder)):
+            m = re.match(r"(\d{3})-", f)
+            if m and int(m.group(1)) > 0:
+                text = read(os.path.join(folder, f))
+                title = re.search(r"^#\s*\d+\.\s*(.*)$", text, re.M)
+                status = re.search(r"\*\*Status:\*\*\s*(.*)$", text, re.M)
+                out.append((m.group(1), f, title.group(1) if title else f,
+                            status.group(1).strip() if status else ""))
+    return out
+
+def update_decision(num=None):
+    decs = _decisions()
+    if not decs:
+        sys.exit("No decision records yet.")
+    if not num:
+        print(c("\nDecisions:", "1"))
+        for n, _, title, status in decs:
+            print(f"  {n}  {status:<22} {_short(title)}")
+    while True:
+        num = (num or ask("Which decision number?")).zfill(3)
+        match = [d for d in decs if d[0] == num]
+        if match:
+            break
+        warn(f"No decision {num}.")
+        num = None
+    n, fname, title, status = match[0]
+    path = p("docs", "decisions", fname)
+    print(c(f"\n{n}. {title}", "1;34"))
+    field = ask_choice("Which field?", [("status", f"Status [{status}]"), ("related", "Related issues / requirement IDs")])
+    text = read(path)
+    if field == "status":
+        new = ask_choice("New status", DEC_STATUSES)
+        if new == "Superseded":
+            by = ask("Superseded by decision number")
+            new = f"Superseded by {by.zfill(3)}"
+        text = re.sub(r"(\*\*Status:\*\*)[^\n]*", lambda m: f"{m.group(1)} {new}", text, count=1)
+        preview = f"Status: {status}  ->  {new}"
+    else:
+        old = re.search(r"\*\*Related:\*\*\s*(.*)$", text, re.M)
+        old_val = old.group(1).strip() if old else ""
+        new = ask("Related issues / requirement IDs", default=old_val or None,
+                  hint="Replaces the current value. e.g. #3, NAV-001")
+        if old:
+            text = re.sub(r"(\*\*Related:\*\*)[^\n]*", lambda m: f"{m.group(1)} {new}", text, count=1)
+        else:
+            text = re.sub(r"(- \*\*Status:\*\*[^\n]*\n)", lambda m: m.group(1) + f"- **Related:** {new}\n", text, count=1)
+        preview = f"Related: {old_val or '(none)'}  ->  {new}"
+    if not confirm_write(path, preview):
+        return info("Nothing written.")
+    write(path, text)
+
+def update_requirement(rid=None):
+    path = p("docs", "requirements.md")
+    rows = table_rows(path, REQ_HEADER)
+    if not rows:
+        sys.exit("No requirements yet.")
+    if not rid:
+        print(c("\nRequirements:", "1"))
+        for r in rows:
+            print(f"  {r[0]:<10} {(r[4] if len(r) > 4 else ''):<9} {_short(r[1])}")
+    while True:
+        rid = (rid or ask("Which ID?")).upper()
+        match = [r for r in rows if r[0] == rid]
+        if match:
+            break
+        warn(f"{rid} not found.")
+        rid = None
+    row = match[0] + [""] * (6 - len(match[0]))
+    print(c(f"\n{rid}: {row[1]}", "1;34"))
+    field = ask_choice("Which field?", [("status", f"Status [{row[4]}]"), ("text", "Requirement text"),
+                                        ("rationale", "Rationale"), ("method", f"Verification method [{row[3]}]")])
+    new = list(row)
+    if field == "status":
+        val = ask_choice("New status", REQ_STATUSES)
+        new[4] = val
+        change = f"Status: {row[4]} -> {val}"
+        if val == "Deleted":
+            why = ask("Why is it dropped?")
+            change += f" ({why})"
+        elif val in ("Verified", "Failed"):
+            info("  Tip: doc test records the result together with its evidence.")
+    elif field == "text":
+        while True:
+            val = ask("Requirement", default=row[1].replace("\\|", "|"),
+                      hint='Press Enter to keep it. Form: "The <thing> shall <do what> <measurable limit>."')
+            problems = []
+            if "shall" not in val.lower():
+                problems.append('no "shall"')
+            if not re.search(r"\d", val):
+                problems.append("no number to measure")
+            if not problems or yes(f"Warning: {', '.join(problems)}. Keep it anyway?"):
+                break
+        new[1] = cell(val)
+        change = f'Requirement: was "{row[1]}"'
+        if row[4] == "Verified":
+            warn("This requirement was Verified. Changing it usually means it must be tested again.")
+            if yes("Set its status back to Approved?", default=True):
+                new[4] = "Approved"
+                change += "; status Verified -> Approved (retest needed)"
+    elif field == "rationale":
+        val = ask("Rationale", default=row[2].replace("\\|", "|"))
+        new[2] = cell(val)
+        change = f'Rationale: was "{row[2]}"'
+    else:
+        val = ask_choice("Verification method", METHODS, default=row[3] or "T")
+        new[3] = val
+        change = f"Method: {row[3]} -> {val}"
+    if new == row:
+        return info("No change.")
+    lines = load_requirements(path).splitlines()
+    _replace_row(lines, REQ_HEADER, rid, new)
+    text = "\n".join(lines) + "\n"
+    if not any(l.strip() == "## Change log" for l in lines):
+        text = text.rstrip() + "\n\n## Change log\n\n" + CHANGE_HEADER + "\n|---|---|---|\n"
+    text = insert_row(text, CHANGE_HEADER, [today(), rid, cell(change)])
+    if not confirm_write(path, f"before: {join_row(row)}\nafter:  {join_row(new)}\nlog:    {change}"):
+        return info("Nothing written.")
+    write(path, text)
+
+def update_fault(fid=None):
+    path = p("docs", "fdir.md")
+    rows = table_rows(path, FDIR_HEADER)
+    if not rows:
+        sys.exit("No fault table rows yet.")
+    if not fid:
+        print(c("\nFailure modes:", "1"))
+        for r in rows:
+            print(f"  {r[0]:<8} sev {r[6] if len(r) > 6 else '?'}  req {(r[7] if len(r) > 7 else '') or '-':<9} {_short(r[1])}")
+    while True:
+        fid = (fid or ask("Which ID?")).upper()
+        match = [r for r in rows if r[0] == fid]
+        if match:
+            break
+        warn(f"{fid} not found.")
+        fid = None
+    row = match[0] + [""] * (8 - len(match[0]))
+    print(c(f"\n{fid}: {row[1]}", "1;34"))
+    names = ["Failure", "Effect", "Detection", "Response", "Recovery", "Severity", "Requirement"]
+    opts = [(str(i), f"{n} [{_short(row[i], 40) or '-'}]") for i, n in enumerate(names, 1)]
+    col = int(ask_choice("Which field?", opts))
+    new = list(row)
+    if col == 6:
+        new[6] = ask_choice("Severity", SEVERITY)
+    elif col == 7:
+        val = ask("Requirement that covers it (ID)", required=False, default=row[7] or None)
+        if val:
+            check_req_link(val)
+        new[7] = val.upper()
+    else:
+        new[col] = cell(ask(names[col - 1], default=row[col].replace("\\|", "|") or None))
+    if new == row:
+        return info("No change.")
+    lines = read(path).splitlines()
+    _replace_row(lines, FDIR_HEADER, fid, new)
+    if not confirm_write(path, f"before: {join_row(row)}\nafter:  {join_row(new)}"):
+        return info("Nothing written.")
+    write(path, "\n".join(lines) + "\n")
+
+def cmd_update(target=None):
+    """Change something written earlier: a status, a text, a link."""
+    if target:
+        t = target.strip()
+        if re.fullmatch(r"\d{1,3}", t):
+            return update_decision(t)
+        if re.fullmatch(r"FM-\d+", t, re.I):
+            return update_fault(t.upper())
+        return update_requirement(t.upper())
+    kind = ask_choice("\nWhat do you want to update?", [
+        ("decision", "Decision record (status, related)"),
+        ("req", "Requirement (status, text, rationale, method)"),
+        ("fault", "Fault table row (any column, e.g. the linked requirement)")])
+    {"decision": update_decision, "req": update_requirement, "fault": update_fault}[kind]()
 
 
 # ----------------------------------------------------------------- procedure
@@ -764,6 +970,7 @@ MENU = [
     ("test", "I tested a requirement"),
     ("procedure", "I assembled / set up something with steps"),
     ("check", "Something broke or nearly broke"),
+    ("update", "Something I wrote earlier changed"),
     ("log", "End of the week"),
 ]
 
@@ -870,7 +1077,7 @@ def cmd_bug():
 
 COMMANDS = {"decision": cmd_decision, "req": cmd_req, "test": cmd_test, "fault": cmd_fault,
             "procedure": cmd_procedure, "check": cmd_check, "log": cmd_log, "idea": cmd_idea,
-            "bug": cmd_bug}
+            "bug": cmd_bug, "update": cmd_update}
 
 def cmd_menu():
     key = ask_choice("What just happened?", [(k, v) for k, v in MENU])
@@ -992,6 +1199,8 @@ def main():
             print(__doc__)
         elif args[0] == "test":
             run_with_back(lambda: cmd_test(args[1] if len(args) > 1 else None))
+        elif args[0] == "update":
+            run_with_back(lambda: cmd_update(args[1] if len(args) > 1 else None))
         elif args[0] == "hook":
             cmd_hook()
         elif args[0] == "tidy":

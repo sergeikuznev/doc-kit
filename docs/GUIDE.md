@@ -71,6 +71,9 @@ A promise with a number in it, written so you can check later whether you kept i
 - **Evidence**: what you measured and where the proof is (video, log, plot).
   A requirement with no evidence is a promise not yet proven.
 - IDs use a subsystem prefix and are never reused or renumbered.
+- Requirements change as you learn. Change them openly: every change to a status
+  or wording is recorded in the change log at the bottom of `requirements.md`
+  (`doc update` does this), so you can always see why a target moved.
 
 ### Fault table (FDIR / FMEA)
 One row per thing that can go wrong.

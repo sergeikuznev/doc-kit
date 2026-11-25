@@ -22,7 +22,8 @@ What just happened?
   6) test       I tested a requirement
   7) procedure  I assembled / set up something with steps
   8) check      Something broke or nearly broke
-  9) log        End of the week
+  9) update     Something I wrote earlier changed
+ 10) log        End of the week
   choose: 4
 
 Subsystem
@@ -82,6 +83,7 @@ existing files) and prints the next steps:
 | `doc procedure` | Numbered procedure | `docs/procedures/<title>.md` |
 | `doc check` | Checklist line plus a dated reason | `docs/procedures/pre_power_checklist.md` |
 | `doc log` | This week's devlog entry (adds to it if it exists) | `docs/devlog.md` |
+| `doc update [ID]` | Change a status, text or link written earlier; requirement changes are logged | the document that holds it |
 | `doc tidy` | Regroups requirements by subsystem | `docs/requirements.md` |
 | `doc install-hook` | After commits with `fixes #N`, asks if a document is needed | `.git/hooks/post-commit` |
 
