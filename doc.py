@@ -302,13 +302,16 @@ def menu(prompt, options, default=None, nav=True):
                 flt += key
 
 def jump_picker():
-    """Menu of the answers given so far. Returns an index, or None to stay."""
-    if not ANSWERS:
+    """Menu of all answers (including ones still waiting to come back).
+    Returns an index into timeline(), or None to stay."""
+    items, here = timeline()
+    if not items:
         warn("Nothing answered yet.")
         return None
     opts = [("stay", "Stay where I am")]
-    for i, (_, prompt, val) in enumerate(ANSWERS, 1):
-        opts.append((str(i), f"{prompt}: {_show(val)}"))
+    for i, (_, prompt, val) in enumerate(items, 1):
+        mark = "   ← editing now" if i - 1 == here else ""
+        opts.append((str(i), f"{prompt}: {_show(val)}{mark}"))
     pick = menu(c("Change which answer?", "35"), opts, nav=False)
     return None if pick == "stay" else int(pick) - 1
 
@@ -333,7 +336,13 @@ class Jump(Exception):
     def __init__(self, index):
         self.index = index
 
-ASK = object()     # marker in REPLAY: ask this question interactively
+class _Ask:
+    """Marker in REPLAY: ask this question interactively. Carries the old
+    answer so it can be pre-filled and is never lost by a second jump."""
+    def __init__(self, item=None):
+        self.item = item
+
+CURRENT = None     # old answer of the question being re-asked right now
 ANSWERS = []       # (key, prompt, value) for answers given in the current run
 REPLAY = []        # (key, prompt, value) or ASK, filled in automatically
 PREFILL = {}       # key -> previous answer, offered for editing after < or <<
@@ -363,16 +372,20 @@ def _show(val):
 
 def _replayed(prompt):
     """If an answer is queued for this question, use it and echo it."""
+    global CURRENT
     if not REPLAY:
         return False, None
-    if REPLAY[0] is ASK:
-        REPLAY.pop(0)
+    if isinstance(REPLAY[0], _Ask):
+        marker = REPLAY.pop(0)
+        CURRENT = marker.item
+        if marker.item is not None:
+            PREFILL[_key(prompt)] = marker.item[2]
         return False, None
     key = _key(prompt)
     # The saved answer for this question may be further along if an edit
     # removed some questions (e.g. one option fewer): skip to it.
     for i, item in enumerate(REPLAY):
-        if item is not ASK and item[0] == key:
+        if not isinstance(item, _Ask) and item[0] == key:
             del REPLAY[:i + 1]
             ANSWERS.append(item)
             info(f"  {prompt.strip() or 'choice'}: {_show(item[2])}")
@@ -382,8 +395,22 @@ def _replayed(prompt):
     return False, None
 
 def _record(prompt, val):
+    global CURRENT
     ANSWERS.append((_key(prompt), prompt.strip() or "choice", val))
+    CURRENT = None
     return val
+
+def timeline():
+    """Every answer of this run in order: answered so far, the one being
+    re-asked now (if we jumped to it), and the ones still waiting to replay.
+    Returns (items, index of the question being asked now or None)."""
+    items = list(ANSWERS)
+    here = None
+    if CURRENT is not None:
+        here = len(items)
+        items.append(CURRENT)
+    items += [r for r in REPLAY if not isinstance(r, _Ask)]
+    return items, here
 
 def _special(ans):
     """Handle < and <<. Returns True if the caller should re-ask the question."""
@@ -395,11 +422,12 @@ def _special(ans):
             return True
         raise Jump(pick)
     if ans == JUMP:
-        if not ANSWERS:
+        items, _ = timeline()
+        if not items:
             warn("Nothing answered yet.")
             return True
         print(c("\nYour answers so far:", "1;35"))
-        for i, (_, prompt, val) in enumerate(ANSWERS, 1):
+        for i, (_, prompt, val) in enumerate(items, 1):
             text = _show(val)
             print(f"  {i:>2}) {prompt}: {text if len(text) <= 70 else text[:67] + '...'}")
         while True:
@@ -407,7 +435,7 @@ def _special(ans):
             if not pick:
                 print()
                 return True
-            if pick.isdigit() and 1 <= int(pick) <= len(ANSWERS):
+            if pick.isdigit() and 1 <= int(pick) <= len(items):
                 raise Jump(int(pick) - 1)
             warn("Type a number from the list, or press Enter.")
     return False
@@ -427,11 +455,15 @@ def ask(prompt, required=True, default=None, hint=None):
         if hint:
             info("  " + hint)
         if pre:
-            info("  your previous answer is filled in: edit it, or Enter to keep it")
+            info("  your previous answer is filled in: edit it, or Enter to keep it (<< at the end jumps)")
         while True:
             ans = _input("> ", pre).strip()
+            typed = ans
             pre = None
+            if ans.endswith(JUMP) and ans != JUMP:      # "some text<<": jump, keep the text
+                typed, ans = ans[:-len(JUMP)].rstrip(), JUMP
             if _special(ans):
+                pre = typed if typed not in (JUMP, BACK) else None   # back after "Stay"
                 break
             if not ans and default is not None:
                 return _record(prompt, default)
@@ -459,8 +491,13 @@ def ask_lines(prompt, required=True, hint=None):
             if line.strip() == BACK and lines:
                 info(f"  removed: {lines.pop()}")
                 continue
+            kept = None
+            if line.rstrip().endswith(JUMP) and line.strip() != JUMP:   # "text<<": jump, keep the text
+                kept, line = line.rstrip()[:-len(JUMP)].rstrip(), JUMP
             if line.strip() in (BACK, JUMP):
                 if _special(line.strip()):
+                    # "Stay": start the list again with everything typed so far filled in
+                    pre = lines + ([kept] if kept else []) + pre
                     restart = True
                     break
             if not line:
@@ -519,31 +556,33 @@ def yes(prompt, default=False):
 
 def run_with_back(fn):
     """Run a command; on Back or Jump, restart it and replay the kept answers."""
-    global ANSWERS, REPLAY
+    global ANSWERS, REPLAY, CURRENT
     PREFILL.clear()
     keep = []
     first = True
     while True:
         ANSWERS, REPLAY = [], list(keep)
+        CURRENT = None
         if first:
             info("Enter confirms · < back one step · << jump to any answer · Ctrl+C cancels")
             first = False
         try:
             return fn()
         except Back:
+            items, here = timeline()
+            now = here if here is not None else len(ANSWERS)    # position of the current question
             PREFILL.clear()
-            if not ANSWERS:
+            if now == 0:
                 warn("Already at the first question.")
-                keep = []
+                keep = ([_Ask(items[0])] if here == 0 else []) + items[1 if here == 0 else 0:]
             else:
-                keep = ANSWERS[:-1]
-                PREFILL[ANSWERS[-1][0]] = ANSWERS[-1][2]
+                keep = items[:now - 1] + [_Ask(items[now - 1])] + items[now:]
             print(c("\n<< back", "35"))
         except Jump as j:
+            items, _ = timeline()
             PREFILL.clear()
-            PREFILL[ANSWERS[j.index][0]] = ANSWERS[j.index][2]
-            keep = ANSWERS[:j.index] + [ASK] + ANSWERS[j.index + 1:]
-            print(c(f"\n<< jumping to: {ANSWERS[j.index][1]}", "35"))
+            keep = items[:j.index] + [_Ask(items[j.index])] + items[j.index + 1:]
+            print(c(f"\n<< jumping to: {items[j.index][1]}", "35"))
 
 def preview(title, text):
     room = _width() - 4
