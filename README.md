@@ -92,6 +92,9 @@ While answering:
   (e.g. `nav` jumps to NAV). You only type free text.
 - `<` goes back one question (inside a list, it removes the last line)
 - `<<` opens a list of all your answers so far; pick one to change it, and the rest are kept
+- After `<` or `<<` your previous answer comes back **filled in**, so you fix a typo
+  instead of retyping. Lists come back line by line. Editing keys: ←→, Option+←→
+  (word), Home/End or Ctrl+A/Ctrl+E, Ctrl+U (clear line), Ctrl+W (delete word)
 - At the end you choose **Write it**, **Change an answer** or **Cancel**; nothing is written before that
 - Ctrl+C cancels at any point
 

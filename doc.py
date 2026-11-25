@@ -42,9 +42,9 @@ import subprocess
 import sys
 
 try:
-    import readline  # noqa: F401  (arrow keys and history in input())
+    import readline as _rl  # line editing, history, and pre-filled answers
 except ImportError:
-    pass
+    _rl = None
 
 DEFAULT_PREFIXES = [
     ("SYS", "Whole system"),
@@ -116,8 +116,14 @@ class _Raw:
         sys.stdout.flush()
 
 _ESC_KEYS = {b"[A": "up", b"OA": "up", b"[B": "down", b"OB": "down",
+             b"[C": "right", b"OC": "right", b"[D": "left", b"OD": "left",
              b"[5~": "pgup", b"[6~": "pgdn", b"[H": "home", b"OH": "home",
-             b"[F": "end", b"OF": "end", b"[1~": "home", b"[4~": "end"}
+             b"[F": "end", b"OF": "end", b"[1~": "home", b"[4~": "end", b"[3~": "delete",
+             b"b": "wordleft", b"f": "wordright", b"[1;3D": "wordleft", b"[1;3C": "wordright",
+             b"[1;5D": "wordleft", b"[1;5C": "wordright", b"[1;9D": "wordleft", b"[1;9C": "wordright",
+             b"[1;2H": "home", b"[1;2F": "end"}
+_CTRL_KEYS = {b"\x01": "home", b"\x05": "end", b"\x02": "left", b"\x06": "right",
+              b"\x15": "killline", b"\x0b": "killend", b"\x17": "killword"}
 
 def _read_key(fd):
     b = os.read(fd, 1)
@@ -136,6 +142,8 @@ def _read_key(fd):
         raise KeyboardInterrupt
     if b == b"\x04":
         raise EOFError
+    if b in _CTRL_KEYS:
+        return _CTRL_KEYS[b]
     if b[0] >= 0xC0:                      # multi-byte UTF-8 character
         extra = 1 if b[0] < 0xE0 else 2 if b[0] < 0xF0 else 3
         b += os.read(fd, extra)
@@ -150,6 +158,76 @@ def _width():
 
 def _fit(text, room):
     return text if len(text) <= room else text[:max(1, room - 1)] + "…"
+
+def _cells(text):
+    """Terminal columns a string takes (wide East Asian characters count as 2)."""
+    import unicodedata
+    return sum(2 if unicodedata.east_asian_width(ch) in "WF" else 1 for ch in text)
+
+def line_edit(prompt, text=""):
+    """A small line editor with the line pre-filled. Works the same with any
+    readline library (macOS libedit ignores pre-fill hooks)."""
+    buf, cur, row = list(text or ""), len(text or ""), 0
+    with _Raw() as raw:
+        sys.stdout.write("\x1b[?25h")             # keep the cursor visible while typing
+        while True:
+            width = _width()
+            line = prompt + "".join(buf)
+            total = _cells(line)
+            sys.stdout.write("\r" + (f"\x1b[{row}A" if row else "") + "\x1b[J" + line)
+            if total and total % width == 0:
+                sys.stdout.write(" \b")             # leave the pending-wrap state
+            end_row = total // width
+            target = _cells(prompt + "".join(buf[:cur]))
+            row, col = target // width, target % width
+            if end_row > row:
+                sys.stdout.write(f"\x1b[{end_row - row}A")
+            sys.stdout.write("\r" + (f"\x1b[{col}C" if col else ""))
+            sys.stdout.flush()
+
+            key = _read_key(raw.fd)
+            if key == "enter":
+                down = end_row - row
+                sys.stdout.write((f"\x1b[{down}B" if down else "") + "\r\n")
+                sys.stdout.flush()
+                return "".join(buf)
+            if key == "left":
+                cur = max(0, cur - 1)
+            elif key == "right":
+                cur = min(len(buf), cur + 1)
+            elif key == "home":
+                cur = 0
+            elif key == "end":
+                cur = len(buf)
+            elif key == "backspace" and cur:
+                del buf[cur - 1]
+                cur -= 1
+            elif key == "delete" and cur < len(buf):
+                del buf[cur]
+            elif key == "killline":
+                buf, cur = [], 0
+            elif key == "killend":
+                del buf[cur:]
+            elif key in ("wordleft", "killword"):
+                j = cur
+                while j and buf[j - 1] == " ":
+                    j -= 1
+                while j and buf[j - 1] != " ":
+                    j -= 1
+                if key == "killword":
+                    del buf[j:cur]
+                cur = j
+            elif key == "wordright":
+                j = cur
+                while j < len(buf) and buf[j] == " ":
+                    j += 1
+                while j < len(buf) and buf[j] != " ":
+                    j += 1
+                cur = j
+            elif key and len(key) == 1:
+                buf.insert(cur, key)
+                cur += 1
+
 
 def menu(prompt, options, default=None, nav=True):
     """Arrow-key menu. options: list of (key, label). Returns the chosen key.
@@ -258,6 +336,17 @@ class Jump(Exception):
 ASK = object()     # marker in REPLAY: ask this question interactively
 ANSWERS = []       # (key, prompt, value) for answers given in the current run
 REPLAY = []        # (key, prompt, value) or ASK, filled in automatically
+PREFILL = {}       # key -> previous answer, offered for editing after < or <<
+
+def _prefill(prompt):
+    """The previous answer to this question, if we just went back/jumped to it."""
+    return PREFILL.pop(_key(prompt), None)
+
+def _input(prompt, text=None):
+    """Read one line. In a terminal: doc's own editor, pre-filled with text."""
+    if interactive():
+        return line_edit(prompt, text or "")
+    return input(prompt)
 
 def _key(prompt):
     """Question identity, ignoring names in quotes ("Pros of 'X'") and spacing."""
@@ -331,12 +420,17 @@ def ask(prompt, required=True, default=None, hint=None):
     # Question on its own line, plain "> " for input: colour codes inside
     # input() confuse line editing on macOS and garble the prompt.
     suffix = f" [{default}]" if default else ""
+    pre = _prefill(prompt)
+    pre = pre if isinstance(pre, str) and pre else None
     while True:
         print(c(prompt + suffix, "1"))
         if hint:
             info("  " + hint)
+        if pre:
+            info("  your previous answer is filled in: edit it, or Enter to keep it")
         while True:
-            ans = input("> ").strip()
+            ans = _input("> ", pre).strip()
+            pre = None
             if _special(ans):
                 break
             if not ans and default is not None:
@@ -351,13 +445,17 @@ def ask_lines(prompt, required=True, hint=None):
     done, val = _replayed(prompt)
     if done:
         return val
+    pre = _prefill(prompt)
+    pre = list(pre) if isinstance(pre, list) and pre else []
     while True:
         print(c(prompt, "1"))
         info("  " + (hint + " " if hint else "") + "(one per line, empty line to finish, < to undo)")
+        if pre:
+            info("  your previous lines come back one at a time: Enter keeps, edit to change, clear a line to stop there")
         lines = []
         restart = False
         while True:
-            line = input("  > ").rstrip()
+            line = _input("  > ", pre.pop(0) if pre else None).rstrip()
             if line.strip() == BACK and lines:
                 info(f"  removed: {lines.pop()}")
                 continue
@@ -379,6 +477,9 @@ def ask_choice(prompt, options, default=None):
     done, val = _replayed(prompt)
     if done:
         return val
+    prev = _prefill(prompt)
+    if prev in [k for k, _ in options]:
+        default = prev
     if interactive():
         return _record(prompt, menu(prompt, options, default))
     keys = [k.lower() for k, _ in options]
@@ -403,6 +504,9 @@ def yes(prompt, default=False):
     done, val = _replayed(prompt)
     if done:
         return val
+    prev = _prefill(prompt)
+    if isinstance(prev, bool):
+        default = prev
     if interactive():
         pick = menu(prompt, [("yes", "Yes"), ("no", "No")], "yes" if default else "no")
         return _record(prompt, pick == "yes")
@@ -416,6 +520,7 @@ def yes(prompt, default=False):
 def run_with_back(fn):
     """Run a command; on Back or Jump, restart it and replay the kept answers."""
     global ANSWERS, REPLAY
+    PREFILL.clear()
     keep = []
     first = True
     while True:
@@ -426,13 +531,17 @@ def run_with_back(fn):
         try:
             return fn()
         except Back:
+            PREFILL.clear()
             if not ANSWERS:
                 warn("Already at the first question.")
                 keep = []
             else:
                 keep = ANSWERS[:-1]
+                PREFILL[ANSWERS[-1][0]] = ANSWERS[-1][2]
             print(c("\n<< back", "35"))
         except Jump as j:
+            PREFILL.clear()
+            PREFILL[ANSWERS[j.index][0]] = ANSWERS[j.index][2]
             keep = ANSWERS[:j.index] + [ASK] + ANSWERS[j.index + 1:]
             print(c(f"\n<< jumping to: {ANSWERS[j.index][1]}", "35"))
 
