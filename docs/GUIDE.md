@@ -3,6 +3,9 @@
 A short guide to documenting a hardware project so it stays understandable to
 you in six months, to teammates, and to anyone reviewing your work.
 
+For the full explanation of each record, with weak and strong examples and how
+they connect, see the [handbook](HANDBOOK.md).
+
 ## 1. The one rule
 
 **Write a document at the moment something happens in your work.**

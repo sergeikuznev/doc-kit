@@ -79,8 +79,11 @@ It builds on three established practices:
 - **Lightweight systems engineering:** the cycle of requirements, design
   decisions, failure analysis and verification, without the heavyweight tools.
 
-See [docs/GUIDE.md](docs/GUIDE.md) for the method behind it, and
-[examples/](examples/) for what the output looks like.
+**New to this? Read the [handbook](docs/HANDBOOK.md).** It explains each record
+(issue, decision, requirement, fault, evidence, procedure, checklist, devlog):
+when to write one, what a good one looks like next to a weak one, and how they
+connect, with worked examples. [docs/GUIDE.md](docs/GUIDE.md) is the short
+version of the method, and [examples/](examples/) shows real output.
 
 ## Quick start
 

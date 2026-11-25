@@ -1,6 +1,8 @@
 # {{PROJECT}} documentation
 
 Documents are written **when something happens**, not filled in upfront.
+New to this? The [doc-kit handbook](https://github.com/sergeikuznev/doc-kit/blob/master/docs/HANDBOOK.md)
+explains each record, with good and weak examples.
 `tools/doc.py` asks the questions and writes the files; see the commands below.
 
 | When this happens | Write | Command | Where |

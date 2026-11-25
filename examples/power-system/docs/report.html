@@ -1,0 +1,78 @@
+<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>Example Robot status</title><style>
+:root{--bg:#fafafa;--surface:#ffffff;--ink:#0b0b0b;--muted:#5c5c5c;--hair:#e7e7e7;--ring:rgba(11,11,11,.10);
+--good:#0aac23;--good-ink:#006c10;--crit:#dc3c3d;--crit-ink:#b42324;--appr:#8a8a8a;--draft:#c9c9c9;--warn:#fbb315;--accent:#2a62d4}
+@media (prefers-color-scheme:dark){:root{--bg:#111;--surface:#191919;--ink:#f2f2f2;--muted:#a8a8a8;--hair:#303030;--ring:rgba(255,255,255,.10);
+--good:#0aac23;--good-ink:#53c556;--crit:#dc3c3d;--crit-ink:#ff7a7a;--appr:#8f8f8f;--draft:#4d4d4d;--warn:#fbb315;--accent:#7aa2ff}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+main{max-width:1080px;margin:0 auto;padding:32px 24px 64px}h1{font-size:26px;margin:0 0 4px}h2{font-size:18px;margin:40px 0 12px}
+h3{font-size:15px;margin:22px 0 8px}.sub{color:var(--muted);font-size:13px}a{color:var(--accent)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-top:24px}
+.tile{background:var(--surface);border:1px solid var(--ring);border-radius:10px;padding:14px 16px}
+.tile .n{font-size:28px;font-weight:600;font-variant-numeric:tabular-nums}.tile .l{color:var(--muted);font-size:13px}
+.card{background:var(--surface);border:1px solid var(--ring);border-radius:10px;padding:16px 18px}
+.bars{display:grid;grid-template-columns:minmax(140px,220px) 1fr 140px;gap:10px 14px;align-items:center}
+.bar{display:flex;gap:2px;height:14px}.bar span{display:block;height:100%}.bar span:first-child{border-radius:4px 0 0 4px}
+.bar span:last-child{border-radius:0 4px 4px 0}.bar span:only-child{border-radius:4px}.cnt{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;font-size:13px;color:var(--muted)}.sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--hair);vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:12.5px}td.id{white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
+.pill{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-size:12.5px;font-weight:600}
+.pill i{font-style:normal;display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;font-size:10.5px;color:#fff}
+.Verified{color:var(--good-ink)}.Verified i{background:var(--good)}.Failed{color:var(--crit-ink)}.Failed i{background:var(--crit)}
+.Approved{color:var(--muted)}.Approved i{background:var(--appr)}.Draft{color:var(--muted)}.Draft i{background:transparent;border:1.5px solid var(--appr);color:var(--appr)}
+.Deleted{color:var(--muted);text-decoration:line-through}.Deleted i{background:transparent;color:var(--muted)}
+.att li{margin:4px 0}.att .why{color:var(--muted)}.empty{color:var(--muted);font-style:italic}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:760px){.two{grid-template-columns:1fr}.bars{grid-template-columns:1fr}}
+.dev h3{margin-top:0}.dev ul{margin:4px 0 10px;padding-left:20px}code{font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
+footer{margin-top:48px;color:var(--muted);font-size:12px}
+</style></head><body><main>
+<h1>Example Robot</h1><div class='sub'>Status report generated 2026-11-26 00:04 · by doc-kit</div>
+<div class='tiles'><div class='tile'><div class='n'>2/2</div><div class='l'>requirements verified (100%)</div></div><div class='tile'><div class='n'>0</div><div class='l'>requirements failed</div></div><div class='tile'><div class='n'>0</div><div class='l'>requirements not yet tested</div></div><div class='tile'><div class='n'>1</div><div class='l'>failure modes without an active requirement</div></div><div class='tile'><div class='n'>0</div><div class='l'>decisions still proposed</div></div></div>
+<h2>Needs attention</h2><div class='card att'>
+<ul><li><b>FM-002</b> Voltage sag during motor stall resets the microcontroller <span class='why'>· no requirement promises this failure is handled</span></li></ul>
+</div>
+<h2>Requirements by subsystem</h2><div class='card'>
+<div class='bars'>
+<div><b>PWR</b> <span class='sub'>Power</span></div><div class='bar'><span style='flex:2;background:var(--good)' title='Verified: 2 of 2'></span></div><div class='cnt'>2 of 2 verified</div>
+</div><div class='legend'><span><span class='sw' style='background:var(--good)'></span>Verified</span><span><span class='sw' style='background:var(--crit)'></span>Failed</span><span><span class='sw' style='background:var(--appr)'></span>Approved</span><span><span class='sw' style='background:var(--draft)'></span>Draft</span></div>
+</div>
+<h3>PWR · Power</h3><div class='card'><table><tr><th>ID</th><th>Requirement</th><th>Status</th><th>Evidence</th></tr>
+<tr><td class='id'>PWR-001</td><td>The robot shall drive for at least 30 min on flat ground from one full battery charge.<div class='sub'>Test sessions need 30 min; this is why LiPo was chosen (decision 001)</div></td><td><span class="pill Verified"><i>✓</i>Verified</span></td><td>2026-11-26: Only 22 min; pack started at 3.85 V/cell (storage charge, not full). logs/2026-11-26_runtime_run1.mcap<br>2026-11-26: 34, 33 and 35 min over 3 runs from a full balance charge. media/2026-11-26_runtime_runs.mp4</td></tr>
+<tr><td class='id'>PWR-002</td><td>The robot shall stop all motors within 1 s when any battery cell drops below 3.3 V under load.<div class='sub'>Over-discharge permanently damages LiPo cells (decision 001)</div></td><td><span class="pill Verified"><i>✓</i>Verified</span></td><td>2026-11-26: Bench supply ramped down: motors stopped at 3.29 V/cell, 0.4 s after crossing. logs/2026-11-26_cutoff_bench.mcap</td></tr>
+</table></div>
+<h2>Failure modes and their requirements</h2><div class='card'>
+<table><tr><th>ID</th><th>Failure</th><th>Response</th><th>Sev</th><th>Requirement</th><th>Its status</th></tr>
+<tr><td class='id'>FM-001</td><td>Battery cell over-discharged</td><td>Stop motors, set low-battery flag</td><td>4</td><td class='id'>PWR-002</td><td><span class="pill Verified"><i>✓</i>Verified</span></td></tr>
+<tr><td class='id'>FM-002</td><td>Voltage sag during motor stall resets the microcontroller</td><td>Limit motor current when a stall is detected</td><td>3</td><td class='id'><span class='empty'>none</span></td><td></td></tr>
+</table>
+</div>
+<div class='two'><div><h2>Decisions</h2><div class='card'>
+<table><tr><th>#</th><th>Decision</th><th>Status</th></tr>
+<tr><td class='id'><a href='decisions/001-use-a-3s-lipo-battery-instead-of-nimh.md'>001</a></td><td>Use a 3S LiPo battery instead of NiMH</td><td>Accepted</td></tr>
+</table>
+</div></div><div><h2>Latest devlog</h2><div class='card dev'>
+<h3>Week of 2026-11-23</h3>
+<div><strong>Done</strong></div>
+<ul>
+<li>Chose 3S LiPo over NiMH (decision 001)</li>
+<li>PWR-001 runtime and PWR-002 cutoff verified</li>
+</ul>
+<div><strong>Broke / learned</strong></div>
+<ul>
+<li>First runtime test failed: pack was at storage charge; added to the checklist</li>
+<li>Raised the cutoff from 3.0 V to 3.3 V per cell for margin under load</li>
+</ul>
+<div><strong>Next</strong></div>
+<ul>
+<li>Add a requirement that covers FM-002 (brownout on stall)</li>
+</ul>
+<div><strong>Media</strong></div>
+<ul>
+<li>2026-11-26_runtime_runs.mp4</li>
+</ul>
+</div></div></div>
+<h2>Recent requirement changes</h2><div class='card'><table><tr><th>Date</th><th>ID</th><th>Change</th></tr>
+<tr><td class='id'>2026-11-26</td><td class='id'>PWR-002</td><td>Requirement: was &quot;The robot shall stop all motors within 1 s when any battery cell drops below 3.0 V.&quot;</td></tr>
+</table></div>
+<footer>Generated from the Markdown files in docs/ by <code>doc report</code>. Edit the files, not this page.</footer></main></body></html>
