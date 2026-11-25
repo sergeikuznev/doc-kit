@@ -343,6 +343,7 @@ class _Ask:
         self.item = item
 
 CURRENT = None     # old answer of the question being re-asked right now
+PENDING = None     # what was typed into the current question when < or << was used
 ANSWERS = []       # (key, prompt, value) for answers given in the current run
 REPLAY = []        # (key, prompt, value) or ASK, filled in automatically
 PREFILL = {}       # key -> previous answer, offered for editing after < or <<
@@ -395,10 +396,16 @@ def _replayed(prompt):
     return False, None
 
 def _record(prompt, val):
-    global CURRENT
+    global CURRENT, PENDING
     ANSWERS.append((_key(prompt), prompt.strip() or "choice", val))
-    CURRENT = None
+    CURRENT = PENDING = None
     return val
+
+def _hold(prompt, value):
+    """Remember what has been typed into this question before jumping away,
+    so the edit is not lost. Empty input keeps the previous answer."""
+    global PENDING
+    PENDING = (_key(prompt), prompt.strip() or "choice", value) if value else None
 
 def timeline():
     """Every answer of this run in order: answered so far, the one being
@@ -406,9 +413,10 @@ def timeline():
     Returns (items, index of the question being asked now or None)."""
     items = list(ANSWERS)
     here = None
-    if CURRENT is not None:
+    cur = PENDING if PENDING is not None else CURRENT
+    if cur is not None:
         here = len(items)
-        items.append(CURRENT)
+        items.append(cur)
     items += [r for r in REPLAY if not isinstance(r, _Ask)]
     return items, here
 
@@ -462,7 +470,10 @@ def ask(prompt, required=True, default=None, hint=None):
             pre = None
             if ans.endswith(JUMP) and ans != JUMP:      # "some text<<": jump, keep the text
                 typed, ans = ans[:-len(JUMP)].rstrip(), JUMP
+            if ans == JUMP:
+                _hold(prompt, typed if typed not in (JUMP, BACK) else None)
             if _special(ans):
+                _hold(prompt, None)
                 pre = typed if typed not in (JUMP, BACK) else None   # back after "Stay"
                 break
             if not ans and default is not None:
@@ -494,8 +505,11 @@ def ask_lines(prompt, required=True, hint=None):
             kept = None
             if line.rstrip().endswith(JUMP) and line.strip() != JUMP:   # "text<<": jump, keep the text
                 kept, line = line.rstrip()[:-len(JUMP)].rstrip(), JUMP
+            if line.strip() == JUMP:
+                _hold(prompt, lines + ([kept] if kept else []) + pre)
             if line.strip() in (BACK, JUMP):
                 if _special(line.strip()):
+                    _hold(prompt, None)
                     # "Stay": start the list again with everything typed so far filled in
                     pre = lines + ([kept] if kept else []) + pre
                     restart = True
@@ -556,13 +570,13 @@ def yes(prompt, default=False):
 
 def run_with_back(fn):
     """Run a command; on Back or Jump, restart it and replay the kept answers."""
-    global ANSWERS, REPLAY, CURRENT
+    global ANSWERS, REPLAY, CURRENT, PENDING
     PREFILL.clear()
     keep = []
     first = True
     while True:
         ANSWERS, REPLAY = [], list(keep)
-        CURRENT = None
+        CURRENT = PENDING = None
         if first:
             info("Enter confirms · < back one step · << jump to any answer · Ctrl+C cancels")
             first = False
