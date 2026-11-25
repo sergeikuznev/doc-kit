@@ -90,6 +90,9 @@ While answering:
 
 - **Choices are menus:** ↑↓ to move, Enter to select, or start typing to filter
   (e.g. `nav` jumps to NAV). You only type free text.
+- **A preview pane under every menu** shows the highlighted item in full: the
+  whole requirement with its evidence, every column of a fault row, your full
+  answer in the `<<` list. Rows stay one line each.
 - `<` goes back one question (inside a list, it removes the last line)
 - `<<` opens a list of all your answers so far; pick one to change it, and the rest are kept
 - After `<` or `<<` your previous answer comes back **filled in**, so you fix a typo

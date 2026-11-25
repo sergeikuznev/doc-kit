@@ -40,6 +40,7 @@ import re
 import shutil
 import subprocess
 import sys
+import textwrap
 
 try:
     import readline as _rl  # line editing, history, and pre-filled answers
@@ -229,15 +230,31 @@ def line_edit(prompt, text=""):
                 cur += 1
 
 
-def menu(prompt, options, default=None, nav=True):
+PANE_MAX = 10      # most lines the preview pane shows
+
+def _pane(text, room):
+    """Preview pane lines for the highlighted option (first line is the title)."""
+    rows = []
+    for para in text.split("\n"):
+        indent = " " * (len(para) - len(para.lstrip()))
+        rows += textwrap.wrap(para, max(20, room - 4), subsequent_indent=indent) or [""]
+    if len(rows) > PANE_MAX:
+        rows = rows[:PANE_MAX - 1] + [f"… {len(rows) - PANE_MAX + 1} more lines"]
+    out = [c("  ┌ ", "36") + c(rows[0], "1")]
+    out += [c("  │ ", "36") + r for r in rows[1:]]
+    return out + [c("  └", "36")]
+
+def menu(prompt, options, default=None, nav=True, details=None):
     """Arrow-key menu. options: list of (key, label). Returns the chosen key.
-    With nav=True, '<' raises Back and '<<' opens the jump picker."""
+    details: optional full text per option, shown in a preview pane under the
+    list for the highlighted option (otherwise the pane appears only when a
+    label is cut off). With nav=True, '<' raises Back and '<<' opens the
+    jump picker."""
     width = max(len(k) for k, _ in options)
     labels = [lab if k == lab else f"{k:<{width}}  {lab}" for k, lab in options]
     keys = [k for k, _ in options]
     idx = keys.index(default) if default in keys else 0
     flt, top, drawn = "", 0, 0
-    visible = max(3, min(12, shutil.get_terminal_size((80, 24)).lines - 6))
 
     def clear():
         nonlocal drawn
@@ -251,9 +268,17 @@ def menu(prompt, options, default=None, nav=True):
             if shown and idx not in shown:
                 idx = shown[0]
             pos = shown.index(idx) if shown else 0
+            room = _width() - 6
+            pane = []
+            if shown:
+                full = details[idx] if details and details[idx] else None
+                if not full and _cells(labels[idx]) > room:
+                    full = labels[idx]
+                if full:
+                    pane = _pane(full, room)
+            visible = max(3, min(12, shutil.get_terminal_size((80, 24)).lines - 6 - len(pane)))
             top = min(max(top, pos - visible + 1), pos)
             top = max(0, min(top, max(0, len(shown) - visible)))
-            room = _width() - 6
             out = [c(prompt, "1") + (c(f"   filter: {flt}", "33") if flt else "")]
             out.append(c("    ↑ more", "2") if top > 0 else "")
             for i in shown[top:top + visible]:
@@ -264,6 +289,7 @@ def menu(prompt, options, default=None, nav=True):
             if not shown:
                 out.append(c("    no match, Backspace clears the filter", "2"))
             out.append(c("    ↓ more", "2") if top + visible < len(shown) else "")
+            out += pane
             out.append(c("  " + (MENU_HINT if nav else "↑↓ move · Enter select · type to filter"), "2"))
             clear()
             sys.stdout.write("\n".join(out) + "\n")
@@ -308,11 +334,14 @@ def jump_picker():
     if not items:
         warn("Nothing answered yet.")
         return None
-    opts = [("stay", "Stay where I am")]
+    opts, details = [("stay", "Stay where I am")], [None]
     for i, (_, prompt, val) in enumerate(items, 1):
         mark = "   ← editing now" if i - 1 == here else ""
-        opts.append((str(i), f"{prompt}: {_show(val)}{mark}"))
-    pick = menu(c("Change which answer?", "35"), opts, nav=False)
+        short = prompt.split(":")[0].strip() if ":" in prompt and len(prompt.split(":")[0]) <= 30 else prompt
+        opts.append((str(i), f"{short}: {_show(val)}{mark}"))
+        body = "\n".join(val) if isinstance(val, list) and val else _show(val)
+        details.append(f"{prompt}{'  (editing now)' if mark else ''}\n{body}")
+    pick = menu(c("Change which answer?", "35"), opts, nav=False, details=details)
     return None if pick == "stay" else int(pick) - 1
 
 # ----------------------------------------------------------------- going back / jumping
@@ -523,8 +552,9 @@ def ask_lines(prompt, required=True, hint=None):
         if restart:
             continue
 
-def ask_choice(prompt, options, default=None):
-    """options: list of (key, label). Returns the key."""
+def ask_choice(prompt, options, default=None, details=None):
+    """options: list of (key, label). Returns the key. details: full text
+    per option for the preview pane (terminal menus only)."""
     done, val = _replayed(prompt)
     if done:
         return val
@@ -532,7 +562,7 @@ def ask_choice(prompt, options, default=None):
     if prev in [k for k, _ in options]:
         default = prev
     if interactive():
-        return _record(prompt, menu(prompt, options, default))
+        return _record(prompt, menu(prompt, options, default, details=details))
     keys = [k.lower() for k, _ in options]
     width = max(len(k) for k, _ in options)
     while True:
@@ -929,7 +959,8 @@ def cmd_test(rid=None):
         active = [r for r in rows if len(r) >= 5 and r[4] != "Deleted"]
         active.sort(key=lambda r: r[4] == "Verified")      # untested first
         rid = ask_choice("Which requirement did you test?",
-                         [(r[0], f"{r[4]:<9} {_short(r[1], 70)}") for r in active])
+                         [(r[0], f"{r[4]:<9} {_short(r[1], 70)}") for r in active],
+                         details=[_req_detail(r) for r in active])
     rid = rid.upper()
     match = [r for r in rows if r[0] == rid]
     if not match:
@@ -1023,12 +1054,40 @@ def _decisions():
                             status.group(1).strip() if status else ""))
     return out
 
+def _plain(text):
+    return text.replace("\\|", "|")
+
+def _req_detail(r):
+    r = r + [""] * (6 - len(r))
+    method = dict(METHODS).get(r[3], r[3])
+    ev = [e.strip() for e in _plain(r[5]).split("<br>") if e.strip()]
+    return "\n".join([f"{r[0]} · {r[4] or 'no status'}", _plain(r[1]), f"Rationale: {_plain(r[2]) or '-'}",
+                      f"Verified by: {method or '-'}", "Evidence:" if ev else "Evidence: none yet"] + [f"  {e}" for e in ev])
+
+def _fault_detail(f):
+    f = f + [""] * (8 - len(f))
+    names = ["Failure", "Effect", "Detection", "Response", "Recovery"]
+    return "\n".join([f"{f[0]} · severity {f[6] or '?'} · requirement {f[7] or 'none'}"] +
+                     [f"{n}: {_plain(f[i]) or '-'}" for i, n in enumerate(names, 1)])
+
+def _decision_detail(d):
+    text = read(p("docs", "decisions", d[1]))
+    related = re.search(r"\*\*Related:\*\*\s*(.*)$", text, re.M)
+    body = re.search(r"^## Decision\s*\n(.*?)(?:\n## |\Z)", text, re.S | re.M)
+    lines = [f"{d[0]}. {d[2]}", f"Status: {d[3] or '-'}"]
+    if related:
+        lines.append(f"Related: {related.group(1).strip()}")
+    if body:
+        lines += [l for l in body.group(1).strip().splitlines() if l.strip()]
+    return "\n".join(lines)
+
 def update_decision(num=None):
     decs = _decisions()
     if not decs:
         sys.exit("No decision records yet.")
     if not num:
-        num = ask_choice("Which decision?", [(d[0], f"{d[3]:<22} {_short(d[2], 60)}") for d in decs])
+        num = ask_choice("Which decision?", [(d[0], f"{d[3]:<22} {_short(d[2], 60)}") for d in decs],
+                         details=[_decision_detail(d) for d in decs])
     num = num.zfill(3)
     match = [d for d in decs if d[0] == num]
     if not match:
@@ -1036,7 +1095,9 @@ def update_decision(num=None):
     n, fname, title, status = match[0]
     path = p("docs", "decisions", fname)
     print(c(f"\n{n}. {title}", "1;34"))
-    field = ask_choice("Which field?", [("status", f"Status [{status}]"), ("related", "Related issues / requirement IDs")])
+    rel_now = re.search(r"\*\*Related:\*\*\s*(.*)$", read(path), re.M)
+    field = ask_choice("Which field?", [("status", f"Status [{status}]"), ("related", "Related issues / requirement IDs")],
+                       details=[f"Status\n{status or '-'}", f"Related\n{rel_now.group(1).strip() if rel_now else '(none)'}"])
     text = read(path)
     if field == "status":
         new = ask_choice("New status", DEC_STATUSES)
@@ -1065,7 +1126,8 @@ def update_requirement(rid=None):
     if not rows:
         sys.exit("No requirements yet.")
     if not rid:
-        rid = ask_choice("Which requirement?", [(r[0], f"{(r[4] if len(r) > 4 else ''):<9} {_short(r[1], 70)}") for r in rows])
+        rid = ask_choice("Which requirement?", [(r[0], f"{(r[4] if len(r) > 4 else ''):<9} {_short(r[1], 70)}") for r in rows],
+                         details=[_req_detail(r) for r in rows])
     rid = rid.upper()
     match = [r for r in rows if r[0] == rid]
     if not match:
@@ -1073,7 +1135,10 @@ def update_requirement(rid=None):
     row = match[0] + [""] * (6 - len(match[0]))
     print(c(f"\n{rid}: {row[1]}", "1;34"))
     field = ask_choice("Which field?", [("status", f"Status [{row[4]}]"), ("text", "Requirement text"),
-                                        ("rationale", "Rationale"), ("method", f"Verification method [{row[3]}]")])
+                                        ("rationale", "Rationale"), ("method", f"Verification method [{row[3]}]")],
+                       details=[f"Status now\n{row[4] or '-'}", f"Requirement now\n{_plain(row[1])}",
+                                f"Rationale now\n{_plain(row[2]) or '-'}",
+                                f"Verification method now\n{dict(METHODS).get(row[3], row[3]) or '-'}"])
     new = list(row)
     if field == "status":
         val = ask_choice("New status", REQ_STATUSES)
@@ -1128,7 +1193,8 @@ def update_fault(fid=None):
     if not rows:
         sys.exit("No fault table rows yet.")
     if not fid:
-        fid = ask_choice("Which failure mode?", [(r[0], f"sev {r[6] if len(r) > 6 else '?'}  req {(r[7] if len(r) > 7 else '') or '-':<9} {_short(r[1], 60)}") for r in rows])
+        fid = ask_choice("Which failure mode?", [(r[0], f"sev {r[6] if len(r) > 6 else '?'}  req {(r[7] if len(r) > 7 else '') or '-':<9} {_short(r[1], 60)}") for r in rows],
+                         details=[_fault_detail(r) for r in rows])
     fid = fid.upper()
     match = [r for r in rows if r[0] == fid]
     if not match:
@@ -1137,7 +1203,8 @@ def update_fault(fid=None):
     print(c(f"\n{fid}: {row[1]}", "1;34"))
     names = ["Failure", "Effect", "Detection", "Response", "Recovery", "Severity", "Requirement"]
     opts = [(str(i), f"{n} [{_short(row[i], 40) or '-'}]") for i, n in enumerate(names, 1)]
-    col = int(ask_choice("Which field?", opts))
+    col = int(ask_choice("Which field?", opts,
+                         details=[f"{n} now\n{_plain(row[i]) or '-'}" for i, n in enumerate(names, 1)]))
     new = list(row)
     if col == 6:
         new[6] = ask_choice("Severity", SEVERITY)
