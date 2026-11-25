@@ -22,6 +22,7 @@ Then, from anywhere inside that project:
     python3 tools/doc.py check        new pre-power checklist line
     python3 tools/doc.py log          devlog entry for this week
     python3 tools/doc.py update [ID]  change a status, text or link written earlier
+    python3 tools/doc.py report       status page: docs/report.html (opens in browser)
     python3 tools/doc.py tidy         regroup requirements.md by subsystem
     python3 tools/doc.py install-hook ask after commits that close an issue
 
@@ -33,6 +34,7 @@ Ctrl+C at any point cancels without writing anything.
 __version__ = "0.1.0"
 
 import datetime
+import html
 import os
 import re
 import shutil
@@ -75,6 +77,162 @@ def warn(msg):
 
 def ok(msg):
     print(c(msg, "32"))
+
+
+# ----------------------------------------------------------------- arrow-key menus
+#
+# In a real terminal every choice is a menu: arrow keys to move, Enter to
+# select, type to filter. Piped input (scripts, tests) and terminals without
+# termios (Windows) fall back to typing a number or key. DOC_PLAIN=1 forces
+# the fallback.
+
+try:
+    import select
+    import termios
+    import tty
+    _HAS_TERMIOS = True
+except ImportError:
+    _HAS_TERMIOS = False
+
+MENU_HINT = "↑↓ move · Enter select · type to filter · < back · << jump"
+
+def interactive():
+    return (_HAS_TERMIOS and sys.stdin.isatty() and sys.stdout.isatty()
+            and os.environ.get("DOC_PLAIN") != "1")
+
+class _Raw:
+    """Read single keys without echo; always restores the terminal."""
+    def __enter__(self):
+        self.fd = sys.stdin.fileno()
+        self.old = termios.tcgetattr(self.fd)
+        tty.setcbreak(self.fd)
+        sys.stdout.write("\x1b[?25l")
+        sys.stdout.flush()
+        return self
+
+    def __exit__(self, *exc):
+        termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old)
+        sys.stdout.write("\x1b[?25h")
+        sys.stdout.flush()
+
+_ESC_KEYS = {b"[A": "up", b"OA": "up", b"[B": "down", b"OB": "down",
+             b"[5~": "pgup", b"[6~": "pgdn", b"[H": "home", b"OH": "home",
+             b"[F": "end", b"OF": "end", b"[1~": "home", b"[4~": "end"}
+
+def _read_key(fd):
+    b = os.read(fd, 1)
+    if b == b"\x1b":
+        seq = b""
+        while select.select([fd], [], [], 0.03)[0]:
+            seq += os.read(fd, 1)
+            if len(seq) >= 2 and (seq[-1:].isalpha() or seq[-1:] == b"~"):
+                break
+        return _ESC_KEYS.get(seq, "esc" if not seq else None)
+    if b in (b"\r", b"\n"):
+        return "enter"
+    if b in (b"\x7f", b"\x08"):
+        return "backspace"
+    if b == b"\x03":
+        raise KeyboardInterrupt
+    if b == b"\x04":
+        raise EOFError
+    if b[0] >= 0xC0:                      # multi-byte UTF-8 character
+        extra = 1 if b[0] < 0xE0 else 2 if b[0] < 0xF0 else 3
+        b += os.read(fd, extra)
+    try:
+        ch = b.decode()
+    except UnicodeDecodeError:
+        return None
+    return ch if ch.isprintable() else None
+
+def _width():
+    return max(40, shutil.get_terminal_size((80, 24)).columns)
+
+def _fit(text, room):
+    return text if len(text) <= room else text[:max(1, room - 1)] + "…"
+
+def menu(prompt, options, default=None, nav=True):
+    """Arrow-key menu. options: list of (key, label). Returns the chosen key.
+    With nav=True, '<' raises Back and '<<' opens the jump picker."""
+    width = max(len(k) for k, _ in options)
+    labels = [lab if k == lab else f"{k:<{width}}  {lab}" for k, lab in options]
+    keys = [k for k, _ in options]
+    idx = keys.index(default) if default in keys else 0
+    flt, top, drawn = "", 0, 0
+    visible = max(3, min(12, shutil.get_terminal_size((80, 24)).lines - 6))
+
+    def clear():
+        nonlocal drawn
+        if drawn:
+            sys.stdout.write(f"\x1b[{drawn}A\x1b[J")
+            drawn = 0
+
+    with _Raw() as raw:
+        while True:
+            shown = [i for i, lab in enumerate(labels) if flt.lower() in lab.lower()]
+            if shown and idx not in shown:
+                idx = shown[0]
+            pos = shown.index(idx) if shown else 0
+            top = min(max(top, pos - visible + 1), pos)
+            top = max(0, min(top, max(0, len(shown) - visible)))
+            room = _width() - 6
+            out = [c(prompt, "1") + (c(f"   filter: {flt}", "33") if flt else "")]
+            out.append(c("    ↑ more", "2") if top > 0 else "")
+            for i in shown[top:top + visible]:
+                if i == idx:
+                    out.append(c("  ❯ " + _fit(labels[i], room), "1;36"))
+                else:
+                    out.append("    " + _fit(labels[i], room))
+            if not shown:
+                out.append(c("    no match, Backspace clears the filter", "2"))
+            out.append(c("    ↓ more", "2") if top + visible < len(shown) else "")
+            out.append(c("  " + (MENU_HINT if nav else "↑↓ move · Enter select · type to filter"), "2"))
+            clear()
+            sys.stdout.write("\n".join(out) + "\n")
+            sys.stdout.flush()
+            drawn = len(out)
+
+            key = _read_key(raw.fd)
+            if key in ("up", "down") and shown:
+                step = -1 if key == "up" else 1
+                idx = shown[(pos + step) % len(shown)]
+            elif key in ("pgup", "pgdn") and shown:
+                step = -visible if key == "pgup" else visible
+                idx = shown[max(0, min(len(shown) - 1, pos + step))]
+            elif key == "home" and shown:
+                idx = shown[0]
+            elif key == "end" and shown:
+                idx = shown[-1]
+            elif key == "enter" and shown:
+                clear()
+                print(c(prompt, "1") + ("  " if prompt else "") + c(options[idx][1] if options[idx][0] == options[idx][1]
+                      else f"{options[idx][0]}  {options[idx][1]}", "36"))
+                return keys[idx]
+            elif key == "backspace":
+                flt = flt[:-1]
+            elif key == "esc":
+                flt = ""
+            elif key == "<" and nav and not flt:
+                second = select.select([raw.fd], [], [], 0.4)[0] and os.read(raw.fd, 1) == b"<"
+                clear()
+                if not second:
+                    raise Back
+                pick = jump_picker()
+                if pick is not None:
+                    raise Jump(pick)
+            elif key and len(key) == 1:
+                flt += key
+
+def jump_picker():
+    """Menu of the answers given so far. Returns an index, or None to stay."""
+    if not ANSWERS:
+        warn("Nothing answered yet.")
+        return None
+    opts = [("stay", "Stay where I am")]
+    for i, (_, prompt, val) in enumerate(ANSWERS, 1):
+        opts.append((str(i), f"{prompt}: {_show(val)}"))
+    pick = menu(c("Change which answer?", "35"), opts, nav=False)
+    return None if pick == "stay" else int(pick) - 1
 
 # ----------------------------------------------------------------- going back / jumping
 #
@@ -142,6 +300,11 @@ def _special(ans):
     """Handle < and <<. Returns True if the caller should re-ask the question."""
     if ans == BACK:
         raise Back
+    if ans == JUMP and interactive():
+        pick = jump_picker()
+        if pick is None:
+            return True
+        raise Jump(pick)
     if ans == JUMP:
         if not ANSWERS:
             warn("Nothing answered yet.")
@@ -216,6 +379,8 @@ def ask_choice(prompt, options, default=None):
     done, val = _replayed(prompt)
     if done:
         return val
+    if interactive():
+        return _record(prompt, menu(prompt, options, default))
     keys = [k.lower() for k, _ in options]
     width = max(len(k) for k, _ in options)
     while True:
@@ -238,6 +403,9 @@ def yes(prompt, default=False):
     done, val = _replayed(prompt)
     if done:
         return val
+    if interactive():
+        pick = menu(prompt, [("yes", "Yes"), ("no", "No")], "yes" if default else "no")
+        return _record(prompt, pick == "yes")
     d = "Y/n" if default else "y/N"
     while True:
         ans = input(f"{prompt} [{d}]: ").strip().lower()
@@ -253,7 +421,7 @@ def run_with_back(fn):
     while True:
         ANSWERS, REPLAY = [], list(keep)
         if first:
-            info("Type < to go back one step, << to jump to any earlier answer. Ctrl+C cancels.")
+            info("Enter confirms · < back one step · << jump to any answer · Ctrl+C cancels")
             first = False
         try:
             return fn()
@@ -268,12 +436,31 @@ def run_with_back(fn):
             keep = ANSWERS[:j.index] + [ASK] + ANSWERS[j.index + 1:]
             print(c(f"\n<< jumping to: {ANSWERS[j.index][1]}", "35"))
 
-def confirm_write(path, text):
+def preview(title, text):
+    room = _width() - 4
     print()
-    print(c(f"----- {rel(path)} -----", "36"))
-    print(text.rstrip())
-    print(c("-" * 40, "36"))
-    return yes("Write this?", default=True)
+    print(c("┌─ " + title + " " + "─" * max(0, room - len(title) - 2), "36"))
+    for line in text.rstrip().splitlines():
+        print(c("│ ", "36") + _fit(line, room))
+    print(c("└" + "─" * (room + 1), "36"))
+
+def save_menu(prompt, yes_label):
+    """Final step: save, change an answer, or cancel. Returns True to save."""
+    if not interactive():
+        return yes(prompt, default=True)
+    while True:
+        pick = menu(prompt, [("save", yes_label), ("change", "Change an answer"),
+                             ("cancel", "Cancel, write nothing")], "save")
+        if pick == "change":
+            jump = jump_picker()
+            if jump is not None:
+                raise Jump(jump)
+            continue
+        return _record(prompt, pick == "save")
+
+def confirm_write(path, text):
+    preview(rel(path), text)
+    return save_menu("Write this?", "Write it")
 
 
 # ----------------------------------------------------------------- repo + files
@@ -577,11 +764,10 @@ def cmd_test(rid=None):
     if not rows:
         sys.exit("No requirements found in docs/requirements.md.")
     if not rid:
-        open_rows = [r for r in rows if len(r) >= 5 and r[4] not in ("Verified", "Deleted")]
-        print(c("\nRequirements not yet verified:", "1"))
-        for r in open_rows:
-            print(f"  {r[0]:<10} {r[1][:70]}")
-        rid = ask("Which ID did you test?")
+        active = [r for r in rows if len(r) >= 5 and r[4] != "Deleted"]
+        active.sort(key=lambda r: r[4] == "Verified")      # untested first
+        rid = ask_choice("Which requirement did you test?",
+                         [(r[0], f"{r[4]:<9} {_short(r[1], 70)}") for r in active])
     rid = rid.upper()
     match = [r for r in rows if r[0] == rid]
     if not match:
@@ -680,16 +866,11 @@ def update_decision(num=None):
     if not decs:
         sys.exit("No decision records yet.")
     if not num:
-        print(c("\nDecisions:", "1"))
-        for n, _, title, status in decs:
-            print(f"  {n}  {status:<22} {_short(title)}")
-    while True:
-        num = (num or ask("Which decision number?")).zfill(3)
-        match = [d for d in decs if d[0] == num]
-        if match:
-            break
-        warn(f"No decision {num}.")
-        num = None
+        num = ask_choice("Which decision?", [(d[0], f"{d[3]:<22} {_short(d[2], 60)}") for d in decs])
+    num = num.zfill(3)
+    match = [d for d in decs if d[0] == num]
+    if not match:
+        sys.exit(f"No decision {num}.")
     n, fname, title, status = match[0]
     path = p("docs", "decisions", fname)
     print(c(f"\n{n}. {title}", "1;34"))
@@ -722,16 +903,11 @@ def update_requirement(rid=None):
     if not rows:
         sys.exit("No requirements yet.")
     if not rid:
-        print(c("\nRequirements:", "1"))
-        for r in rows:
-            print(f"  {r[0]:<10} {(r[4] if len(r) > 4 else ''):<9} {_short(r[1])}")
-    while True:
-        rid = (rid or ask("Which ID?")).upper()
-        match = [r for r in rows if r[0] == rid]
-        if match:
-            break
-        warn(f"{rid} not found.")
-        rid = None
+        rid = ask_choice("Which requirement?", [(r[0], f"{(r[4] if len(r) > 4 else ''):<9} {_short(r[1], 70)}") for r in rows])
+    rid = rid.upper()
+    match = [r for r in rows if r[0] == rid]
+    if not match:
+        sys.exit(f"{rid} not found in requirements.md.")
     row = match[0] + [""] * (6 - len(match[0]))
     print(c(f"\n{rid}: {row[1]}", "1;34"))
     field = ask_choice("Which field?", [("status", f"Status [{row[4]}]"), ("text", "Requirement text"),
@@ -790,16 +966,11 @@ def update_fault(fid=None):
     if not rows:
         sys.exit("No fault table rows yet.")
     if not fid:
-        print(c("\nFailure modes:", "1"))
-        for r in rows:
-            print(f"  {r[0]:<8} sev {r[6] if len(r) > 6 else '?'}  req {(r[7] if len(r) > 7 else '') or '-':<9} {_short(r[1])}")
-    while True:
-        fid = (fid or ask("Which ID?")).upper()
-        match = [r for r in rows if r[0] == fid]
-        if match:
-            break
-        warn(f"{fid} not found.")
-        fid = None
+        fid = ask_choice("Which failure mode?", [(r[0], f"sev {r[6] if len(r) > 6 else '?'}  req {(r[7] if len(r) > 7 else '') or '-':<9} {_short(r[1], 60)}") for r in rows])
+    fid = fid.upper()
+    match = [r for r in rows if r[0] == fid]
+    if not match:
+        sys.exit(f"{fid} not found in fdir.md.")
     row = match[0] + [""] * (8 - len(match[0]))
     print(c(f"\n{fid}: {row[1]}", "1;34"))
     names = ["Failure", "Effect", "Detection", "Response", "Recovery", "Severity", "Requirement"]
@@ -972,6 +1143,7 @@ MENU = [
     ("check", "Something broke or nearly broke"),
     ("update", "Something I wrote earlier changed"),
     ("log", "End of the week"),
+    ("report", "Show me the project status"),
 ]
 
 # ----------------------------------------------------------------- GitHub issues
@@ -1016,14 +1188,8 @@ def section(title, lines):
     return f"### {title}\n\n{body}\n"
 
 def create_issue(title, body, labels):
-    print()
-    print(c("----- new GitHub issue -----", "36"))
-    print(f"Title:  {title}")
-    print(f"Labels: {', '.join(labels)}")
-    print()
-    print(body.rstrip())
-    print(c("-" * 40, "36"))
-    if not yes("Create this issue on GitHub?", default=True):
+    preview("new GitHub issue", f"Title:  {title}\nLabels: {', '.join(labels)}\n\n{body}")
+    if not save_menu("Create this issue on GitHub?", "Create it"):
         return info("Nothing created.")
     ensure_labels(labels)
     cmd = ["gh", "issue", "create", "--title", title, "--body", body]
@@ -1077,7 +1243,7 @@ def cmd_bug():
 
 COMMANDS = {"decision": cmd_decision, "req": cmd_req, "test": cmd_test, "fault": cmd_fault,
             "procedure": cmd_procedure, "check": cmd_check, "log": cmd_log, "idea": cmd_idea,
-            "bug": cmd_bug, "update": cmd_update}
+            "bug": cmd_bug, "update": cmd_update, "report": lambda: cmd_report([])}
 
 def cmd_menu():
     key = ask_choice("What just happened?", [(k, v) for k, v in MENU])
@@ -1124,6 +1290,253 @@ def cmd_install_hook():
     os.chmod(hook, 0o755)
     ok("Installed post-commit hook. It runs after commits containing 'fixes #N' / 'closes #N'.")
 
+
+
+# ----------------------------------------------------------------- report
+
+REPORT_CSS = """
+:root{--bg:#fafafa;--surface:#ffffff;--ink:#0b0b0b;--muted:#5c5c5c;--hair:#e7e7e7;--ring:rgba(11,11,11,.10);
+--good:#0aac23;--good-ink:#006c10;--crit:#dc3c3d;--crit-ink:#b42324;--appr:#8a8a8a;--draft:#c9c9c9;--warn:#fbb315;--accent:#2a62d4}
+@media (prefers-color-scheme:dark){:root{--bg:#111;--surface:#191919;--ink:#f2f2f2;--muted:#a8a8a8;--hair:#303030;--ring:rgba(255,255,255,.10);
+--good:#0aac23;--good-ink:#53c556;--crit:#dc3c3d;--crit-ink:#ff7a7a;--appr:#8f8f8f;--draft:#4d4d4d;--warn:#fbb315;--accent:#7aa2ff}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+main{max-width:1080px;margin:0 auto;padding:32px 24px 64px}h1{font-size:26px;margin:0 0 4px}h2{font-size:18px;margin:40px 0 12px}
+h3{font-size:15px;margin:22px 0 8px}.sub{color:var(--muted);font-size:13px}a{color:var(--accent)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-top:24px}
+.tile{background:var(--surface);border:1px solid var(--ring);border-radius:10px;padding:14px 16px}
+.tile .n{font-size:28px;font-weight:600;font-variant-numeric:tabular-nums}.tile .l{color:var(--muted);font-size:13px}
+.card{background:var(--surface);border:1px solid var(--ring);border-radius:10px;padding:16px 18px}
+.bars{display:grid;grid-template-columns:minmax(140px,220px) 1fr 140px;gap:10px 14px;align-items:center}
+.bar{display:flex;gap:2px;height:14px}.bar span{display:block;height:100%}.bar span:first-child{border-radius:4px 0 0 4px}
+.bar span:last-child{border-radius:0 4px 4px 0}.bar span:only-child{border-radius:4px}.cnt{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;font-size:13px;color:var(--muted)}.sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--hair);vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:12.5px}td.id{white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
+.pill{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-size:12.5px;font-weight:600}
+.pill i{font-style:normal;display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;font-size:10.5px;color:#fff}
+.Verified{color:var(--good-ink)}.Verified i{background:var(--good)}.Failed{color:var(--crit-ink)}.Failed i{background:var(--crit)}
+.Approved{color:var(--muted)}.Approved i{background:var(--appr)}.Draft{color:var(--muted)}.Draft i{background:transparent;border:1.5px solid var(--appr);color:var(--appr)}
+.Deleted{color:var(--muted);text-decoration:line-through}.Deleted i{background:transparent;color:var(--muted)}
+.att li{margin:4px 0}.att .why{color:var(--muted)}.empty{color:var(--muted);font-style:italic}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:760px){.two{grid-template-columns:1fr}.bars{grid-template-columns:1fr}}
+.dev h3{margin-top:0}.dev ul{margin:4px 0 10px;padding-left:20px}code{font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
+footer{margin-top:48px;color:var(--muted);font-size:12px}
+"""
+
+PILL_ICON = {"Verified": "✓", "Failed": "✕", "Approved": "●", "Draft": "", "Deleted": "–"}
+
+def _h(text):
+    """Escape a markdown cell for HTML, keeping <br> line breaks and `code`."""
+    t = html.escape(text.replace("\\|", "|"))
+    t = t.replace("&lt;br&gt;", "<br>")
+    t = re.sub(r"`([^`]+)`", r"<code>\1</code>", t)
+    return re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", t)
+
+def _pill(status):
+    return f'<span class="pill {html.escape(status)}"><i>{PILL_ICON.get(status, "?")}</i>{html.escape(status or "-")}</span>'
+
+def _git(*args):
+    try:
+        r = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, timeout=5)
+        return r.stdout.strip() if r.returncode == 0 else ""
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+
+def _open_issues():
+    if not shutil.which("gh"):
+        return None
+    try:
+        r = subprocess.run(["gh", "issue", "list", "--state", "open", "--limit", "200", "--json",
+                            "number,title,labels,url"], cwd=ROOT, capture_output=True, text=True, timeout=10)
+        if r.returncode != 0:
+            return None
+        import json
+        return json.loads(r.stdout or "[]")
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        return None
+
+def _latest_devlog():
+    path = p("docs", "devlog.md")
+    if not os.path.exists(path):
+        return None, []
+    lines = read(path).splitlines()
+    start = next((i for i, l in enumerate(lines) if l.startswith("## ")), None)
+    if start is None:
+        return None, []
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("## ") or lines[i].strip() == "---"), len(lines))
+    return lines[start][3:].strip(), lines[start + 1:end]
+
+def build_report(with_issues=True):
+    readme = p("docs", "README.md")
+    m = re.search(r"^#\s+(.*?)\s+documentation\s*$", read(readme), re.M) if os.path.exists(readme) else None
+    project = m.group(1) if m else os.path.basename(ROOT)
+    names = dict(req_prefixes())
+    order = [k for k, _ in req_prefixes()]
+
+    reqs = [r + [""] * (6 - len(r)) for r in table_rows(p("docs", "requirements.md"), REQ_HEADER)]
+    live = [r for r in reqs if r[4] != "Deleted"]
+    req_status = {r[0]: r[4] for r in reqs}
+    faults = [r + [""] * (8 - len(r)) for r in table_rows(p("docs", "fdir.md"), FDIR_HEADER)]
+    decisions = _decisions()
+    changes = table_rows(p("docs", "requirements.md"), CHANGE_HEADER)
+    issues = _open_issues() if with_issues else None
+
+    verified = sum(r[4] == "Verified" for r in live)
+    failed = [r for r in live if r[4] == "Failed"]
+    unproven = [r for r in live if r[4] in ("Draft", "Approved")]
+    uncovered = [f for f in faults if not f[7]]
+    bad_links = [f for f in faults if f[7] and req_status.get(f[7].upper()) in (None, "Deleted")]
+    proposed = [d for d in decisions if d[3].startswith("Proposed")]
+
+    def prefix(r):
+        return r[0].split("-")[0]
+    groups = []
+    for k in order + sorted({prefix(r) for r in reqs} - set(order)):
+        rows = [r for r in reqs if prefix(r) == k]
+        if rows:
+            groups.append((k, names.get(k, k), rows))
+
+    out = []
+    w = out.append
+    w(f"<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>")
+    w(f"<title>{html.escape(project)} status</title><style>{REPORT_CSS}</style></head><body><main>")
+    commit = _git("log", "-1", "--format=%h · %cs")
+    w(f"<h1>{html.escape(project)}</h1><div class='sub'>Status report generated {datetime.datetime.now():%Y-%m-%d %H:%M}"
+      + (f" · last commit {html.escape(commit)}" if commit else "") + " · by doc-kit</div>")
+
+    pct = f"{round(100 * verified / len(live))}%" if live else "-"
+    tiles = [(f"{verified}/{len(live)}", f"requirements verified ({pct})"),
+             (str(len(failed)), "requirements failed"),
+             (str(len(unproven)), "requirements not yet tested"),
+             (str(len(uncovered) + len(bad_links)), "failure modes without an active requirement"),
+             (str(len(proposed)), "decisions still proposed")]
+    if issues is not None:
+        tiles.append((str(len(issues)), "open GitHub issues"))
+    w("<div class='tiles'>" + "".join(f"<div class='tile'><div class='n'>{n}</div><div class='l'>{l}</div></div>" for n, l in tiles) + "</div>")
+
+    # attention list
+    w("<h2>Needs attention</h2><div class='card att'>")
+    items = []
+    for r in failed:
+        items.append(f"<li>{_pill('Failed')} <b>{r[0]}</b> {_h(r[1])} <span class='why'>· failed its last test</span></li>")
+    for f in uncovered:
+        items.append(f"<li><b>{f[0]}</b> {_h(f[1])} <span class='why'>· no requirement promises this failure is handled</span></li>")
+    for f in bad_links:
+        items.append(f"<li><b>{f[0]}</b> {_h(f[1])} <span class='why'>· linked to {html.escape(f[7])}, which is {'deleted' if req_status.get(f[7].upper()) == 'Deleted' else 'missing'}</span></li>")
+    for d in proposed:
+        items.append(f"<li><b>Decision {d[0]}</b> {_h(d[2])} <span class='why'>· still proposed</span></li>")
+    for r in unproven:
+        items.append(f"<li>{_pill(r[4])} <b>{r[0]}</b> {_h(r[1])} <span class='why'>· no passing test yet</span></li>")
+    w("<ul>" + "".join(items) + "</ul>" if items else "<div class='empty'>Nothing. Every requirement is verified and every failure mode is covered.</div>")
+    w("</div>")
+
+    # requirements by subsystem: one segmented bar per subsystem
+    seg = [("Verified", "var(--good)"), ("Failed", "var(--crit)"), ("Approved", "var(--appr)"), ("Draft", "var(--draft)")]
+    w("<h2>Requirements by subsystem</h2><div class='card'>")
+    if groups:
+        w("<div class='bars'>")
+        for k, name, rows in groups:
+            act = [r for r in rows if r[4] != "Deleted"]
+            parts = []
+            for st, col in seg:
+                n = sum(r[4] == st for r in act)
+                if n:
+                    parts.append(f"<span style='flex:{n};background:{col}' title='{st}: {n} of {len(act)}'></span>")
+            v = sum(r[4] == "Verified" for r in act)
+            w(f"<div><b>{html.escape(k)}</b> <span class='sub'>{html.escape(name)}</span></div>"
+              f"<div class='bar'>{''.join(parts) or ''}</div><div class='cnt'>{v} of {len(act)} verified</div>")
+        w("</div><div class='legend'>" + "".join(f"<span><span class='sw' style='background:{col}'></span>{st}</span>" for st, col in seg) + "</div>")
+    else:
+        w("<div class='empty'>No requirements yet. Add one with <code>doc req</code>.</div>")
+    w("</div>")
+
+    for k, name, rows in groups:
+        w(f"<h3>{html.escape(k)} · {html.escape(name)}</h3><div class='card'><table><tr><th>ID</th><th>Requirement</th><th>Status</th><th>Evidence</th></tr>")
+        for r in rows:
+            w(f"<tr><td class='id'>{html.escape(r[0])}</td><td>{_h(r[1])}<div class='sub'>{_h(r[2])}</div></td><td>{_pill(r[4])}</td><td>{_h(r[5]) or '<span class=empty>none yet</span>'}</td></tr>")
+        w("</table></div>")
+
+    # traceability
+    w("<h2>Failure modes and their requirements</h2><div class='card'>")
+    if faults:
+        w("<table><tr><th>ID</th><th>Failure</th><th>Response</th><th>Sev</th><th>Requirement</th><th>Its status</th></tr>")
+        for f in faults:
+            st = req_status.get(f[7].upper(), "") if f[7] else ""
+            link = html.escape(f[7]) if f[7] else "<span class='empty'>none</span>"
+            w(f"<tr><td class='id'>{html.escape(f[0])}</td><td>{_h(f[1])}</td><td>{_h(f[4])}</td><td>{html.escape(f[6])}</td>"
+              f"<td class='id'>{link}</td><td>{_pill(st) if st else ('<span class=empty>missing</span>' if f[7] else '')}</td></tr>")
+        w("</table>")
+    else:
+        w("<div class='empty'>No failure modes yet. Add one with <code>doc fault</code>.</div>")
+    w("</div>")
+
+    # decisions + devlog
+    w("<div class='two'><div><h2>Decisions</h2><div class='card'>")
+    if decisions:
+        w("<table><tr><th>#</th><th>Decision</th><th>Status</th></tr>")
+        for d in decisions:
+            w(f"<tr><td class='id'><a href='decisions/{html.escape(d[1])}'>{d[0]}</a></td><td>{_h(d[2])}</td><td>{html.escape(d[3])}</td></tr>")
+        w("</table>")
+    else:
+        w("<div class='empty'>No decisions yet.</div>")
+    w("</div></div><div><h2>Latest devlog</h2><div class='card dev'>")
+    title, body = _latest_devlog()
+    if title:
+        w(f"<h3>{_h(title)}</h3>")
+        in_list = False
+        for line in body:
+            if line.startswith("- "):
+                if not in_list:
+                    w("<ul>"); in_list = True
+                w(f"<li>{_h(line[2:])}</li>")
+            else:
+                if in_list:
+                    w("</ul>"); in_list = False
+                if line.strip():
+                    w(f"<div>{_h(line)}</div>")
+        if in_list:
+            w("</ul>")
+    else:
+        w("<div class='empty'>No entries yet. Add one with <code>doc log</code>.</div>")
+    w("</div></div></div>")
+
+    if changes:
+        w("<h2>Recent requirement changes</h2><div class='card'><table><tr><th>Date</th><th>ID</th><th>Change</th></tr>")
+        for ch in list(reversed(changes))[:10]:
+            ch = ch + [""] * (3 - len(ch))
+            w(f"<tr><td class='id'>{html.escape(ch[0])}</td><td class='id'>{html.escape(ch[1])}</td><td>{_h(ch[2])}</td></tr>")
+        w("</table></div>")
+
+    if issues:
+        w("<h2>Open issues</h2><div class='card'><table><tr><th>#</th><th>Title</th><th>Labels</th></tr>")
+        for it in issues[:30]:
+            labels = ", ".join(l.get("name", "") for l in it.get("labels", []))
+            w(f"<tr><td class='id'><a href='{html.escape(it.get('url', ''))}'>#{it.get('number')}</a></td><td>{html.escape(it.get('title', ''))}</td><td class='sub'>{html.escape(labels)}</td></tr>")
+        w("</table></div>")
+
+    w("<footer>Generated from the Markdown files in docs/ by <code>doc report</code>. Edit the files, not this page.</footer></main></body></html>")
+    summary = {"project": project, "verified": verified, "live": len(live), "failed": len(failed),
+               "unproven": len(unproven), "uncovered": len(uncovered) + len(bad_links), "proposed": len(proposed)}
+    return "\n".join(out), summary
+
+def cmd_report(args):
+    """Write docs/report.html and open it."""
+    page, sm = build_report(with_issues="--no-issues" not in args)
+    path = p("docs", "report.html")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(page)
+    print(c(f"{sm['project']} status", "1"))
+    print(f"  requirements verified   {sm['verified']}/{sm['live']}")
+    if sm["failed"]:
+        warn(f"requirements failed     {sm['failed']}")
+    print(f"  not yet tested          {sm['unproven']}")
+    print(f"  uncovered failure modes {sm['uncovered']}")
+    print(f"  decisions proposed      {sm['proposed']}")
+    ok(f"Written: {rel(path)}")
+    if "--no-open" not in args:
+        opener = "open" if sys.platform == "darwin" else "xdg-open" if shutil.which("xdg-open") else None
+        if opener:
+            subprocess.run([opener, path], capture_output=True)
 
 # ----------------------------------------------------------------- init
 
@@ -1203,6 +1616,8 @@ def main():
             run_with_back(lambda: cmd_update(args[1] if len(args) > 1 else None))
         elif args[0] == "hook":
             cmd_hook()
+        elif args[0] == "report":
+            cmd_report(args[1:])
         elif args[0] == "tidy":
             path = p("docs", "requirements.md")
             write(path, regroup_requirements(read(path)))

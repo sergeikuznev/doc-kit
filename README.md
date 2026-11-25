@@ -14,29 +14,27 @@ the numbering and the cross-links.
 ```
 $ doc
 What just happened?
-  1) idea       I got an idea
-  2) bug        Something behaves wrong (bug)
-  3) decision   I chose between options
-  4) req        I committed to building something
-  5) fault      I asked 'what if this breaks?'
-  6) test       I tested a requirement
-  7) procedure  I assembled / set up something with steps
-  8) check      Something broke or nearly broke
-  9) update     Something I wrote earlier changed
- 10) log        End of the week
-  choose: 4
+    idea       I got an idea
+    bug        Something behaves wrong (bug)
+    decision   I chose between options
+  ❯ req        I committed to building something
+    fault      I asked 'what if this breaks?'
+    test       I tested a requirement
+    ...
 
-Subsystem
-  1) SYS   Whole system
-  2) COMM  Communications
-  ...
-  choose: COMM
+  ↑↓ move · Enter select · type to filter · < back · << jump
+
+Subsystem   filter: com
+  ❯ COMM  Communications
 New requirement COMM-003
 Requirement
   Form: "The <thing> shall <do what> <measurable limit>."
 > The robot shall stop all motors within 1 s of losing the radio link.
 ...
-Write this? [Y/n]:
+Write this?
+  ❯ Write it
+    Change an answer
+    Cancel, write nothing
 Written: docs/requirements.md
 ```
 
@@ -84,14 +82,31 @@ existing files) and prints the next steps:
 | `doc check` | Checklist line plus a dated reason | `docs/procedures/pre_power_checklist.md` |
 | `doc log` | This week's devlog entry (adds to it if it exists) | `docs/devlog.md` |
 | `doc update [ID]` | Change a status, text or link written earlier; requirement changes are logged | the document that holds it |
+| `doc report` | Status page: what is verified, failed, untested or uncovered; opens in your browser | `docs/report.html` |
 | `doc tidy` | Regroups requirements by subsystem | `docs/requirements.md` |
 | `doc install-hook` | After commits with `fixes #N`, asks if a document is needed | `.git/hooks/post-commit` |
 
 While answering:
 
+- **Choices are menus:** ↑↓ to move, Enter to select, or start typing to filter
+  (e.g. `nav` jumps to NAV). You only type free text.
 - `<` goes back one question (inside a list, it removes the last line)
-- `<<` lists all your answers so far; pick one to change, and the rest are kept
-- Ctrl+C cancels; nothing is written until you confirm the preview
+- `<<` opens a list of all your answers so far; pick one to change it, and the rest are kept
+- At the end you choose **Write it**, **Change an answer** or **Cancel**; nothing is written before that
+- Ctrl+C cancels at any point
+
+When input is piped (scripts, CI) or on Windows, menus fall back to typing a
+number or key. Set `DOC_PLAIN=1` to force that mode.
+
+## Status report
+
+`doc report` builds `docs/report.html` from your Markdown files and opens it:
+requirement progress per subsystem, everything that needs attention (failed or
+untested requirements, failure modes with no requirement, decisions still
+proposed), the fault-to-requirement links, decisions, the latest devlog entry,
+recent requirement changes, and open GitHub issues if the `gh` CLI is set up.
+It is regenerated each time, so commit it only if you want a snapshot.
+Options: `--no-open`, `--no-issues`.
 
 ## What it creates in your project
 

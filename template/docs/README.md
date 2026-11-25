@@ -54,9 +54,11 @@ doc procedure    # new procedure file
 doc check        # new pre-power checklist line, with history
 doc log          # devlog entry for this week
 doc update [ID]  # change a status, text or link (e.g. Proposed -> Accepted)
+doc report       # status page docs/report.html, opens in the browser
 doc tidy         # regroup requirements.md by subsystem
 doc install-hook # after commits with "fixes #N", ask if a document is needed
 ```
 
-Every command shows a preview before writing. Type `<` to go back one question,
-`<<` to jump to any earlier answer. Ctrl+C cancels without writing.
+Choices are menus (↑↓ and Enter, or type to filter); you only type free text.
+Every command shows a preview before writing. `<` goes back one question,
+`<<` jumps to any earlier answer. Ctrl+C cancels without writing.
