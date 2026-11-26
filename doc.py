@@ -2132,14 +2132,14 @@ def cmd_init(args):
     for f in sorted(skipped):
         info(f"  = {f} (already exists, left unchanged)")
     print(c("\nNext steps:", "1"))
-    print("  1. Edit the subsystem table in docs/README.md and the subsystem list")
-    print("     in .github/ISSUE_TEMPLATE/*.yml to match your project.")
-    print("  2. Add this shortcut line to ~/.zshrc or ~/.bashrc (once per computer):")
+    print("  1. Add this shortcut line to ~/.zshrc or ~/.bashrc (once per computer):")
     print("""       alias doc='python3 "$(git rev-parse --show-toplevel)/tools/doc.py"'""")
-    print("  3. Inside the project:  doc install-hook")
-    print("  4. Optional, for doc idea / doc bug:  brew install gh && gh auth login")
-    print("  5. Type  doc  and pick what just happened.")
-    print("  6. For the system map (Python 3.11+):  doc model setup, then  doc model  or  doc serve")
+    print("  2. Inside the project:  doc install-hook")
+    print("  3. Once:  doc model setup   (pick each board's .ioc and your ROS2 folders)")
+    print("  4. Describe modules and wiring in docs/model/<name>_arch.sysml")
+    print("  5. doc serve   then open http://127.0.0.1:8765  (phone: tailscale serve --bg 8765)")
+    print("  6. Optional, for issues and the idea/bug forms:  brew install gh && gh auth login")
+    print("  Edit the subsystem lists in docs/README.md and .github/ISSUE_TEMPLATE/*.yml to match your robot.")
 
 
 def main():

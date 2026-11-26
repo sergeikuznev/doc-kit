@@ -1,64 +1,126 @@
 # doc-kit
 
-**An event-driven, docs-as-code engineering record with built-in traceability,
-for hardware and robotics projects.**
+**One live page for your robot: how it is built, what it must do, how it can
+fail and what is proven. Built from the files you already keep, for hardware
+and robotics projects.**
 
-doc-kit captures ideas, decisions, requirements, failure modes and test evidence
-at the moment they happen, links them together, and reports what is verified,
-failing or not yet covered. It is a lightweight version of the systems
-engineering loop used in aerospace: requirements, design decisions, FMEA and
-verification, scaled down for one person or a small team.
+doc-kit reads your CubeMX `.ioc` files, your ROS2 and micro-ROS code, and a
+plain-text record of requirements, faults and decisions in your repo, and turns
+them into one interactive page. You open it on your laptop or phone, click any
+part to see its pins, settings, wiring, requirements and faults, and record
+what happens (a test result with a photo, a new idea, a decision) straight from
+the page. Every change becomes a git commit.
 
-You run `doc`, it asks what just happened, then asks the right questions and writes
-your answers into the right file with the right structure. It is a single Python
-file with no dependencies, and it never writes anything you did not say. No AI,
-no guessing: you supply every word, it handles the format, the numbering and the
-cross-links.
+It is a lightweight version of the systems engineering loop used in aerospace
+(requirements, design decisions, FMEA, verification, interface control),
+scaled down for one person or a small team. No AI and no guessing: the page
+only shows what your files say, and only writes what you typed.
 
+![System view](docs/images/system.png)
+
+## What the page shows
+
+| Section | What you see | Where it comes from |
+|---|---|---|
+| **System** | Subsystems and everything that crosses between them | your arch file |
+| **Electrical, Power, Mechanical** | Parts inside their subsystems, wired port to port. Click a part for every pin, peripheral setting (SPI mode, baud rate, timer period, FreeRTOS tasks, clocks), what it connects to, and its requirements, faults, decisions, issues and photos | `.ioc` + arch file |
+| **Software (ROS2)** | Nodes and topics, grouped by the computer each node runs on | read from your code; the robot can be off |
+| **Interfaces (ICD)** | Every connection that crosses a subsystem boundary, with pins and bus settings | generated, never typed |
+| **Requirements** | Cards per subsystem with status, method, evidence and test photos; search and filters | `docs/requirements.md` |
+| **Faults (FDIR)** | Worst first, detect → respond → recover, and whether a passing test proves the response | `docs/fdir.md` |
+| **Decisions** | Why each choice was made, linked to the parts and requirements it affects | `docs/decisions/` |
+| **Issues** | Open and closed ideas and bugs, placed in their subsystem | GitHub |
+| **Docs, Media** | Your procedures and notes, this handbook, and every photo, video and log | `docs/`, `docs/media/` |
+| **Overview** | Problems (the wiring no longer matches the hardware) and gaps a design review would ask about | all of the above |
+
+![Electrical view with a part open](docs/images/electrical.png)
+
+## What you do on the page
+
+**+ New** and the buttons on each card open a form with every field you need
+at once: idea, bug, requirement, test result, fault, decision, and edits
+(status, text, mark deleted, supersede). Each form shows exactly what will be
+written before you confirm. Then the page writes the file, commits and pushes.
+
+Recording a test is where it shines: at the bench, on your phone, pick the
+requirement, Passed or Failed, what you measured, take the photo, *Write it*.
+The photo lands in `docs/media/`, its name in the evidence, and from then on it
+shows on that requirement and on its part.
+
+![Recording a test result](docs/images/form.png)
+
+What the page never touches: the `.ioc` (CubeMX owns it), your code, and the
+generated facts file. Nothing is ever removed: a dropped requirement is marked
+Deleted with a reason, a replaced decision is Superseded.
+
+## How it stays true
+
+The page is rebuilt from your files, so it cannot drift from them:
+
+| Comes from | What | Written by |
+|---|---|---|
+| `.ioc` files | boards, peripherals, pins, settings, FreeRTOS tasks, clocks | CubeMX |
+| ROS2 / micro-ROS code | nodes, topics, message types | you, in code |
+| `docs/requirements.md`, `fdir.md`, `decisions/` | requirements, faults, decisions | the page (or the terminal) |
+| `docs/model/<name>_arch.sysml` | subsystems, modules, wiring, which computer runs which node | you, in SysML v2 text |
+
+The first three are facts: doc-kit regenerates `<name>_facts.sysml` from them
+and you never edit it. The arch file is the one thing you write by hand. Every
+`connect` line in it is checked against the facts, so a pin renamed in CubeMX
+or an SPI bus wired to a GPIO stops the commit and shows as a red dashed line,
+instead of silently leaving a wrong diagram. Anything a scanner cannot read for
+certain (a topic name built at runtime) is listed as unknown, never guessed.
+Layout is automatic: you never arrange a diagram.
+
+## Quick start
+
+```bash
+git clone https://github.com/sergeikuznev/doc-kit.git
+python3 doc-kit/doc.py init /path/to/your/project
+cd /path/to/your/project
+alias doc='python3 "$(git rev-parse --show-toplevel)/tools/doc.py"'   # add to ~/.zshrc once
+doc install-hook        # checks the wiring before each commit
+doc model setup         # once: pick each board's .ioc and your ROS2 folders
+doc serve               # the page, live, at http://127.0.0.1:8765
 ```
-$ doc
-What just happened?
-    idea       I got an idea
-    bug        Something behaves wrong (bug)
-    decision   I chose between options
-  ❯ req        I committed to building something
-    fault      I asked 'what if this breaks?'
-    test       I tested a requirement
-    ...
 
-  ↑↓ move · Enter select · type to filter · < back · << jump
+Then describe your modules and wiring in `docs/model/<name>_arch.sysml`
+([how](docs/HANDBOOK.md#15-the-system-model)), and edit the subsystem list in
+`docs/README.md` and `.github/ISSUE_TEMPLATE/*.yml`.
 
-Subsystem   filter: com
-  ❯ COMM  Communications
-New requirement COMM-003
-Requirement
-  Form: "The <thing> shall <do what> <measurable limit>."
-> The robot shall stop all motors within 1 s of losing the radio link.
-...
-Write this?
-  ❯ Write it
-    Change an answer
-    Cancel, write nothing
-Written: docs/requirements.md
-```
+**On your phone and other devices:** `doc serve` listens on this machine only.
+Share it with your own devices through [Tailscale](https://tailscale.com):
+`tailscale serve --bg 8765`. For GitHub issues on the page and the idea/bug
+forms, install the [GitHub CLI](https://cli.github.com) and run `gh auth login`.
+
+**No server?** `doc model` writes the same page as a file, `docs/system.html`,
+without the forms.
+
+## While `doc serve` runs
+
+- It pulls from GitHub every minute (fast-forward only) and rebuilds when anything changed; issues refresh every 5 minutes.
+- Open pages show *The project changed · Reload*; reloading keeps your view and the part you had open.
+- Forms commit and push (`--no-push` keeps commits local).
+- It refuses to write a file that has uncommitted changes in its working copy, so it never commits half of your own edit.
+- Later you can move it to an always-on machine (a lab PC): it is the same command in a clone there.
 
 ## The loop: Decide, Verify, Learn
 
 Like FDIR (Fault Detection, Isolation and Recovery) names a loop of functions,
-doc-kit implements a loop. Each stage has a trigger in your work and a command:
+doc-kit implements a loop. Each stage has a trigger in your work:
 
-| Stage | What it does | Trigger | Command |
+| Stage | What it does | Trigger | On the page |
 |---|---|---|---|
-| **Capture** | Record an idea or problem before it is lost | You notice something | `doc idea`, `doc bug` |
-| **Decide** | Choose between options and record why | You compare alternatives | `doc decision` |
-| **Commit** | Turn a choice into a measurable promise | You decide to build it | `doc req` |
-| **Anticipate** | Plan how failures are detected and handled | You ask "what if it breaks?" | `doc fault` |
-| **Verify** | Prove the promise with evidence | You test it | `doc test` |
-| **Learn** | Turn incidents and experience into rules | Something breaks, or the week ends | `doc check`, `doc procedure`, `doc log` |
+| **Capture** | Record an idea or problem before it is lost | You notice something | + New → Idea / Bug |
+| **Decide** | Choose between options and record why | You compare alternatives | + New → Decision |
+| **Commit** | Turn a choice into a measurable promise | You decide to build it | + New → Requirement |
+| **Anticipate** | Plan how failures are detected and handled | You ask "what if it breaks?" | + New → Fault |
+| **Verify** | Prove the promise with evidence | You test it | Record test (with upload) |
+| **Learn** | Turn incidents and experience into rules | Something breaks, or the week ends | terminal: `doc check`, `doc procedure`, `doc log` |
 
-Around the loop: **Trace** (`doc report` shows how faults, requirements, evidence
-and issues connect) and **Revise** (`doc update` changes earlier entries, and
-requirement changes are logged).
+Around the loop: **Trace** (the page links faults, requirements, evidence,
+parts and issues) and **Revise** (Edit / Mark deleted / Change status; every
+requirement change is logged).
 
 The core is **Decide, Verify, Learn**: reasons are recorded, claims are proven,
 and mistakes turn into rules. That is what separates it from a notes folder.
@@ -67,45 +129,28 @@ and mistakes turn into rules. That is what separates it from a notes folder.
 
 Documentation written upfront becomes fiction; documentation written at the end
 forgets *why* things were done. The habit that works is writing a little at the
-moment something happens: a decision, a test, a near miss. `doc` makes that a
-30-second job, so it actually happens.
+moment something happens: a decision, a test, a near miss. doc-kit makes that a
+30-second job, so it actually happens, and keeps a picture of the whole robot
+that is never out of date.
 
-It builds on three established practices:
+It builds on established practices:
 
-- **Docs-as-code:** documentation in plain text, in the repo, versioned with git
-  and reviewed like code.
-- **Requirements traceability:** every requirement linked to its rationale, the
-  failures it covers, and the evidence that it is met.
-- **Lightweight systems engineering:** the cycle of requirements, design
-  decisions, failure analysis and verification, without the heavyweight tools.
+- **Docs-as-code:** everything in plain text, in the repo, versioned with git and reviewed like code.
+- **Requirements traceability:** every requirement linked to its rationale, the failures it covers, the evidence that it is met, and the parts it belongs to.
+- **Lightweight MBSE:** one model of the system in SysML v2 text, with generated views and interfaces, without the heavyweight tools.
 
 **New to this? Read the [handbook](docs/HANDBOOK.md).** It explains each record
 (issue, decision, requirement, fault, evidence, procedure, checklist, devlog):
 when to write one, what a good one looks like next to a weak one, how they
-connect, and [how to use the record afterwards](docs/HANDBOOK.md#14-using-the-record):
-weekly reviews, debugging, design reviews, onboarding, reusing it on the next
-robot, and your portfolio. [examples/](examples/) shows real output.
+connect, [how to use the record afterwards](docs/HANDBOOK.md#14-using-the-record),
+and [the system model](docs/HANDBOOK.md#15-the-system-model). [examples/](examples/) shows real output.
 
-## Quick start
+## The terminal: for manual work
 
-```bash
-git clone https://github.com/sergeikuznev/doc-kit.git
-cd doc-kit
-python3 doc.py init /path/to/your/project
-```
-
-`init` copies the templates and the tool into your project (it never overwrites
-existing files) and prints the next steps:
-
-1. Edit the subsystem list in `docs/README.md` and `.github/ISSUE_TEMPLATE/*.yml`.
-2. Add the shortcut to `~/.zshrc` or `~/.bashrc`, once per computer:
-   ```bash
-   alias doc='python3 "$(git rev-parse --show-toplevel)/tools/doc.py"'
-   ```
-3. Inside your project: `doc install-hook`
-4. Optional, for `doc idea` / `doc bug`: install the [GitHub CLI](https://cli.github.com) and run `gh auth login`.
-
-## Commands
+Everything the page writes, the terminal writes too, through the same code, so
+the files are identical either way. Use it when you are already in a shell, on
+a machine without the server, or for the records that have no form yet
+(procedures, checklist lines, devlog). `doc` alone opens a menu: *what just happened?*
 
 | Command | Does | Writes to |
 |---|---|---|
@@ -145,60 +190,10 @@ While answering:
 When input is piped (scripts, CI) or on Windows, menus fall back to typing a
 number or key. Set `DOC_PLAIN=1` to force that mode.
 
-## Status report
-
-`doc report` builds `docs/report.html` from your Markdown files and opens it:
-requirement progress per subsystem, everything that needs attention (failed or
-untested requirements, failure modes with no requirement, decisions still
-proposed), the fault-to-requirement links, decisions, the latest devlog entry,
-recent requirement changes, and open GitHub issues if the `gh` CLI is set up.
-It is regenerated each time, so commit it only if you want a snapshot.
+`doc report` writes a printable status summary, `docs/report.html`: requirement
+progress per subsystem, everything that needs attention, fault-to-requirement
+links, decisions, the latest devlog entry and recent requirement changes.
 Options: `--no-open`, `--no-issues`.
-
-## System model
-
-`doc model` builds one model of the robot from files you already keep, and
-draws it as an interactive page (`docs/system.html`):
-
-| Comes from | What | Written by |
-|---|---|---|
-| `.ioc` files | boards, peripherals, pins, peripheral settings, FreeRTOS tasks, clocks | CubeMX |
-| ROS2 / micro-ROS code | nodes, topics, message types (read from the code; the robot can be off) | you, in code |
-| `docs/requirements.md`, `fdir.md`, `decisions/` | requirements, faults, decisions | `doc req`, `doc fault`, `doc decision` |
-| `docs/model/<name>_arch.sysml` | subsystems, modules, wiring, which computer runs which node | you, in SysML v2 text |
-
-The first four are facts: `doc model` regenerates `<name>_facts.sysml` from
-them, and you never edit it. The arch file is the only thing you write. Every
-`connect` line is checked against the facts, so a pin renamed in CubeMX or a
-bus wired to a GPIO stops the commit (pre-commit hook) instead of silently
-leaving a wrong diagram. Anything a scanner cannot read for certain (a topic
-name built at runtime) is listed as unknown, never guessed.
-
-The page has views (System, Electrical, Power, Mechanical, Software), a
-generated interface table between subsystems, requirements, faults and
-decisions linked to the parts they belong to, and the gaps a design review
-would ask about. Layout is automatic (ELK, bundled in `vendor/`, EPL-2.0).
-The page also shows your GitHub issues (via `gh`), your docs and procedures,
-doc-kit's own guides, and everything in `docs/media/`: a photo or log whose
-file name appears in a requirement's evidence shows up on that requirement.
-See [the handbook](docs/HANDBOOK.md#15-the-system-model) for how to write the arch file.
-
-### Live, with forms: `doc serve`
-
-`doc serve` runs a small server on this machine (127.0.0.1 only). Share it with
-your own devices through Tailscale: `tailscale serve --bg 8765`. While it runs it:
-
-- pulls from GitHub every minute (fast-forward only) and rebuilds when anything changed;
-- refreshes issues every 5 minutes;
-- shows a *The project changed · Reload* bar in open pages; reloading keeps your view and selection;
-- accepts forms: idea, bug, requirement, test result (with photo / video / log upload), fault,
-  decision, and edits (status, text, mark deleted, supersede). Each form shows a preview of
-  exactly what will be written, then writes the same files the terminal commands write,
-  commits and pushes (`--no-push` to keep commits local).
-
-It refuses to write a file that has uncommitted changes in its working copy, so it never
-commits half of your own edit. Generated files and other tools' files (`.ioc`, code,
-`*_facts.sysml`) are never written from the page.
 
 ## What it creates in your project
 
