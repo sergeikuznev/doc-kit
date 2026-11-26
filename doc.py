@@ -23,6 +23,9 @@ Then, from anywhere inside that project:
     python3 tools/doc.py log          devlog entry for this week
     python3 tools/doc.py update [ID]  change a status, text or link written earlier
     python3 tools/doc.py report       status page: docs/report.html (opens in browser)
+    python3 tools/doc.py model        system map: docs/system.html, from .ioc + ROS2 code + docs
+    python3 tools/doc.py model setup  point doc model at your .ioc files and ROS2 code (once)
+    python3 tools/doc.py serve        serve the system map with forms; pulls, rebuilds, commits, pushes
     python3 tools/doc.py tidy         regroup requirements.md by subsystem
     python3 tools/doc.py install-hook ask after commits that close an issue
 
@@ -31,7 +34,7 @@ last line). Type << to see all your answers so far and jump to any of them.
 Ctrl+C at any point cancels without writing anything.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 import datetime
 import html
@@ -784,6 +787,158 @@ def next_id(rows, prefix):
     return f"{prefix}-{(max(nums) + 1) if nums else 1:03d}"
 
 
+# ----------------------------------------------------------------- record operations
+# Pure functions: answers in, file changes out. The terminal commands and the
+# web server (doc serve) both call these, so both write identical files.
+
+class OpError(Exception):
+    pass
+
+def req_text_problems(text):
+    probs = []
+    if "shall" not in text.lower():
+        probs.append('no "shall"')
+    if not re.search(r"\d", text):
+        probs.append("no number to measure")
+    return probs
+
+def op_decision(title, status, related, supersedes, context, options, decision_text, factor, consequences):
+    """options: list of (name, pros, cons). Returns (writes, text, notes)."""
+    folder = p("docs", "decisions")
+    existing = [f for f in os.listdir(folder)] if os.path.isdir(folder) else []
+    nums = [int(f[:3]) for f in existing if re.match(r"\d{3}-", f)]
+    num = max([n for n in nums if n > 0], default=0) + 1
+    if not title.strip() or not decision_text.strip() or not factor.strip():
+        raise OpError("title, decision and deciding factor are required")
+    meta = [f"- **Date:** {today()}", f"- **Status:** {status}"]
+    if related:
+        meta.append(f"- **Related:** {related}")
+    if supersedes:
+        meta.append(f"- **Supersedes:** {int(supersedes):03d}")
+    out = [f"# {num:03d}. {title}", ""] + meta + ["", "## Context"] + [f"- {x}" for x in context]
+    if options:
+        out += ["", "## Options"]
+    for i, (name, pros, cons) in enumerate(options, 1):
+        out.append(f"{i}. **{name}**")
+        out += [f"   - Pro: {x}" for x in pros] + [f"   - Con: {x}" for x in cons]
+    out += ["", "## Decision", decision_text, "", f"**Deciding factor:** {factor}",
+            "", "## Consequences"] + [f"- {x}" for x in consequences]
+    text = "\n".join(out) + "\n"
+    writes = [(p("docs", "decisions", f"{num:03d}-{slugify(title)}.md"), text)]
+    notes = []
+    if supersedes:
+        old = [f for f in existing if f.startswith(f"{int(supersedes):03d}-")]
+        if old:
+            op_ = p("docs", "decisions", old[0])
+            writes.append((op_, re.sub(r"(\*\*Status:\*\*)\s*[^\n]*", rf"\1 Superseded by {num:03d}", read(op_), count=1)))
+        else:
+            notes.append(f"Decision {int(supersedes):03d} not found; mark it superseded by hand.")
+    return writes, text, notes
+
+def op_requirement(prefix, shall, rationale, method, status):
+    path = p("docs", "requirements.md")
+    rid = next_id(table_rows(path, REQ_HEADER), prefix)
+    cells = [rid, cell(shall), cell(rationale), method, status, ""]
+    return [(path, insert_requirement(load_requirements(path), prefix, cells))], join_row(cells), rid
+
+def _req_row(rid):
+    rows = table_rows(p("docs", "requirements.md"), REQ_HEADER)
+    match = [r for r in rows if r[0] == rid.upper()]
+    if not match:
+        raise OpError(f"{rid} not found in requirements.md")
+    return match[0] + [""] * (6 - len(match[0]))
+
+def op_test(rid, result, measured, evidence, date):
+    path = p("docs", "requirements.md")
+    row = _req_row(rid)
+    entry = f"{date}: {measured}" + (f". {evidence}" if evidence else "")
+    row[4] = result
+    row[5] = cell(entry) if not row[5] else row[5] + "<br>" + cell(entry)
+    lines = load_requirements(path).splitlines()
+    _replace_row(lines, REQ_HEADER, row[0], row)
+    return [(path, "\n".join(lines) + "\n")], join_row(row)
+
+def req_link_problem(rid):
+    status = {r[0]: (r[4] if len(r) > 4 else "") for r in table_rows(p("docs", "requirements.md"), REQ_HEADER)}
+    rid = rid.upper()
+    if rid not in status:
+        return f"{rid} is not in requirements.md yet. Add it with: doc req"
+    if status[rid] == "Deleted":
+        return f"{rid} is marked Deleted. Link a requirement that is still active."
+    return None
+
+def op_fault(failure, effect, detection, response, recovery, sev, req):
+    path = p("docs", "fdir.md")
+    fid = next_id(table_rows(path, FDIR_HEADER), "FM")
+    cells = [fid] + [cell(x) for x in (failure, effect, detection, response, recovery)] + [sev, req.upper()]
+    base = read(path) if os.path.exists(path) else "# Fault table (FDIR / FMEA)\n"
+    return [(path, insert_row(base, FDIR_HEADER, cells))], join_row(cells), fid
+
+def op_update_requirement(rid, new, change):
+    """new: the full row (6 cells). change: the change-log text."""
+    path = p("docs", "requirements.md")
+    lines = load_requirements(path).splitlines()
+    _replace_row(lines, REQ_HEADER, rid, new)
+    text = "\n".join(lines) + "\n"
+    if not any(l.strip() == "## Change log" for l in lines):
+        text = text.rstrip() + "\n\n## Change log\n\n" + CHANGE_HEADER + "\n|---|---|---|\n"
+    text = insert_row(text, CHANGE_HEADER, [today(), rid, cell(change)])
+    return [(path, text)]
+
+def _fault_row(fid):
+    rows = table_rows(p("docs", "fdir.md"), FDIR_HEADER)
+    match = [r for r in rows if r[0] == fid.upper()]
+    if not match:
+        raise OpError(f"{fid} not found in fdir.md")
+    return match[0] + [""] * (8 - len(match[0]))
+
+def op_update_fault(fid, new):
+    path = p("docs", "fdir.md")
+    lines = read(path).splitlines()
+    _replace_row(lines, FDIR_HEADER, fid, new)
+    return [(path, "\n".join(lines) + "\n")]
+
+def op_update_decision(num, field, value):
+    match = [d for d in _decisions() if d[0] == str(num).zfill(3)]
+    if not match:
+        raise OpError(f"No decision {num}")
+    path = p("docs", "decisions", match[0][1])
+    text = read(path)
+    if field == "status":
+        text = re.sub(r"(\*\*Status:\*\*)[^\n]*", lambda m: f"{m.group(1)} {value}", text, count=1)
+    elif re.search(r"\*\*Related:\*\*", text):
+        text = re.sub(r"(\*\*Related:\*\*)[^\n]*", lambda m: f"{m.group(1)} {value}", text, count=1)
+    else:
+        text = re.sub(r"(- \*\*Status:\*\*[^\n]*\n)", lambda m: m.group(1) + f"- **Related:** {value}\n", text, count=1)
+    return [(path, text)]
+
+def issue_body(kind, f):
+    if kind == "idea":
+        body = "\n".join([section("What", f["what"]), section("Why", f["why"]), section("Subsystem", [f["sub"]]),
+                          section("Priority", [f["prio"]]), section("Open questions", [f"- {q}" for q in f.get("questions", [])])])
+        return body, ["idea", f["sub"], f["prio"]]
+    body = "\n".join([section("What happened", f["happened"]), section("What should have happened", f["expected"]),
+                      section("Steps to reproduce", [f"{i}. {s}" for i, s in enumerate(f.get("steps", []), 1)]),
+                      section("Subsystem", [f["sub"]]), section("Firmware version / commit", [f["firmware"]] if f.get("firmware") else []),
+                      section("Logs, photos, videos", [f"- {e}" for e in f.get("evidence", [])])])
+    return body, ["bug", f["sub"]]
+
+def gh_create_issue(title, body, labels):
+    """Returns (number, url). Raises OpError when GitHub refuses."""
+    ensure_labels(labels)
+    cmd = ["gh", "issue", "create", "--title", title, "--body", body]
+    for label in labels:
+        cmd += ["--label", label]
+    r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
+    if r.returncode != 0:
+        raise OpError("GitHub refused the issue: " + r.stderr.strip())
+    url = r.stdout.strip().splitlines()[-1] if r.stdout.strip() else ""
+    return url.rstrip("/").rsplit("/", 1)[-1], url
+
+def apply_writes(writes):
+    for path, text in writes:
+        write(path, text)
+
 # ----------------------------------------------------------------- decision
 
 def cmd_decision():
@@ -822,34 +977,12 @@ def cmd_decision():
     factor = ask("Deciding factor (what tipped it?)")
     consequences = ask_lines("Consequences: what gets easier, harder, what to do next, when to revisit")
 
-    meta = [f"- **Date:** {today()}", f"- **Status:** {status}"]
-    if related:
-        meta.append(f"- **Related:** {related}")
-    if supersedes:
-        meta.append(f"- **Supersedes:** {int(supersedes):03d}")
-    out = [f"# {num:03d}. {title}", ""] + meta + ["", "## Context"] + [f"- {x}" for x in context]
-    if options:
-        out += ["", "## Options"]
-    for i, (name, pros, cons) in enumerate(options, 1):
-        out.append(f"{i}. **{name}**")
-        out += [f"   - Pro: {x}" for x in pros] + [f"   - Con: {x}" for x in cons]
-    out += ["", "## Decision", decision_text, "", f"**Deciding factor:** {factor}",
-            "", "## Consequences"] + [f"- {x}" for x in consequences]
-    text = "\n".join(out) + "\n"
-
-    path = p("docs", "decisions", f"{num:03d}-{slugify(title)}.md")
-    if not confirm_write(path, text):
+    writes, text, notes = op_decision(title, status, related, supersedes, context, options, decision_text, factor, consequences)
+    if not confirm_write(writes[0][0], text):
         return info("Nothing written.")
-    write(path, text)
-
-    if supersedes:
-        old = [f for f in existing if f.startswith(f"{int(supersedes):03d}-")]
-        if old:
-            op = p("docs", "decisions", old[0])
-            t = re.sub(r"(\*\*Status:\*\*)\s*[^\n]*", rf"\1 Superseded by {num:03d}", read(op), count=1)
-            write(op, t)
-        else:
-            warn(f"Decision {int(supersedes):03d} not found; mark it superseded by hand.")
+    apply_writes(writes)
+    for n_ in notes:
+        warn(n_)
 
 
 # ----------------------------------------------------------------- requirement
@@ -973,11 +1106,10 @@ def cmd_req():
     method = ask_choice("How will you verify it?", METHODS, default="T")
     status = ask_choice("Status", [("Draft", "Draft"), ("Approved", "Approved")], default="Draft")
 
-    cells = [rid, cell(shall), cell(rationale), method, status, ""]
-    text = insert_requirement(load_requirements(path), prefix, cells)
-    if not confirm_write(path, join_row(cells)):
+    writes, row_text, _ = op_requirement(prefix, shall, rationale, method, status)
+    if not confirm_write(path, row_text):
         return info("Nothing written.")
-    write(path, text)
+    apply_writes(writes)
 
 
 def cmd_test(rid=None):
@@ -1002,18 +1134,10 @@ def cmd_test(rid=None):
     measured = ask("What did you measure / observe?", hint='e.g. "stop at 5.2 s, 3 runs"')
     evidence = ask("Evidence (file in media/, log name, plot)", required=False)
     date = ask("Test date", default=today())
-    entry = f"{date}: {measured}" + (f". {evidence}" if evidence else "")
-    row[4] = result
-    row[5] = cell(entry) if not row[5] else row[5] + "<br>" + cell(entry)
-
-    lines = load_requirements(path).splitlines()
-    for h, e in find_tables(lines, REQ_HEADER):
-        for i in range(h + 2, e):
-            if split_row(lines[i])[0] == rid:
-                lines[i] = join_row(row)
-    if not confirm_write(path, join_row(row)):
+    writes, row_text = op_test(rid, result, measured, evidence, date)
+    if not confirm_write(path, row_text):
         return info("Nothing written.")
-    write(path, "\n".join(lines) + "\n")
+    apply_writes(writes)
     if result == "Failed":
         warn("Failed test: consider a fault-table row (doc fault) or a new issue.")
 
@@ -1022,12 +1146,9 @@ def cmd_test(rid=None):
 
 def check_req_link(rid):
     """Warn if a fault row links to a requirement that is missing or deleted."""
-    status = {r[0]: (r[4] if len(r) > 4 else "") for r in table_rows(p("docs", "requirements.md"), REQ_HEADER)}
-    rid = rid.upper()
-    if rid not in status:
-        warn(f"{rid} is not in requirements.md yet. Add it with: doc req")
-    elif status[rid] == "Deleted":
-        warn(f"{rid} is marked Deleted. Link a requirement that is still active.")
+    msg = req_link_problem(rid)
+    if msg:
+        warn(msg)
 
 def cmd_fault():
     path = p("docs", "fdir.md")
@@ -1043,11 +1164,10 @@ def cmd_fault():
     req = ask("Requirement that covers it (ID)", required=False, hint="Enter to skip")
     if req:
         check_req_link(req)
-    cells = [fid] + [cell(x) for x in (failure, effect, detection, response, recovery)] + [sev, req.upper()]
-    base = read(path) if os.path.exists(path) else "# Fault table (FDIR / FMEA)\n"
-    if not confirm_write(path, join_row(cells)):
+    writes, row_text, _ = op_fault(failure, effect, detection, response, recovery, sev, req)
+    if not confirm_write(path, row_text):
         return info("Nothing written.")
-    write(path, insert_row(base, FDIR_HEADER, cells))
+    apply_writes(writes)
 
 
 # ----------------------------------------------------------------- update
@@ -1207,15 +1327,10 @@ def update_requirement(rid=None):
         change = f"Method: {row[3]} -> {val}"
     if new == row:
         return info("No change.")
-    lines = load_requirements(path).splitlines()
-    _replace_row(lines, REQ_HEADER, rid, new)
-    text = "\n".join(lines) + "\n"
-    if not any(l.strip() == "## Change log" for l in lines):
-        text = text.rstrip() + "\n\n## Change log\n\n" + CHANGE_HEADER + "\n|---|---|---|\n"
-    text = insert_row(text, CHANGE_HEADER, [today(), rid, cell(change)])
+    writes = op_update_requirement(rid, new, change)
     if not confirm_write(path, f"before: {join_row(row)}\nafter:  {join_row(new)}\nlog:    {change}"):
         return info("Nothing written.")
-    write(path, text)
+    apply_writes(writes)
 
 def update_fault(fid=None):
     path = p("docs", "fdir.md")
@@ -1247,11 +1362,10 @@ def update_fault(fid=None):
         new[col] = cell(ask(names[col - 1], default=row[col].replace("\\|", "|") or None))
     if new == row:
         return info("No change.")
-    lines = read(path).splitlines()
-    _replace_row(lines, FDIR_HEADER, fid, new)
+    writes = op_update_fault(fid, new)
     if not confirm_write(path, f"before: {join_row(row)}\nafter:  {join_row(new)}"):
         return info("Nothing written.")
-    write(path, "\n".join(lines) + "\n")
+    apply_writes(writes)
 
 def cmd_update(target=None):
     """Change something written earlier: a status, a text, a link."""
@@ -1402,6 +1516,7 @@ MENU = [
     ("check", "Something broke or nearly broke"),
     ("update", "Something I wrote earlier changed"),
     ("log", "End of the week"),
+    ("model", "Wiring, modules or ROS2 code changed: rebuild the system map"),
     ("report", "Show me the project status"),
 ]
 
@@ -1450,17 +1565,11 @@ def create_issue(title, body, labels):
     preview("new GitHub issue", f"Title:  {title}\nLabels: {', '.join(labels)}\n\n{body}")
     if not save_menu("Create this issue on GitHub?", "Create it"):
         return info("Nothing created.")
-    ensure_labels(labels)
-    cmd = ["gh", "issue", "create", "--title", title, "--body", body]
-    for label in labels:
-        cmd += ["--label", label]
-    r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
-    if r.returncode != 0:
-        warn("GitHub refused the issue:")
-        print(r.stderr.strip())
+    try:
+        num, url = gh_create_issue(title, body, labels)
+    except OpError as e:
+        warn(str(e))
         return
-    url = r.stdout.strip().splitlines()[-1] if r.stdout.strip() else ""
-    num = url.rstrip("/").rsplit("/", 1)[-1]
     ok(f"Created #{num}: {url}")
     info(f"  Refer to it as #{num} in decisions, requirements and commits (e.g. 'fixes #{num}').")
 
@@ -1474,9 +1583,8 @@ def cmd_idea():
     sub = ask_choice("Subsystem", [(x, x) for x in subsystems()])
     prio = ask_choice("Priority", [("must", "must"), ("should", "should"), ("could", "could")], default="should")
     questions = ask_lines("Open questions", required=False, hint="Enter right away if none.")
-    body = "\n".join([section("What", what), section("Why", why), section("Subsystem", [sub]),
-                      section("Priority", [prio]), section("Open questions", [f"- {q}" for q in questions])])
-    create_issue(title, body, ["idea", sub, prio])
+    body, labels = issue_body("idea", {"what": what, "why": why, "sub": sub, "prio": prio, "questions": questions})
+    create_issue(title, body, labels)
 
 def cmd_bug():
     if not gh_ready():
@@ -1494,15 +1602,14 @@ def cmd_bug():
         ver = ""
     firmware = ask("Firmware version / commit", required=False, default=ver or None)
     evidence = ask_lines("Logs, photos, videos (file names)", required=False)
-    body = "\n".join([section("What happened", happened), section("What should have happened", expected),
-                      section("Steps to reproduce", [f"{i}. {s}" for i, s in enumerate(steps, 1)]),
-                      section("Subsystem", [sub]), section("Firmware version / commit", [firmware] if firmware else []),
-                      section("Logs, photos, videos", [f"- {e}" for e in evidence])])
-    create_issue(title, body, ["bug", sub])
+    body, labels = issue_body("bug", {"happened": happened, "expected": expected, "steps": steps, "sub": sub,
+                                      "firmware": firmware, "evidence": evidence})
+    create_issue(title, body, labels)
 
 COMMANDS = {"decision": cmd_decision, "req": cmd_req, "test": cmd_test, "fault": cmd_fault,
             "procedure": cmd_procedure, "check": cmd_check, "log": cmd_log, "idea": cmd_idea,
-            "bug": cmd_bug, "update": cmd_update, "report": lambda: cmd_report([])}
+            "bug": cmd_bug, "update": cmd_update, "report": lambda: cmd_report([]),
+            "model": lambda: cmd_model([])}
 
 def cmd_menu():
     key = ask_choice("What just happened?", [(k, v) for k, v in MENU], branch=True)
@@ -1536,6 +1643,14 @@ exec < /dev/tty
 python3 "$(git rev-parse --show-toplevel)/tools/doc.py" hook || true
 """
 
+PRE_HOOK = """#!/bin/sh
+# Installed by tools/doc.py: regenerate the model facts (.ioc, ROS2 code, docs)
+# and stop the commit if the architecture no longer matches them.
+ROOT="$(git rev-parse --show-toplevel)"
+[ -f "$ROOT/docs/model/model.toml" ] || exit 0
+python3 "$ROOT/tools/doc.py" model --hook
+"""
+
 def cmd_install_hook():
     gitdir = subprocess.run(["git", "rev-parse", "--git-dir"], cwd=ROOT,
                             capture_output=True, text=True).stdout.strip()
@@ -1549,6 +1664,14 @@ def cmd_install_hook():
         f.write(HOOK)
     os.chmod(hook, 0o755)
     ok("Installed post-commit hook. It runs after commits containing 'fixes #N' / 'closes #N'.")
+    pre = os.path.join(ROOT, gitdir, "hooks", "pre-commit")
+    if os.path.exists(pre) and "tools/doc.py" not in read(pre):
+        warn(f"{pre} already exists and was not made by doc.py; the model check was not installed.")
+    else:
+        with open(pre, "w") as f:
+            f.write(PRE_HOOK)
+        os.chmod(pre, 0o755)
+        ok("Installed pre-commit hook. When docs/model/model.toml exists, each commit rebuilds the facts and checks the architecture.")
 
 
 
@@ -1662,7 +1785,8 @@ def build_report(with_issues=True):
     w(f"<title>{html.escape(project)} status</title><style>{REPORT_CSS}</style></head><body><main>")
     commit = _git("log", "-1", "--format=%h · %cs")
     w(f"<h1>{html.escape(project)}</h1><div class='sub'>Status report generated {datetime.datetime.now():%Y-%m-%d %H:%M}"
-      + (f" · last commit {html.escape(commit)}" if commit else "") + " · by doc-kit</div>")
+      + (f" · last commit {html.escape(commit)}" if commit else "")
+      + (" · <a href='system.html'>system map</a>" if os.path.exists(p("docs", "system.html")) else "") + " · by doc-kit</div>")
 
     pct = f"{round(100 * verified / len(live))}%" if live else "-"
     tiles = [(f"{verified}/{len(live)}", f"requirements verified ({pct})"),
@@ -1798,6 +1922,157 @@ def cmd_report(args):
         if opener:
             subprocess.run([opener, path], capture_output=True)
 
+
+# ----------------------------------------------------------------- system model
+
+def _docmodel():
+    here = os.path.dirname(os.path.abspath(__file__))
+    if not os.path.exists(os.path.join(here, "docmodel.py")):
+        sys.exit("doc model needs docmodel.py next to doc.py. Re-run: python3 <doc-kit>/doc.py init <project>")
+    sys.path.insert(0, here)
+    import docmodel
+    return docmodel
+
+def _open(path):
+    opener = "open" if sys.platform == "darwin" else "xdg-open" if shutil.which("xdg-open") else None
+    if opener:
+        subprocess.run([opener, path], capture_output=True)
+
+def cmd_model(args):
+    """Rebuild the facts from the .ioc files, ROS2 code and docs; check the architecture; write docs/system.html."""
+    dm = _docmodel()
+    if args and args[0] == "setup":
+        return run_with_back(model_setup)
+    hook = "--hook" in args
+    try:
+        m = dm.build(ROOT)
+    except dm.ModelError as e:
+        if hook and "model.toml" in str(e):
+            return
+        print(c(f"doc model: {e}", "1;31"))
+        sys.exit(1)
+    facts = p("docs", "model", f"{m['name']}_facts.sysml")
+    text = dm.facts_sysml(m)
+    if not os.path.exists(facts) or read(facts) != text:
+        write(facts, text)
+        if hook:
+            subprocess.run(["git", "add", facts], cwd=ROOT)
+    if not hook and "--check" not in args:
+        dm.collect_extras(ROOT, m, with_issues="--no-issues" not in args)
+        if m["issue_error"] not in (None, "skipped"):
+            info(f"  issues not included: {m['issue_error']}")
+        page = p("docs", "system.html")
+        with open(page, "w", encoding="utf-8") as f:
+            f.write(dm.page(m))
+        ok(f"Written: {rel(page)}")
+    if m["problems"]:
+        print(c(f"\n{len(m['problems'])} model problem(s): the architecture no longer matches the facts", "1;31"))
+        for x in m["problems"]:
+            print(c(f"  ✕ {x}", "31"))
+    for x in m["notes"]:
+        info(f"  note: {x}")
+    if not hook:
+        print(f"\n  {len(m['subsystems'])} subsystems, {sum(1 for x in m['parts'].values() if x['depth'] >= 2)} parts, "
+              f"{sum(1 for x in m['connections'] if x['ok'])} connections, {len(m['nodes'])} ROS2 nodes, "
+              f"{len(m['gaps'])} gaps (listed in the page)")
+    if m["problems"]:
+        if hook:
+            print(c("\nCommit stopped. Fix the arch file, or commit anyway with: git commit --no-verify", "1"))
+        sys.exit(1)
+    if not hook and "--check" not in args and "--no-open" not in args:
+        _open(p("docs", "system.html"))
+
+def cmd_serve(args):
+    """Serve the system map with forms on this machine (share it with: tailscale serve --bg PORT)."""
+    _docmodel()
+    import docserve
+    docserve.doc = sys.modules[__name__]
+    port = int(args[args.index("--port") + 1]) if "--port" in args else 8765
+    interval = int(args[args.index("--interval") + 1]) if "--interval" in args else 60
+    docserve.serve(ROOT, port=port, push="--no-push" not in args, interval=interval)
+
+def _find(pattern_ext=None, marker=None):
+    out = []
+    for base, dirs, files in os.walk(ROOT):
+        dirs[:] = [d for d in dirs if not d.startswith(".") and d not in ("build", "install", "log", "Drivers", "Middlewares", "node_modules", "Debug", "Release")]
+        if pattern_ext:
+            out += [os.path.relpath(os.path.join(base, f), ROOT) for f in files if f.endswith(pattern_ext)]
+        if marker and marker in files:
+            out.append(os.path.relpath(base, ROOT))
+    return sorted(out)
+
+def model_setup():
+    """Write docs/model/model.toml (and a starter arch file) by asking, never guessing."""
+    cfg_path = p("docs", "model", "model.toml")
+    if os.path.exists(cfg_path) and not yes(f"{rel(cfg_path)} exists. Replace it?"):
+        return
+    name = ask("Project name (used for the .sysml file names)", default=os.path.basename(ROOT))
+    name = re.sub(r"\W", "_", name)
+    iocs = _find(".ioc")
+    if not iocs:
+        warn("No .ioc files found in this repo; boards can be added to model.toml later.")
+    boards, i = [], 1
+    prefixes = req_prefixes()
+    while iocs:
+        left = [f for f in iocs if f not in [b["ioc"] for b in boards]]
+        if not left:
+            break
+        opts = [(f, f) for f in left] + ([("done", "No more boards")] if boards else [])
+        pick = ask_choice(f"\nBoard {i}: which .ioc file?", opts, branch=True)
+        if pick == "done":
+            break
+        guess = os.path.basename(os.path.dirname(os.path.dirname(pick))) or "board"
+        bname = re.sub(r"\W", "_", ask(f"Board {i}: short name (the part's name in the arch file)", default=guess)).lower()
+        sub = ask_choice(f"Board {i}: which subsystem is it in?", prefixes)
+        boards.append({"name": bname, "def": f"STM32_{bname.upper()}", "ioc": pick, "sub": sub})
+        i += 1
+        if not yes("Add another board?"):
+            break
+    ros = []
+    cands = [os.path.dirname(x) for x in _find(marker="package.xml")]
+    cands = sorted({c_ for c_ in cands}) + [os.path.join(os.path.dirname(b["ioc"]), "Core", "Src") for b in boards
+                                             if os.path.isdir(p(os.path.dirname(b["ioc"]), "Core", "Src"))]
+    for cnd in cands:
+        if yes(f"Scan {cnd}/ for ROS2 / micro-ROS code?", default=True):
+            ros.append(cnd)
+    lines = ["# doc model configuration. Paths are relative to the project folder.", "[project]", f'name = "{name}"', "",
+             "# One [[board]] per microcontroller. ioc = the .ioc file (or a folder that holds exactly one)."]
+    for b in boards:
+        lines += ["[[board]]", f'name = "{b["name"]}"', f'def  = "{b["def"]}"', f'ioc  = "{b["ioc"]}"', ""]
+    lines += ["# Folders scanned for ROS2 / micro-ROS code. The robot does not need to be on.", "[ros]",
+              "paths = [" + ", ".join(f'"{r}"' for r in ros) + "]"]
+    preview("docs/model/model.toml", "\n".join(lines))
+    if not save_menu("Write model.toml?", "Write it"):
+        return
+    write(cfg_path, "\n".join(lines))
+    arch = p("docs", "model", f"{name}_arch.sysml")
+    if not os.path.exists(arch):
+        top = name.lower()
+        subs = {}
+        for b in boards:
+            subs.setdefault(b["sub"], []).append(f"            part {b['name']} : {b['def']};")
+        body = "\n".join(f"        part {s} {{\n" + "\n".join(ps) + "\n        }" for s, ps in subs.items())
+        write(arch, f"""// {name} architecture: written by you. Boards come from {name}_facts.sysml (generated).
+// Run  doc model  after editing; it checks every line against the facts.
+package {name}_arch {{
+    private import {name}_facts::*;
+
+    // Modules outside the MCU. Port types: SpiBus I2cBus UartLink UsbLink CanBus GpioOut GpioIn
+    // PwmOut EncoderIn AnalogIn (from the facts); define your own with  port def X :> Power;  or  :> Mechanical;
+    // Example:
+    // part def NRF24L01 {{ port spi : ~SpiBus; port csn : ~GpioOut; port ce : ~GpioOut; }}
+
+    part {top} {{
+{body}
+        // Subsystem names match requirement prefixes (PWR-001 lands in part PWR).
+        // connect {boards[0]['sub'] if boards else 'CTRL'}.{boards[0]['name'] if boards else 'mcu'}.spi1 to COMM.radio.spi;
+    }}
+
+    // allocate ROS::node_name to {top}.SUBSYSTEM.part;       which computer runs a ROS2 node
+    // satisfy 'PWR-002' by {top}.PWR.battery;                 a requirement that belongs to one part
+}}""")
+    ok("Next: describe your modules and wiring in the arch file, then run  doc model")
+
 # ----------------------------------------------------------------- init
 
 def cmd_init(args):
@@ -1837,7 +2112,20 @@ def cmd_init(args):
     shutil.copy2(os.path.abspath(__file__), tool)
     os.chmod(tool, 0o755)
     created.append("tools/doc.py (updated to " + __version__ + ")" if existed else "tools/doc.py")
+    for extra in ("docmodel.py", "docmodel_page.html", "docserve.py", os.path.join("vendor", "elk.bundled.js"),
+                  os.path.join("vendor", "LICENSE-elkjs.md"), "README.md", os.path.join("docs", "HANDBOOK.md")):
+        src = os.path.join(kit, extra)
+        if os.path.exists(src):
+            dst = os.path.join(target, "tools", "guides", os.path.basename(extra)) if extra.endswith(".md") and "LICENSE" not in extra \
+                else os.path.join(target, "tools", extra)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copy2(src, dst)
+            created.append(rel_ := os.path.relpath(dst, target).replace(os.sep, "/"))
 
+    gi = os.path.join(target, "tools", ".gitignore")
+    if not os.path.exists(gi):
+        with open(gi, "w") as fh:
+            fh.write("__pycache__/\n")
     ok(f"\nSet up documentation for {name} in {target}")
     for f in sorted(created):
         print(f"  + {f}")
@@ -1851,6 +2139,7 @@ def cmd_init(args):
     print("  3. Inside the project:  doc install-hook")
     print("  4. Optional, for doc idea / doc bug:  brew install gh && gh auth login")
     print("  5. Type  doc  and pick what just happened.")
+    print("  6. For the system map (Python 3.11+):  doc model setup, then  doc model  or  doc serve")
 
 
 def main():
@@ -1878,6 +2167,10 @@ def main():
             cmd_hook()
         elif args[0] == "report":
             cmd_report(args[1:])
+        elif args[0] == "model":
+            cmd_model(args[1:])
+        elif args[0] == "serve":
+            cmd_serve(args[1:])
         elif args[0] == "tidy":
             path = p("docs", "requirements.md")
             write(path, regroup_requirements(read(path)))

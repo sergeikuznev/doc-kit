@@ -22,7 +22,9 @@ the **power system** (choosing a battery) and the **odometry** feature.
 11. [Devlog](#11-devlog)
 12. [Changing things later](#12-changing-things-later)
 13. [Common confusions](#13-common-confusions)
-14. [Quick reference](#14-quick-reference)
+14. [Using the record](#14-using-the-record)
+15. [The system model](#15-the-system-model)
+16. [Quick reference](#16-quick-reference)
 
 ---
 
@@ -46,6 +48,12 @@ or an interviewer is a stranger from day one. The record is written for them.
 The rule that makes it work: **write each record at the moment something
 happens**, in a few minutes, while the details are fresh. Not upfront, not at the end.
 
+- Upfront documents become fiction: they describe a system you have not built yet.
+- End-of-project documents are incomplete: you remember what you chose, but not why.
+- Event-driven documents are cheap and accurate: 2 to 5 minutes each.
+
+An empty template is fine. It is a slot waiting for the moment it is needed.
+
 ---
 
 ## 2. How the records connect
@@ -64,6 +72,32 @@ flowchart LR
     C --> L["Devlog<br/>the week's story"]
     V --> L
 ```
+
+An idea moves through four stages:
+
+| Stage | Lives in | Means |
+|---|---|---|
+| Idea | Issue | Maybe. Cheap to write, cheap to reject. |
+| Decision | Decision record | We compared options and chose one. |
+| Requirement | `requirements.md` | We are doing it, and here is how we will know it works. |
+| Done | Closed issue + evidence | Built, tested, proven. |
+
+### One feature, start to finish
+
+| Step | You do | You write |
+|---|---|---|
+| Idea | Notice the robot cannot tell how far it moved | Issue #3 "Odometry from encoders + IMU" |
+| Decide | Compare encoders only vs. encoders fused with IMU | `decisions/001-fuse-encoders-and-imu.md` |
+| Commit | Decide to build it | NAV-001 in `requirements.md` |
+| Faults | Ask what happens if an encoder stops | FM-001 in `fdir.md` |
+| Build | Write the code | `feat(nav): add odometry, fixes #3` |
+| Test | Drive a square: 0.6 m error, loose connector | NAV-001 Failed + checklist line |
+| Fix and retest | Secure connector: 0.08 m error | NAV-001 Verified, evidence added |
+| Procedure | Calibration took an hour to figure out | `procedures/calibrating_the_imu.md` |
+| Week ends | | Devlog entry |
+
+One feature touched every document, a few minutes each, with no separate
+documentation day. See [../examples/](../examples/) for the resulting files.
 
 Three chains you will see again and again:
 
@@ -392,7 +426,243 @@ A procedure is how to do a task. A checklist is what to check every time.
 
 ---
 
-## 14. Quick reference
+## 14. Using the record
+
+Writing records only pays off if they are read again. These are the moments
+they get used, and what to open in each.
+
+### Every time you power up: the checklist
+
+Before powering the robot after any hardware change, open
+`docs/procedures/pre_power_checklist.md` and tick through it. This is the one
+record you use every session. If it saved you from a mistake, it worked.
+
+### Every time you do a known task: the procedure
+
+Before charging, flashing, calibrating or mounting something, open its procedure
+and follow the steps instead of remembering. If a step was wrong or missing,
+fix the procedure right then.
+
+### Every week: the review
+
+At the end of the week (10-15 minutes):
+
+1. `doc report` and read **Needs attention**: failed requirements, untested ones,
+   failure modes with no requirement, decisions still proposed.
+2. Turn each item you will act on into an issue (`doc idea`) or plan the test.
+3. `doc log`: what was done, what broke, what is next.
+
+The report is your to-do list for the next week, generated from the record
+instead of from memory.
+
+### Before you start building something: check what is already promised
+
+Before touching a subsystem, read its section in `requirements.md` and the
+decisions related to it. Changing the battery wiring? Check PWR-002 first: you
+are about to touch the thing that protects the cells. If your change affects a
+Verified requirement, plan to retest it.
+
+### When something breaks: debugging
+
+1. **Fault table:** is this failure already planned for? If yes, did the
+   detection and response actually happen? If not, that is a bug in the
+   protection, not only in the part.
+2. **Evidence and logs:** the last passing test tells you the setup that worked
+   (`logs/...mcap`, firmware commit). Compare it with today's.
+3. **Devlog and change log:** what changed since it last worked?
+4. **Git history:** find when a record or file changed:
+   ```bash
+   git log -S "3.3 V" -- docs/          # when did this text appear or disappear?
+   git log --oneline -- docs/fdir.md    # every change to the fault table
+   ```
+5. Afterwards: a bug issue, a checklist line if it can recur, and a new fault
+   row if it was a failure nobody had planned for.
+
+### When a decision's reason changes: revisit it
+
+Each decision has a **deciding factor**. When that fact changes (the mass budget
+grows, a part is discontinued, the requirement moves), the decision is due for a
+second look. Search for it:
+
+```bash
+grep -ril "mass budget" docs/decisions/
+```
+
+If you choose differently, write a new decision that supersedes the old one, and
+update the requirements it created.
+
+### When someone new joins: onboarding
+
+Point them to, in this order:
+
+1. `doc report`: the current state in one page.
+2. `docs/decisions/`: why things are the way they are. Reading these saves weeks
+   of "why didn't you just...?" conversations.
+3. `requirements.md`: what the robot must do and what is proven.
+4. The pre-power checklist and procedures, before they touch hardware.
+
+### At a design review: the agenda
+
+For a supervisor meeting, a competition design review or a sponsor update, the
+record is the material:
+
+| Review question | Show |
+|---|---|
+| What does the system need to do? | Requirements, per subsystem |
+| Why this design? | Decisions with their options and deciding factors |
+| What happens when it fails? | The fault table and which requirements cover it |
+| How do you know it works? | Verified requirements and their evidence |
+| What is still open? | The *Needs attention* list from `doc report` |
+
+### When you start the next robot: reuse
+
+A new project does not start from zero:
+
+- **Checklist:** copy the lines that apply. They are lessons already paid for.
+- **Procedures:** charging, flashing and calibration rarely change between robots.
+- **Requirements:** use the old ones as a starting list. Keep, adjust the numbers,
+  or drop each one, and record why.
+- **Fault table:** the same parts fail the same ways. Start from the old rows.
+- **Decisions:** do not copy them. Re-decide with the new constraints, and link
+  the old decision as context.
+
+### For your portfolio, CV and interviews
+
+The record is evidence of how you work, not only what you built:
+
+- A decision with real options and a deciding factor shows engineering judgement.
+- A requirement that **failed**, was fixed and then verified shows honest testing.
+- A fault table shows you think about failure before it happens.
+- The status page is a one-glance summary for a reviewer.
+
+In an interview, "the runtime requirement failed at 22 minutes because the pack
+was at storage charge; we added a checklist line and it passed at 34 minutes"
+is a stronger answer than "it worked". The record is what lets you tell that
+story accurately months later.
+
+### For reports and theses
+
+A thesis chapter or a project report follows the same structure as the record:
+requirements, design decisions, failure analysis, verification. Write it from
+the record instead of from memory, and cite the evidence files for every claim.
+
+
+## 15. The system model
+
+The record answers *what we decided and whether it works*. The system model
+answers *what the robot is made of and how the pieces connect*, across
+electrical, power, mechanical and ROS2, in one place.
+
+### Facts and architecture
+
+Two kinds of information, kept apart on purpose:
+
+- **Facts** are already written down somewhere else: pins and peripheral
+  settings in the `.ioc`, topics in the ROS2 code, requirements and faults in
+  `docs/`. `doc model` reads them and writes `docs/model/<name>_facts.sysml`.
+  Never edit that file; change the source instead.
+- **Architecture** is what only you know: that the nRF24 sits on SPI1, that the
+  radio belongs to COMM, that the EKF runs on the Pi. You write it in
+  `docs/model/<name>_arch.sysml`.
+
+The facts file says SPI1 exists on PA5 to PA7 at 3.75 Mbit/s. Only the arch
+file can say what is plugged into it.
+
+### Setting up
+
+Run `doc model setup` once. It lists the `.ioc` files it finds and asks which
+board each one is and which subsystem holds it, then which folders hold ROS2 or
+micro-ROS code. Every board points at its own `.ioc` file, so folder names do
+not matter and a folder with several `.ioc` files is never guessed. The answers
+go in `docs/model/model.toml`, which you can also edit by hand.
+
+### Writing the arch file
+
+SysML v2 text, a small subset:
+
+```
+package CHIMERA_arch {
+    private import CHIMERA_facts::*;
+
+    port def PowerRail :> Power;          // your own link kinds: :> Power or :> Mechanical
+    part def NRF24L01 {                   // a module outside the MCU
+        port spi : ~SpiBus;               // ~ = the receiving end
+        port csn : ~GpioOut;
+        port vcc : ~PowerRail;
+    }
+
+    part chimera {                        // the robot
+        part CTRL { part mcu : STM32_ROBOT { port vin : ~PowerRail; } }
+        part COMM { part radio : NRF24L01; }
+        connect CTRL.mcu.spi1 to COMM.radio.spi;
+        connect CTRL.mcu.nrf24_csn to COMM.radio.csn;
+    }
+
+    allocate ROS::chimera_ekf to chimera.CTRL.pi;   // which computer runs a node
+    satisfy 'PWR-002' by chimera.PWR.battery;       // a requirement owned by one part
+}
+```
+
+- **Subsystems** are the parts directly inside the robot. Name them after your
+  requirement prefixes: every `PWR-###` requirement lands in `part PWR`
+  without any extra line. Faults land where their covering requirement lands.
+- **Port names on the MCU** come from the `.ioc`: one per peripheral (`spi1`,
+  `tim3`, `usb_otg_fs`) and one per labelled GPIO (`nrf24_csn`). The facts file
+  lists them all.
+- **Port types** decide the view a link appears in. The MCU's types (`SpiBus`,
+  `GpioOut`, `EncoderIn`, ...) are Signal. Define `port def X :> Power;` for
+  power rails and `:> Mechanical;` for mounts. Both ends of a `connect` must
+  have the same type, one end with `~`.
+- **Decisions** link to parts by naming them on their Related line
+  (`**Related:** PWR-001, battery`).
+
+### What the check catches
+
+`doc model` and the pre-commit hook stop on: a `connect` to a port that is not
+in the facts (pin renamed or removed in CubeMX), mismatched types (an SPI bus
+wired to a GPIO), an unknown part type, an `allocate` to a ROS node that is not
+in the code, a `satisfy` for a requirement that does not exist, one topic used
+with two message types. Broken links are drawn red in the page instead of
+disappearing.
+
+Gaps are not errors, they are review questions: a subsystem with no
+requirements or no fault analysed, a fault no requirement covers, a topic
+nobody subscribes to, a ROS node not allocated to any computer, a module with
+nothing connected.
+
+### Using the page
+
+- **System** shows subsystems and what crosses between them. Click one for its
+  interfaces, requirements and faults; *Open in Electrical* focuses on it.
+- **Electrical, Power, Mechanical** show parts inside their subsystems with only
+  the ports used in that view. Click a part for every port, its pins, saved
+  peripheral settings (CubeMX only saves changed values; unsaved ones are
+  marked "CubeMX default"), what it connects to, and its requirements, faults
+  and decisions.
+- **Software** shows nodes grouped by the computer they run on, with topics
+  between them.
+- **Interfaces** is generated: every connection that crosses a subsystem
+  boundary, with pins and bus settings. This replaces a hand-written ICD for
+  everything that is wired.
+
+### Live, from any device
+
+`doc serve` serves the same page with forms, from your Mac now and from an
+always-on machine later. The forms ask the same questions as the terminal and
+call the same code, so a requirement written from your phone at the bench is
+byte-for-byte the row `doc req` would write. Recording a test is the case it is
+best at: pick the requirement, Passed or Failed, what you measured, take the
+photo, Write it. The photo lands in `docs/media/`, its name in the evidence,
+and the page shows it on the requirement from then on.
+
+The page writes only what doc-kit writes. CubeMX owns the `.ioc`, your editor
+owns the code, `doc model` owns the facts file, and nothing is ever removed:
+a dropped requirement is marked Deleted with a reason, a replaced decision is
+Superseded.
+
+---
+
+## 16. Quick reference
 
 | When this happens | Write | Command |
 |---|---|---|
@@ -407,3 +677,40 @@ A procedure is how to do a task. A checklist is what to check every time.
 | Something written earlier changes | Update | `doc update` |
 | End of the week | Devlog entry | `doc log` |
 | You want the big picture | Status report | `doc report` |
+| Wiring, modules or ROS2 code changed | System map | `doc model` |
+| You want the map and forms on your phone | Live server | `doc serve` |
+
+### Habits
+
+- **Close the loop:** when you close an issue, ask whether it created a decision,
+  requirement or procedure. `doc install-hook` asks you automatically.
+- **Commit messages:** `type(area): what changed (#issue)`, with types
+  `feat`, `fix`, `docs`, `refactor`, `chore`.
+- **Names:** lowercase, underscores, no spaces. Media starts with the date.
+- **Do not commit build outputs or large binaries:** use `.gitignore`, and GitHub
+  Releases for files over a few MB.
+
+- **Use what you wrote:** tick the checklist before every power-up, follow procedures
+  instead of memory, and read `doc report` during the weekly devlog. More in [chapter 14](#14-using-the-record).
+
+### Start small
+
+| Phase | Set up |
+|---|---|
+| Day one | Issues, decisions, procedures |
+| When building safety-critical features | Requirements, fault table, ICDs |
+| Every week from the start | Devlog |
+| More than ~100 requirements, or a team with formal reviews | Consider a dedicated requirements tool such as StrictDoc or Doorstop |
+
+### How this maps to industry
+
+| Here | Small company | Aerospace / large company |
+|---|---|---|
+| GitHub Issues | Jira, Linear | Jira |
+| `requirements.md` | Wiki or Markdown | DOORS, Jama, Polarion |
+| Decision records | Markdown, Confluence | Trade studies, design review minutes |
+| `fdir.md` | Spreadsheet | Formal FMEA/FMECA, reliability sign-off |
+| Checklist entries | Bug tickets | Nonconformance reports |
+
+The tools differ; the habits are the same: measurable requirements, recorded
+reasons, planning for failure, and evidence for every claim.

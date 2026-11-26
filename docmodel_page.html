@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__ · system</title>
+<style>
+:root{--bg:#f6f6f4;--surface:#fff;--sunk:#f0f0ed;--ink:#141413;--muted:#6a6a64;--faint:#9a9a93;--hair:#e4e4df;--ring:rgba(20,20,19,.10);
+--accent:#2a62d4;--accent-soft:#e8eefb;--sig:#2a62d4;--pwr:#c27a00;--mech:#7a6aa8;--facts:#2a62d4;--arch:#8a5cc8;
+--good:#0f9b2c;--good-ink:#0b7a22;--crit:#d23b3b;--crit-ink:#b02626;--warn:#e0a000;--warn-ink:#8a6200;--appr:#8a8a84;
+--sev1:#9a9a93;--sev2:#e0a000;--sev3:#e0642b;--sev4:#d23b3b;--shadow:0 1px 2px rgba(0,0,0,.04),0 4px 16px rgba(0,0,0,.05)}
+@media (prefers-color-scheme:dark){:root{--bg:#121211;--surface:#1b1b19;--sunk:#161614;--ink:#ecebe6;--muted:#a3a29b;--faint:#74736d;--hair:#2c2c29;
+--ring:rgba(255,255,255,.09);--accent:#7aa2ff;--accent-soft:#1f2a44;--sig:#7aa2ff;--pwr:#f0b13a;--mech:#ad9ee0;--facts:#7aa2ff;--arch:#c19bf0;
+--good:#2fbf4c;--good-ink:#5ad277;--crit:#ff5f5f;--crit-ink:#ff8a8a;--warn:#f0b13a;--warn-ink:#f0c46a;--appr:#8f8f88;
+--sev1:#74736d;--sev2:#f0b13a;--sev3:#ff8a4d;--sev4:#ff5f5f;--shadow:none}}
+*{box-sizing:border-box}html,body{height:100%}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+header{display:flex;align-items:center;gap:16px;padding:12px 20px;border-bottom:1px solid var(--hair);background:var(--surface)}
+header h1{font-size:16px;margin:0;font-weight:650;letter-spacing:-.01em}header .sub{color:var(--muted);font-size:12.5px}
+.counters{margin-left:auto;display:flex;gap:8px}
+.counter{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;border:1px solid var(--hair);font-size:12.5px;cursor:pointer;background:var(--surface);color:var(--ink)}
+.counter b{font-variant-numeric:tabular-nums}.counter.bad{border-color:var(--crit);color:var(--crit-ink)}.counter.gap{border-color:var(--warn);color:var(--warn-ink)}
+.shell{flex:1;display:grid;grid-template-columns:200px 1fr auto;min-height:0}
+nav{border-right:1px solid var(--hair);padding:14px 10px;overflow:auto;background:var(--surface)}
+nav .grp{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);margin:14px 10px 6px}
+nav button{display:flex;width:100%;align-items:center;gap:9px;padding:7px 10px;border:0;background:none;color:var(--ink);font:inherit;border-radius:7px;cursor:pointer;text-align:left}
+nav button:hover{background:var(--sunk)}nav button.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+nav button .dot{width:8px;height:8px;border-radius:2px;flex:none}nav button .n{margin-left:auto;color:var(--faint);font-size:12px;font-variant-numeric:tabular-nums}
+main{overflow:auto;min-width:0;position:relative}
+.page{padding:22px 26px 60px;max-width:1180px}.page h2{font-size:20px;margin:0 0 4px;letter-spacing:-.01em}.page .lead{color:var(--muted);margin:0 0 18px;max-width:760px}
+.diagram{position:absolute;inset:0;display:flex;flex-direction:column}
+.dtool{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid var(--hair);background:var(--surface)}
+.dtool>div:first-child{min-width:0;flex:1 1 auto}.dtool h2{font-size:15px;margin:0}.dtool .lead{color:var(--muted);font-size:12.5px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dtool .legend{flex:none}.dtool .legend span{white-space:nowrap}
+.dtool .sp{flex:0}.btn{font:inherit;font-size:12.5px;padding:5px 10px;border-radius:7px;border:1px solid var(--hair);background:var(--surface);color:var(--ink);cursor:pointer}
+.btn:hover{border-color:var(--faint)}.chip{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;font-size:12px;border:1px solid var(--hair);background:var(--surface);cursor:pointer;color:var(--ink);white-space:nowrap}
+.chip.focus{border-color:var(--accent);color:var(--accent)}
+.canvas{flex:1;overflow:hidden;cursor:grab;background:radial-gradient(circle,var(--hair) 1px,transparent 1px) 0 0/22px 22px}
+.canvas:active{cursor:grabbing}.canvas svg{display:block;width:100%;height:100%;user-select:none;-webkit-user-select:none}
+.empty{color:var(--muted);padding:40px;text-align:center}
+/* svg */
+svg text{fill:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.cont>rect{fill:var(--surface);fill-opacity:.55;stroke:var(--faint);stroke-dasharray:4 3;stroke-width:1.2}
+.cont>text.t{font-size:13px;font-weight:700;letter-spacing:.04em}.cont>text.s{font-size:11px;fill:var(--muted)}
+.leaf{cursor:pointer}.leaf>rect.b{fill:var(--surface);stroke:var(--ring);stroke-width:1.2;filter:drop-shadow(0 1px 2px rgba(0,0,0,.06))}
+.leaf>rect.band{rx:2}.leaf.facts>rect.band{fill:var(--facts)}.leaf.arch>rect.band{fill:var(--arch)}
+.leaf text.t{font-size:12.5px;font-weight:650}.leaf text.ty{font-size:11px;fill:var(--muted)}.leaf text.more{font-size:10.5px;fill:var(--faint)}
+.leaf:hover>rect.b{stroke:var(--faint)}.sel>rect.b{stroke:var(--accent)!important;stroke-width:2.2!important}
+.port{fill:var(--surface);stroke-width:1.4}.plab{font-size:11px;fill:var(--muted)}
+.edge{fill:none;stroke-width:1.6;opacity:.9}.edge.Signal{stroke:var(--sig)}.edge.Power{stroke:var(--pwr);stroke-width:2.2}.edge.Mechanical{stroke:var(--mech);stroke-dasharray:6 3}
+.edge.bad{stroke:var(--crit)!important;stroke-dasharray:5 4}.edge.dim{opacity:.12}.edge.hot{stroke-width:3.2;opacity:1}
+.elab rect{fill:var(--surface);stroke:var(--hair)}.elab text{font-size:10.5px;fill:var(--muted)}
+.topic>rect{fill:var(--sunk);stroke:var(--hair)}.topic text{font-size:11.5px}.topic text.ty{fill:var(--muted);font-size:10px}.topic{cursor:pointer}
+.rosnode>rect.b{fill:var(--surface);stroke:var(--ring)}.rosnode{cursor:pointer}
+.rosedge{fill:none;stroke:var(--sig);stroke-width:1.5;opacity:.85}
+/* drawer */
+aside{width:0;overflow:hidden;border-left:1px solid var(--hair);background:var(--surface);transition:width .18s}
+aside.open{width:440px;overflow:auto}aside .in{padding:18px 20px 40px;width:440px}
+aside .x{float:right}.dh{font-size:17px;font-weight:650;margin:2px 0}.dsub{color:var(--muted);font-size:12.5px;margin-bottom:12px}
+aside h4{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);margin:18px 0 8px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:13px}.kv div:nth-child(odd){color:var(--muted)}
+.ptab{width:100%;border-collapse:collapse;font-size:12.5px}.ptab td,.ptab th{padding:6px 6px;border-bottom:1px solid var(--hair);text-align:left;vertical-align:top}
+.ptab th{color:var(--faint);font-weight:600;font-size:11.5px}.ptab tr.off td{color:var(--faint)}.ptab tr.det td{background:var(--sunk);padding:8px 10px}
+.ptab .lnk{color:var(--accent);cursor:pointer}.ptab tr.row{cursor:pointer}.ptab tr.row:hover td{background:var(--sunk)}
+.mini{display:flex;flex-direction:column;gap:6px}
+.mitem{border:1px solid var(--hair);border-radius:8px;padding:8px 10px;font-size:13px;cursor:pointer}.mitem:hover{border-color:var(--faint)}
+.mitem .h{display:flex;gap:8px;align-items:center}.mitem .id{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--muted)}
+/* pills */
+.pill{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-size:12px;font-weight:600}
+.pill i{font-style:normal;display:inline-grid;place-items:center;width:15px;height:15px;border-radius:50%;font-size:9.5px;color:#fff}
+.Verified{color:var(--good-ink)}.Verified i{background:var(--good)}.Failed{color:var(--crit-ink)}.Failed i{background:var(--crit)}
+.Approved{color:var(--muted)}.Approved i{background:var(--appr)}.Draft{color:var(--muted)}.Draft i{background:transparent;border:1.5px solid var(--appr)}
+.Deleted{color:var(--faint);text-decoration:line-through}
+/* cards */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:22px}
+.tile{background:var(--surface);border:1px solid var(--ring);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow)}
+.tile .n{font-size:26px;font-weight:650;font-variant-numeric:tabular-nums;letter-spacing:-.02em}.tile .l{color:var(--muted);font-size:12.5px}
+.tile .bar{display:flex;height:6px;border-radius:3px;overflow:hidden;margin-top:10px;background:var(--sunk);gap:2px}.tile .bar span{display:block}
+.panel{background:var(--surface);border:1px solid var(--ring);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow);margin-bottom:16px}
+.panel h3{font-size:14px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.issue{display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--hair);font-size:13px}.issue:first-of-type{border-top:0}
+.issue .k{flex:none;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);width:92px;padding-top:2px}
+.issue.p .k{color:var(--crit-ink)}.issue .g{cursor:pointer}.issue .g:hover{color:var(--accent)}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.filters input{font:inherit;padding:6px 10px;border-radius:8px;border:1px solid var(--hair);background:var(--surface);color:var(--ink);min-width:240px}
+.fchip{font:inherit;font-size:12.5px;padding:4px 11px;border-radius:999px;border:1px solid var(--hair);background:var(--surface);color:var(--ink);cursor:pointer}
+.fchip.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.sgroup{margin:22px 0 10px;display:flex;align-items:baseline;gap:10px}.sgroup h3{margin:0;font-size:15px}.sgroup .c{color:var(--faint);font-size:12.5px}
+.rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
+.rcard{background:var(--surface);border:1px solid var(--ring);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:8px}
+.rcard .top{display:flex;align-items:center;gap:10px}.rcard .id{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;font-weight:600}
+.rcard .meth{margin-left:auto;font-size:11.5px;color:var(--muted);border:1px solid var(--hair);border-radius:6px;padding:1px 7px}
+.rcard .txt{font-size:14px;line-height:1.45}.rcard .why{color:var(--muted);font-size:12.5px}
+.rcard .ev{font-size:12px;color:var(--muted);border-left:2px solid var(--hair);padding-left:8px}
+.links{display:flex;gap:6px;flex-wrap:wrap}.links .chip{font-size:11.5px}
+.fcard{background:var(--surface);border:1px solid var(--ring);border-radius:12px;box-shadow:var(--shadow);display:grid;grid-template-columns:6px 1fr;overflow:hidden;margin-bottom:12px}
+.fcard .stripe{background:var(--sevc)}.fcard .body{padding:14px 18px}
+.fcard .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.fcard .id{font-family:ui-monospace,Menlo,monospace;font-weight:600;font-size:12.5px}
+.sev{font-size:11.5px;font-weight:700;color:var(--sevc);border:1.5px solid var(--sevc);border-radius:6px;padding:0 7px}
+.fcard .fail{font-size:15px;font-weight:600}.fcard .eff{color:var(--muted);margin:2px 0 12px}
+.chain{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:8px;align-items:stretch}
+.chain .st{background:var(--sunk);border-radius:8px;padding:8px 10px;font-size:12.5px}.chain .st b{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);margin-bottom:2px}
+.chain .ar{align-self:center;color:var(--faint)}
+.warnline{font-size:12.5px;color:var(--warn-ink);margin-top:10px}
+.dcard{background:var(--surface);border:1px solid var(--ring);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow);margin-bottom:12px;display:grid;grid-template-columns:54px 1fr;gap:4px 14px}
+.dcard .num{font-size:22px;font-weight:650;color:var(--faint);font-variant-numeric:tabular-nums}
+.dcard .t{font-size:15px;font-weight:600}.dcard .meta{color:var(--muted);font-size:12.5px;margin-bottom:6px}
+.dcard .sec b{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint)}.dcard .sec{margin-top:6px}
+.icd{width:100%;border-collapse:collapse;font-size:13px}.icd th,.icd td{text-align:left;padding:8px;border-bottom:1px solid var(--hair);vertical-align:top}
+.icd th{color:var(--faint);font-size:11.5px;font-weight:600}.kdot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:0}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted)}.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{display:inline-block;width:16px;height:0;border-top:2px solid}.legend i.box{width:10px;height:10px;border:0;border-radius:2px}
+
+.ibar{display:flex;gap:8px;align-items:center}
+.icard{background:var(--surface);border:1px solid var(--ring);border-radius:12px;padding:12px 16px;box-shadow:var(--shadow);margin-bottom:10px}
+.icard .top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.icard .num{font-family:ui-monospace,Menlo,monospace;color:var(--muted);font-size:12.5px}
+.icard .t{font-weight:600;font-size:14.5px}.icard .meta{color:var(--faint);font-size:12px;margin-left:auto}
+.icard details summary{cursor:pointer;color:var(--muted);font-size:12.5px;margin-top:6px}.icard .body{font-size:13px;margin-top:6px}
+.icard .body h3{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);margin:10px 0 2px}
+.lab{font-size:11px;padding:1px 8px;border-radius:999px;border:1px solid var(--hair);color:var(--muted)}
+.lab.bug{border-color:var(--crit);color:var(--crit-ink)}.lab.idea{border-color:var(--accent);color:var(--accent)}
+.state{font-size:11.5px;font-weight:700}.state.open{color:var(--good-ink)}.state.closed{color:var(--faint)}
+.docs{display:grid;grid-template-columns:240px 1fr;gap:24px}.dlist{position:sticky;top:0;align-self:start}
+.dlist .g{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);margin:14px 0 6px}
+.dlist button{display:block;width:100%;text-align:left;border:0;background:none;color:var(--ink);font:inherit;padding:5px 8px;border-radius:6px;cursor:pointer}
+.dlist button.on{background:var(--accent-soft);color:var(--accent);font-weight:600}.dlist button:hover{background:var(--sunk)}
+.prose{background:var(--surface);border:1px solid var(--ring);border-radius:12px;padding:22px 30px;box-shadow:var(--shadow);max-width:860px;line-height:1.6}
+.prose h1{font-size:22px;margin:0 0 10px}.prose h2{font-size:17px;margin:26px 0 8px;padding-top:8px;border-top:1px solid var(--hair)}.prose h3{font-size:14.5px;margin:18px 0 6px}
+.prose table{border-collapse:collapse;font-size:13px;margin:10px 0;display:block;overflow:auto}.prose th,.prose td{border:1px solid var(--hair);padding:5px 8px;text-align:left;vertical-align:top}
+.prose pre{background:var(--sunk);padding:10px 12px;border-radius:8px;overflow:auto;font-size:12px}.prose code{background:var(--sunk);padding:1px 4px;border-radius:4px}
+.prose pre code{background:none;padding:0}.prose blockquote{border-left:3px solid var(--hair);margin:8px 0;padding:2px 12px;color:var(--muted)}
+.prose img{max-width:100%;border-radius:8px}.prose li.sub{margin-left:18px;list-style:circle}
+.xref{color:var(--accent);cursor:pointer;border-bottom:1px dotted var(--accent)}
+.toc{font-size:12.5px;margin-top:6px}.toc a{display:block;color:var(--muted);text-decoration:none;padding:2px 8px}.toc a:hover{color:var(--accent)}.toc a.l3{padding-left:20px}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.mcard{background:var(--surface);border:1px solid var(--ring);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);cursor:pointer;display:flex;flex-direction:column}
+.mcard .th{height:140px;background:var(--sunk);display:grid;place-items:center;overflow:hidden}.mcard .th img,.mcard .th video{width:100%;height:100%;object-fit:cover}
+.mcard .th .ext{font-family:ui-monospace,Menlo,monospace;font-size:20px;color:var(--faint)}.mcard .cap{padding:8px 10px;font-size:12.5px}
+.mcard .cap .n{font-weight:600;word-break:break-all}.mcard .cap .d{color:var(--faint);font-size:11.5px}
+.thumbs{display:flex;gap:6px;flex-wrap:wrap}.thumbs .tm{width:64px;height:48px;border-radius:6px;overflow:hidden;background:var(--sunk);display:grid;place-items:center;cursor:pointer;border:1px solid var(--hair);font-size:10px;color:var(--faint)}
+.thumbs .tm img,.thumbs .tm video{width:100%;height:100%;object-fit:cover}
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.82);display:grid;place-items:center;z-index:50;padding:30px}
+.lightbox .in{max-width:min(1100px,94vw);max-height:90vh;display:flex;flex-direction:column;gap:10px;color:#fff}
+.lightbox img,.lightbox video{max-width:100%;max-height:78vh;border-radius:8px;object-fit:contain;background:#000}
+.lightbox pre{background:#111;color:#ddd;padding:12px;border-radius:8px;max-height:70vh;overflow:auto;font-size:12px}
+.lightbox .row{display:flex;gap:10px;align-items:center}.lightbox a{color:#9cf}
+.banner{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:10px 14px;border-radius:12px;display:flex;gap:12px;align-items:center;z-index:40;box-shadow:0 6px 24px rgba(0,0,0,.25);font-size:13px}
+.banner button{font:inherit;border:0;border-radius:8px;padding:5px 12px;background:var(--accent);color:#fff;cursor:pointer}
+.toast{position:fixed;right:18px;bottom:18px;background:var(--surface);border:1px solid var(--ring);padding:10px 14px;border-radius:10px;box-shadow:var(--shadow);z-index:60;font-size:13px}
+.toast.err{border-color:var(--crit);color:var(--crit-ink)}
+.newbtn{font:inherit;font-size:12.5px;font-weight:600;padding:5px 12px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer}
+.menu{position:absolute;right:20px;top:52px;background:var(--surface);border:1px solid var(--ring);border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.15);padding:6px;z-index:45;min-width:220px}
+.menu button{display:block;width:100%;text-align:left;border:0;background:none;font:inherit;color:var(--ink);padding:7px 10px;border-radius:6px;cursor:pointer}.menu button:hover{background:var(--sunk)}
+.menu button small{display:block;color:var(--faint);font-size:11.5px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:grid;place-items:center;z-index:55;padding:20px}
+.modal .box{background:var(--surface);border-radius:14px;width:min(720px,96vw);max-height:92vh;overflow:auto;padding:20px 24px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal h3{margin:0 0 4px;font-size:17px}.modal .sub{color:var(--muted);font-size:12.5px;margin-bottom:14px}
+.fld{margin-bottom:12px}.fld label{display:block;font-weight:600;font-size:13px;margin-bottom:3px}.fld .hint{color:var(--faint);font-size:12px;margin:-1px 0 4px}
+.fld input,.fld select,.fld textarea{width:100%;font:inherit;font-size:13.5px;padding:7px 9px;border:1px solid var(--hair);border-radius:8px;background:var(--bg);color:var(--ink)}
+.fld textarea{min-height:64px;resize:vertical}.fld .warn{color:var(--warn-ink);font-size:12px;margin-top:3px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.opts{border:1px dashed var(--hair);border-radius:10px;padding:10px;margin-bottom:10px}
+.mfoot{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;align-items:center}.mfoot .sp{flex:1}
+.pv{background:var(--sunk);border-radius:8px;padding:10px 12px;font-family:ui-monospace,Menlo,monospace;font-size:12px;white-space:pre-wrap;max-height:320px;overflow:auto}
+.act{font:inherit;font-size:12px;padding:3px 9px;border-radius:7px;border:1px solid var(--hair);background:var(--surface);color:var(--ink);cursor:pointer}.act:hover{border-color:var(--accent);color:var(--accent)}
+.act.dz:hover{border-color:var(--crit);color:var(--crit-ink)}
+@media(max-width:900px){.docs{grid-template-columns:1fr}.two{grid-template-columns:1fr}}
+@media(max-width:900px){.shell{grid-template-columns:1fr}nav{display:flex;overflow:auto;border-right:0;border-bottom:1px solid var(--hair);padding:6px}nav .grp{display:none}nav button{width:auto;white-space:nowrap}aside.open{position:fixed;inset:0;width:auto}}
+</style></head><body>
+<header><div><h1 id="title"></h1><div class="sub" id="subtitle"></div></div><div class="counters" id="counters"></div></header>
+<div class="shell"><nav id="nav"></nav><main id="main"></main><aside id="drawer"><div class="in" id="drawer-in"></div></aside></div>
+<script>/*__ELK__*/</script>
+<script>
+const M = __DATA__;
+const SERVED = !!M.served;
+const $ = (s, r = document) => r.querySelector(s);
+const H = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const NS = "http://www.w3.org/2000/svg";
+const el = (t, a = {}, p) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); if (p) p.appendChild(e); return e; };
+const short = path => path.split(".").slice(1).join(".");
+const KCOL = {Signal: "var(--sig)", Power: "var(--pwr)", Mechanical: "var(--mech)"};
+const METHOD = {T: "Test", I: "Inspection", A: "Analysis", D: "Demonstration"};
+const SEVN = {"1": "Annoying", "2": "Mission degraded", "3": "Mission lost", "4": "Hardware damage"};
+const ICON = {Verified: "✓", Failed: "✕", Approved: "●", Draft: "", Deleted: "–"};
+const pill = s => `<span class="pill ${H(s)}"><i>${ICON[s] ?? "?"}</i>${H(s)}</span>`;
+const reqById = Object.fromEntries(M.requirements.map(r => [r.id, r]));
+const partReqs = path => { const p = M.parts[path]; return M.requirements.filter(r => r.parts.includes(path) || (p.depth === 1 && r.subsystem === p.name) || (p.depth >= 2 && r.subsystem === p.subsystem && !r.parts.length) || (p.depth === 0 && r.subsystem === M.top)); };
+const faultsFor = ids => M.faults.filter(f => f.reqs.some(x => ids.includes(x)));
+const decisionsFor = (path, ids) => M.decisions.filter(d => d.parts.includes(path) || d.reqs.some(x => ids.includes(x)));
+const conns = M.connections.filter(c => c.ok);
+const kindCount = k => conns.filter(c => c.kind === k).length;
+
+// ------------------------------------------------------------------ chrome
+const VIEWS = [
+  ["Model", [["overview", "Overview", null, () => M.problems.length + M.gaps.length || ""]]],
+  ["Views", [["system", "System", "var(--ink)", () => M.subsystems.length], ["electrical", "Electrical", "var(--sig)", () => kindCount("Signal")],
+             ["power", "Power", "var(--pwr)", () => kindCount("Power")], ["mechanical", "Mechanical", "var(--mech)", () => kindCount("Mechanical")],
+             ["software", "Software (ROS2)", "var(--arch)", () => M.nodes.length]]],
+  ["Records", [["interfaces", "Interfaces (ICD)", null, () => M.icd.length], ["requirements", "Requirements", null, () => M.requirements.length],
+               ["faults", "Faults (FDIR)", null, () => M.faults.length], ["decisions", "Decisions", null, () => M.decisions.length]]],
+  ["Project", [["issues", "Issues", null, () => (M.issues || []).filter(i => i.state === "open").length || ""], ["docs", "Docs", null, () => (M.docs || []).length],
+               ["media", "Media", null, () => (M.media || []).length]]],
+];
+let view = "overview", focus = null, selected = null;
+function chrome() {
+  $("#title").textContent = M.name;
+  $("#subtitle").textContent = `${Object.keys(M.parts).length - 1} parts · ${conns.length} connections · built ${(M.built || "").replace("T", " ")}${SERVED ? " · live" : ""}`;
+  const verified = M.requirements.filter(r => r.status === "Verified").length;
+  $("#counters").innerHTML = `${M.problems.length ? `<span class="counter bad" data-go="overview"><b>${M.problems.length}</b> model problem${M.problems.length > 1 ? "s" : ""}</span>` : ""}
+    <span class="counter gap" data-go="overview"><b>${M.gaps.length}</b> gaps</span>
+    <span class="counter" data-go="requirements"><b>${verified}/${M.requirements.length}</b> verified</span>
+    ${SERVED ? `<button class="newbtn" id="newbtn">+ New</button>` : ""}`;
+  if (SERVED) $("#newbtn").onclick = ev => { ev.stopPropagation(); newMenu(); };
+  document.querySelectorAll("[data-go]").forEach(b => b.onclick = () => go(b.dataset.go));
+  $("#nav").innerHTML = VIEWS.map(([g, items]) => `<div class="grp">${g}</div>` + items.map(([id, label, col, n]) =>
+    `<button data-v="${id}" class="${id === view ? "on" : ""}">${col ? `<span class="dot" style="background:${col}"></span>` : `<span class="dot"></span>`}${label}<span class="n">${n()}</span></button>`).join("")).join("");
+  document.querySelectorAll("nav button").forEach(b => b.onclick = () => go(b.dataset.v));
+}
+function go(v, opts = {}) { focus = opts.focus ?? null; view = v; chrome(); render(); saveHash(); }
+function saveHash() { const h = [view, focus ? "focus:" + focus : "", selected ? "sel:" + selected : ""].filter(Boolean).join("/"); history.replaceState(null, "", "#" + h); }
+function loadHash() { const parts = decodeURIComponent(location.hash.slice(1)).split("/"); const v = parts[0];
+  if (v && document.querySelector) { view = VIEWS.flatMap(g => g[1]).some(x => x[0] === v) ? v : view; }
+  parts.slice(1).forEach(x => { if (x.startsWith("focus:")) focus = x.slice(6); if (x.startsWith("sel:")) selected = x.slice(4); }); }
+
+// ------------------------------------------------------------------ drawer
+let refit = null;
+const afterPanel = () => setTimeout(() => refit && refit(), 200);
+function openDrawer(html) { afterPanel(); $("#drawer-in").innerHTML = `<button class="btn x" id="dx">Close</button>` + html; $("#drawer").classList.add("open"); $("#dx").onclick = closeDrawer; wire($("#drawer-in")); }
+function closeDrawer() { if ($("#drawer").classList.contains("open")) afterPanel(); $("#drawer").classList.remove("open"); const had = selected; selected = null; if (had) saveHash(); document.querySelectorAll(".sel").forEach(e => e.classList.remove("sel")); }
+function wire(root) {
+  root.querySelectorAll("[data-part]").forEach(e => e.onclick = ev => { ev.stopPropagation(); showPart(e.dataset.part); });
+  root.querySelectorAll("[data-req]").forEach(e => e.onclick = ev => { ev.stopPropagation(); showReq(e.dataset.req); });
+  root.querySelectorAll("[data-fault]").forEach(e => e.onclick = ev => { ev.stopPropagation(); showFault(e.dataset.fault); });
+  root.querySelectorAll("[data-node]").forEach(e => e.onclick = ev => { ev.stopPropagation(); showNode(e.dataset.node); });
+  root.querySelectorAll("[data-topic]").forEach(e => e.onclick = ev => { ev.stopPropagation(); showTopic(e.dataset.topic); });
+  root.querySelectorAll("[data-dec]").forEach(e => e.onclick = ev => { ev.stopPropagation(); go("decisions"); setTimeout(() => document.getElementById("d" + e.dataset.dec)?.scrollIntoView({behavior: "smooth"}), 50); });
+  root.querySelectorAll("[data-form]").forEach(e => e.onclick = ev => { ev.stopPropagation(); openForm(e.dataset.form, {...e.dataset}); });
+  root.querySelectorAll("[data-media]").forEach(e => e.onclick = ev => { ev.stopPropagation(); lightbox(e.dataset.media); });
+  root.querySelectorAll("[data-issue]").forEach(e => e.onclick = ev => { ev.stopPropagation(); go("issues"); setTimeout(() => document.getElementById("i" + e.dataset.issue)?.scrollIntoView({behavior: "smooth", block: "center"}), 60); });
+  root.querySelectorAll("[data-focus]").forEach(e => e.onclick = ev => { ev.stopPropagation(); go(e.dataset.view || "electrical", {focus: e.dataset.focus}); });
+}
+const reqChip = r => `<span class="chip" data-req="${H(r.id)}"><span class="pill ${H(r.status)}"><i>${ICON[r.status] ?? "?"}</i></span><span class="mono">${H(r.id)}</span></span>`;
+function reqList(rs, path) {
+  if (!rs.length) return `<div class="dsub">None yet.</div>`;
+  return `<div class="mini">${rs.map(r => `<div class="mitem" data-req="${H(r.id)}"><div class="h"><span class="id">${H(r.id)}</span>${pill(r.status)}${path && r.parts.includes(path) ? `<span class="chip" style="margin-left:auto">this part</span>` : ""}</div>${H(r.text)}</div>`).join("")}</div>`;
+}
+function faultList(fs) {
+  if (!fs.length) return `<div class="dsub">None analysed yet.</div>`;
+  return `<div class="mini">${fs.map(f => `<div class="mitem" data-fault="${H(f.id)}" style="border-left:4px solid var(--sev${f.sev})"><div class="h"><span class="id">${H(f.id)}</span><span class="sev" style="--sevc:var(--sev${f.sev})">S${H(f.sev)}</span></div>${H(f.failure)}</div>`).join("")}</div>`;
+}
+function showPart(path) {
+  selected = path; markSel(); saveHash();
+  const p = M.parts[path];
+  if (!p) return;
+  const ids = partReqs(path).map(r => r.id);
+  const linked = {};
+  conns.forEach(c => { if (c.a[0] === path) (linked[c.a[1]] ||= []).push(c.b); if (c.b[0] === path) (linked[c.b[1]] ||= []).push(c.a); });
+  let h = `<div class="dsub">${p.depth === 1 ? "Subsystem" : p.depth === 0 ? "System" : `Part in <span class="lnk" data-part="${M.top}.${p.subsystem}">${H(p.subsystem)}</span>`}${p.type ? ` · <span class="mono">${H(p.type)}</span>` : ""}</div>
+    <div class="dh">${H(p.name)}</div>`;
+  h += `<div class="links" style="margin:6px 0 4px"><span class="chip" style="color:var(--${p.source})">${p.source === "facts" ? "from .ioc (generated)" : "written in arch"}</span>${p.depth === 1 ? `<span class="chip focus" data-focus="${H(p.name)}">Open in Electrical</span>` : ""}</div>`;
+  if (p.doc) h += `<p>${H(p.doc)}</p>`;
+  const b = M.boards.find(b => b.board === p.board);
+  if (b) {
+    h += `<h4>Chip</h4><div class="kv"><div>Part number</div><div>${H(b.mcu)} ${H(b.package)}</div><div>Source</div><div class="mono">${H(b.source)}</div>${b.clocks.map(c => `<div>${H(c[0])}</div><div>${H(c[1])}</div>`).join("")}</div>`;
+    b.internal.forEach(i => { h += `<h4>${H(i.ip)}</h4><div class="kv">${i.settings.map(s => `<div>${H(s[0])}</div><div>${H(s[1])}</div>`).join("")}</div>`; });
+  }
+  if (p.depth === 1) {
+    h += `<h4>Parts</h4><div class="links">${p.children.map(c => `<span class="chip" data-part="${c}">${H(M.parts[c].name)}</span>`).join("") || "<span class='dsub'>none</span>"}</div>`;
+    const ifs = M.icd.filter(i => i.pair.includes(p.name));
+    h += `<h4>Interfaces to other subsystems</h4>` + (ifs.length ? `<table class="ptab"><tr><th>With</th><th>Via</th><th>Ends</th></tr>${ifs.map(i => `<tr><td>${H(i.pair.find(x => x !== p.name))}</td><td><span class="kdot" style="background:${KCOL[i.kind]}"></span>${H(i.meaning)}</td><td class="mono">${H(short(i.from))}<br>${H(short(i.to))}</td></tr>`).join("")}</table>` : `<div class="dsub">None.</div>`);
+  }
+  if (p.ports.length) {
+    h += `<h4>Ports</h4><table class="ptab"><tr><th>Port</th><th>What</th><th>Pins</th><th>Connected to</th></tr>`;
+    p.ports.forEach((q, i) => {
+      const to = linked[q.name] || [];
+      const det = q.settings && q.settings.length;
+      h += `<tr class="${to.length ? "" : "off"} ${det ? "row" : ""}" data-i="${i}"><td class="mono">${det ? "▸ " : ""}${H(q.name)}</td><td><span class="kdot" style="background:${KCOL[q.kind]}"></span>${H(q.meaning || q.type)}</td>
+        <td class="mono">${(q.pins || []).map(x => `${H(x[0])} <span style="color:var(--faint)">${H(x[1])}</span>`).join("<br>") || "—"}</td>
+        <td>${to.map(t => `<span class="lnk mono" data-part="${t[0]}">${H(short(t[0]))}.${H(t[1])}</span>`).join("<br>") || "—"}</td></tr>`;
+      if (det) h += `<tr class="det" data-d="${i}" style="display:none"><td colspan="4"><div class="kv">${q.settings.map(s => `<div>${H(s[0])}</div><div>${H(s[1])}</div>`).join("")}</div></td></tr>`;
+    });
+    h += `</table>`;
+  }
+  const hosted = M.nodes.filter(n => n.host === path || (p.depth === 1 && n.host && M.parts[n.host]?.subsystem === p.name));
+  if (hosted.length) h += `<h4>ROS2 nodes running here</h4><div class="links">${hosted.map(n => `<span class="chip" data-node="${H(n.name)}">${H(n.name)}</span>`).join("")}</div>`;
+  const rs = partReqs(path);
+  h += `<h4>Requirements</h4>${reqList(rs, path)}<h4>Faults</h4>${faultList(faultsFor(ids))}`;
+  const ds = decisionsFor(path, ids);
+  if (ds.length) h += `<h4>Decisions</h4><div class="mini">${ds.map(d => `<div class="mitem" data-dec="${d.num}"><div class="h"><span class="id">${d.num}</span><b>${H(d.title)}</b></div>${H(d.decision).slice(0, 160)}</div>`).join("")}</div>`;
+  const iss = issuesFor(p.depth === 1 ? p.name : p.subsystem, ids).filter(i => i.state === "open");
+  if (iss.length) h += `<h4>Open issues</h4><div class="mini">${iss.map(issueMini).join("")}</div>`;
+  const med = (M.media || []).filter(x => x.reqs.some(r => ids.includes(r)));
+  if (med.length) h += `<h4>Media</h4>${thumbs(med.map(x => x.file))}`;
+  const gp = M.gaps.filter(g => g.refs.includes(path));
+  if (gp.length) h += `<h4>Gaps</h4>${gp.map(g => `<div class="warnline">⚠ ${H(g.text)}</div>`).join("")}`;
+  openDrawer(h);
+  document.querySelectorAll("#drawer-in tr.row").forEach(tr => tr.onclick = () => { const d = $(`#drawer-in tr[data-d="${tr.dataset.i}"]`); d.style.display = d.style.display ? "" : "none"; tr.firstElementChild.textContent = tr.firstElementChild.textContent.replace(/^[▸▾]/, d.style.display ? "▸" : "▾"); });
+}
+function showReq(id) {
+  const r = reqById[id];
+  if (!r) return;
+  const fs = M.faults.filter(f => f.reqs.includes(id));
+  const ds = M.decisions.filter(d => d.reqs.includes(id));
+  const where = r.parts.length ? r.parts : (r.subsystem ? [r.subsystem === M.top ? M.top : `${M.top}.${r.subsystem}`] : []);
+  openDrawer(`<div class="dsub">Requirement · ${H(METHOD[r.method] || r.method || "no method")}</div><div class="dh mono">${H(r.id)}</div><div style="margin:6px 0">${pill(r.status)}</div>
+    <p style="font-size:15px">${H(r.text)}</p><div class="dsub">${H(r.rationale)}</div>
+    <h4>Belongs to</h4><div class="links">${where.map(w => `<span class="chip" data-part="${w}">${H(short(w) || M.top)}</span>`).join("") || `<span class="warnline">No subsystem named ${H(r.prefix)}</span>`}</div>
+    ${SERVED ? `<div class="links" style="margin:10px 0"><button class="act" data-form="test" data-rid="${H(r.id)}">Record test</button><button class="act" data-form="update_req" data-rid="${H(r.id)}">Edit</button><button class="act dz" data-form="delete_req" data-rid="${H(r.id)}">Mark deleted</button></div>` : ""}
+    <h4>Evidence</h4>${r.evidence.map(e => `<div class="ev" style="font-size:12.5px;border-left:2px solid var(--hair);padding-left:8px;margin-bottom:6px">${H(e)}</div>`).join("") || `<div class="dsub">None yet.</div>`}
+    ${(r.media || []).length ? thumbs(r.media) : ""}
+    <h4>Faults it covers</h4>${faultList(fs)}${ds.length ? `<h4>Decisions</h4><div class="mini">${ds.map(d => `<div class="mitem" data-dec="${d.num}"><span class="id">${d.num}</span> ${H(d.title)}</div>`).join("")}</div>` : ""}`);
+}
+function showFault(id) {
+  const f = M.faults.find(x => x.id === id);
+  openDrawer(`<div class="dsub">Fault · severity ${H(f.sev)} (${H(SEVN[f.sev] || "?")})</div><div class="dh mono">${H(f.id)}</div><p style="font-size:15px;font-weight:600">${H(f.failure)}</p>
+    ${SERVED ? `<div class="links" style="margin:0 0 10px"><button class="act" data-form="update_fault" data-fid="${H(f.id)}">Edit</button></div>` : ""}
+    <div class="kv"><div>Effect</div><div>${H(f.effect)}</div><div>Detection</div><div>${H(f.detection)}</div><div>Response</div><div>${H(f.response)}</div><div>Recovery</div><div>${H(f.recovery)}</div></div>
+    <h4>Covered by</h4>${f.reqs.length ? reqList(f.reqs.map(x => reqById[x]).filter(Boolean)) : `<div class="warnline">⚠ No requirement covers this fault</div>`}`);
+}
+function showNode(name) {
+  const n = M.nodes.find(x => x.name === name);
+  const row = (e, role) => `<tr class="row" data-topic="${H(e.topic)}"><td>${role}</td><td class="mono lnk">${H(e.topic)}</td><td class="mono">${H(e.type)}</td><td class="mono">:${e.line}</td></tr>`;
+  openDrawer(`<div class="dsub">ROS2 node · ${H(n.lang === "c" ? "micro-ROS (C)" : n.lang === "py" ? "Python" : "C++")}</div><div class="dh">${H(n.name)}</div>
+    <div class="kv" style="margin-top:8px"><div>Source</div><div class="mono">${H(n.file)}</div><div>Runs on</div><div>${n.host ? `<span class="lnk" data-part="${n.host}">${H(short(n.host))}</span>` : `<span class="warnline">not allocated</span>`}</div></div>
+    <h4>Topics</h4><table class="ptab"><tr><th></th><th>Topic</th><th>Type</th><th>Line</th></tr>${n.pub.map(e => row(e, "pub")).join("")}${n.sub.map(e => row(e, "sub")).join("")}</table>`);
+}
+function showTopic(t) {
+  const x = M.topics.find(y => y.topic === t);
+  openDrawer(`<div class="dsub">ROS2 topic</div><div class="dh mono">${H(t)}</div><div class="dsub mono">${x.types.map(H).join(", ")}</div>
+    <h4>Published by</h4><div class="links">${x.pub.map(n => `<span class="chip" data-node="${H(n)}">${H(n)}</span>`).join("") || `<span class="warnline">nobody</span>`}</div>
+    <h4>Subscribed by</h4><div class="links">${x.sub.map(n => `<span class="chip" data-node="${H(n)}">${H(n)}</span>`).join("") || `<span class="warnline">nobody</span>`}</div>`);
+}
+function markSel() { document.querySelectorAll(".leaf").forEach(g => g.classList.toggle("sel", g.dataset.part === selected)); hot(selected); }
+
+// ------------------------------------------------------------------ diagrams
+const elk = new ELK();
+const PORT_H = 20, HEAD = 50;
+function sideOf(part, q) { return part.source === "facts" && !q.own ? "EAST" : q.conj ? "WEST" : "EAST"; }
+function leafNode(path, kinds, used) {
+  const p = M.parts[path];
+  const ports = p.ports.filter(q => used.has(`${path}.${q.name}`));
+  const east = ports.filter(q => sideOf(p, q) === "EAST"), west = ports.filter(q => sideOf(p, q) === "WEST");
+  const lw = s => Math.max(0, ...s.map(q => q.name.length)) * 6.6;
+  const width = Math.max(150, p.name.length * 7.6 + 40, (p.type || "").length * 6.4 + 40, lw(east) + lw(west) + 60);
+  const height = HEAD + Math.max(east.length, west.length, 1) * PORT_H + (p.ports.length > ports.length ? 16 : 4);
+  return {id: path, width, height, ports: ports.map(q => ({id: `${path}.${q.name}`, width: 9, height: 9, layoutOptions: {"elk.port.side": sideOf(p, q)}})),
+          layoutOptions: {"elk.portConstraints": "FIXED_SIDE", "elk.portAlignment.default": "BEGIN", "elk.spacing.portPort": "11",
+}};
+}
+function buildElectrical(kinds) {
+  const cs = M.connections.filter(c => c.drawn && kinds.includes(c.kind));
+  let keep = null;
+  if (focus) { keep = new Set(); cs.forEach(c => { const sa = M.parts[c.a[0]].subsystem, sb = M.parts[c.b[0]].subsystem; if (sa === focus || sb === focus) { keep.add(c.a[0]); keep.add(c.b[0]); } }); M.parts[`${M.top}.${focus}`].children.forEach(k => keep.add(k)); }
+  const used = new Set(); const shown = cs.filter(c => !keep || (keep.has(c.a[0]) && keep.has(c.b[0])));
+  shown.forEach(c => { used.add(c.a.join(".")); used.add(c.b.join(".")); });
+  const containers = M.subsystems.map(s => {
+    const leaves = M.parts[`${M.top}.${s}`].children.filter(k => (!keep || keep.has(k)) && (kinds.length > 1 ? true : M.parts[k].ports.some(q => used.has(`${k}.${q.name}`))));
+    return leaves.length ? {id: `${M.top}.${s}`, children: leaves.map(k => leafNode(k, kinds, used)), edges: [],
+      layoutOptions: {"elk.padding": "[top=40,left=16,bottom=16,right=16]", "elk.algorithm": "layered", "elk.direction": "RIGHT"}} : null;
+  }).filter(Boolean);
+  const present = new Set(containers.flatMap(c => c.children.map(x => x.id)));
+  const root = {id: "root", layoutOptions: {"elk.algorithm": "layered", "elk.direction": "RIGHT", "elk.hierarchyHandling": "INCLUDE_CHILDREN", "elk.edgeRouting": "ORTHOGONAL",
+    "elk.layered.spacing.nodeNodeBetweenLayers": "70", "elk.spacing.nodeNode": "30", "elk.spacing.edgeNode": "18", "elk.spacing.edgeEdge": "9", "elk.layered.spacing.edgeNodeBetweenLayers": "18",
+    "elk.layered.nodePlacement.strategy": "NETWORK_SIMPLEX", "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES"}, children: containers, edges: []};
+  shown.filter(c => present.has(c.a[0]) && present.has(c.b[0])).forEach((c, i) => {
+    const sa = M.parts[c.a[0]].subsystem, sb = M.parts[c.b[0]].subsystem;
+    const edge = {id: "e" + i, sources: [c.a.join(".")], targets: [c.b.join(".")], c};
+    const pa = M.parts[c.a[0]].ports.find(q => q.name === c.a[1]);
+    if (sideOf(M.parts[c.a[0]], pa) === "WEST") { edge.sources = [c.b.join(".")]; edge.targets = [c.a.join(".")]; }
+    if (sa === sb) containers.find(x => x.id === `${M.top}.${sa}`).edges.push(edge); else root.edges.push(edge);
+  });
+  return {graph: root, kinds};
+}
+function buildSystem() {
+  const agg = {};
+  conns.forEach(c => {
+    const sa = M.parts[c.a[0]].subsystem, sb = M.parts[c.b[0]].subsystem;
+    if (!sa || !sb || sa === sb) return;
+    const [x, y] = M.parts[c.a[0]].source === "facts" || (M.parts[c.a[0]].ports.find(q => q.name === c.a[1]) || {}).conj === false ? [sa, sb] : [sb, sa];
+    const k = `${x}|${y}|${c.kind}`; (agg[k] ||= {s: x, t: y, kind: c.kind, items: []}).items.push(c);
+  });
+  const nodes = M.subsystems.map(s => { const kids = M.parts[`${M.top}.${s}`].children; return {id: `${M.top}.${s}`, width: Math.max(170, s.length * 10 + 50, ...kids.map(k => M.parts[k].name.length * 7 + 40)), height: 52 + kids.length * 17, kids}; });
+  const edges = Object.values(agg).map((a, i) => {
+    const names = [...new Set(a.items.map(c => (M.parts[c.a[0]].source === "facts" ? c.a[1] : M.parts[c.b[0]].source === "facts" ? c.b[1] : c.type)))];
+    const text = a.kind === "Signal" ? names.join(", ") : a.kind === "Power" ? "power" : "mount";
+    return {id: "s" + i, sources: [`${M.top}.${a.s}`], targets: [`${M.top}.${a.t}`], a, labels: [{text, width: Math.min(text.length, 34) * 6 + 14, height: 18}]};
+  });
+  return {graph: {id: "root", layoutOptions: {"elk.algorithm": "layered", "elk.direction": "RIGHT", "elk.edgeRouting": "ORTHOGONAL", "elk.layered.spacing.nodeNodeBetweenLayers": "120",
+    "elk.spacing.nodeNode": "40", "elk.spacing.edgeLabel": "4", "elk.edgeLabels.inline": "true", "elk.layered.spacing.edgeEdgeBetweenLayers": "16"}, children: nodes, edges}};
+}
+function buildSoftware() {
+  const hosts = {};
+  M.nodes.forEach(n => (hosts[n.host || "__none"] ||= []).push(n));
+  const children = Object.entries(hosts).map(([h, ns]) => ({id: "h:" + h, label: h === "__none" ? "Not allocated to hardware" : short(h), none: h === "__none",
+    layoutOptions: {"elk.padding": "[top=38,left=14,bottom=14,right=14]"},
+    children: ns.map(n => ({id: "n:" + n.name, width: Math.max(150, n.name.length * 7.4 + 30, (n.file.split("/").pop().length + (n.lang === "c" ? 12 : 0)) * 6 + 28), height: 48, n})), edges: []}));
+  M.topics.forEach(t => children.push({id: "t:" + t.topic, width: Math.max(t.topic.length * 6.8 + 24, t.types[0].split("/").pop().length * 6 + 24), height: 38, t}));
+  const edges = [];
+  M.nodes.forEach(n => { n.pub.forEach((e, i) => edges.push({id: `p:${n.name}:${i}`, sources: ["n:" + n.name], targets: ["t:" + e.topic]}));
+                         n.sub.forEach((e, i) => edges.push({id: `q:${n.name}:${i}`, sources: ["t:" + e.topic], targets: ["n:" + n.name]})); });
+  return {graph: {id: "root", layoutOptions: {"elk.algorithm": "layered", "elk.direction": "RIGHT", "elk.hierarchyHandling": "INCLUDE_CHILDREN", "elk.edgeRouting": "ORTHOGONAL",
+    "elk.layered.spacing.nodeNodeBetweenLayers": "60", "elk.spacing.nodeNode": "22"}, children, edges}};
+}
+
+function absMap(n, ox = 0, oy = 0, out = {}) { out[n.id] = {x: ox + (n.x || 0), y: oy + (n.y || 0), n}; (n.children || []).forEach(c => absMap(c, out[n.id].x, out[n.id].y, out)); return out; }
+function allEdges(n, out = []) { (n.edges || []).forEach(e => out.push([e, n])); (n.children || []).forEach(c => allEdges(c, out)); return out; }
+
+let zoom = null;
+function canvasShell(title, lead, extra = "") {
+  $("#main").innerHTML = `<div class="diagram"><div class="dtool"><div><h2>${title}</h2><p class="lead">${lead}</p></div><span class="sp"></span>${extra}<button class="btn" id="fit">Fit</button></div><div class="canvas" id="cv"></div></div>`;
+  wire($("#main"));
+  return $("#cv");
+}
+function panZoom(svg, W, H) {
+  let vb = {x: -20, y: -20, w: W + 40, h: H + 40};
+  const set = () => svg.setAttribute("viewBox", `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+  const fit = () => { const r = svg.getBoundingClientRect(), k = Math.max((W + 40) / r.width, (H + 40) / r.height, 1 / 1.15);
+    const w = r.width * k, h = r.height * k; vb = {x: W / 2 - w / 2, y: H / 2 - h / 2, w, h}; set(); };
+  fit(); $("#fit").onclick = fit; refit = fit;
+  svg.addEventListener("wheel", ev => { ev.preventDefault(); const r = svg.getBoundingClientRect(); const s = Math.exp(ev.deltaY * 0.0015);
+    const scale = Math.max(vb.w / r.width, vb.h / r.height), mx = vb.x + (ev.clientX - r.left) * scale, my = vb.y + (ev.clientY - r.top) * scale;
+    vb = {x: mx - (mx - vb.x) * s, y: my - (my - vb.y) * s, w: vb.w * s, h: vb.h * s}; set(); }, {passive: false});
+  let drag = null;
+  svg.addEventListener("pointerdown", ev => { if (ev.target.closest(".leaf,.rosnode,.topic,.sysnode")) return; ev.preventDefault(); window.getSelection()?.removeAllRanges(); drag = {x: ev.clientX, y: ev.clientY, vb: {...vb}}; svg.setPointerCapture(ev.pointerId); });
+  svg.addEventListener("pointermove", ev => { if (!drag) return; const r = svg.getBoundingClientRect(); const scale = Math.max(vb.w / r.width, vb.h / r.height);
+    vb.x = drag.vb.x - (ev.clientX - drag.x) * scale; vb.y = drag.vb.y - (ev.clientY - drag.y) * scale; set(); });
+  svg.addEventListener("pointerup", ev => {
+    const moved = drag && Math.hypot(ev.clientX - drag.x, ev.clientY - drag.y) > 4;
+    drag = null;
+    if (!moved && !ev.target.closest(".leaf,.rosnode,.topic,.sysnode,.cont")) closeDrawer();
+  });
+}
+function drawEdges(root, out, abs, cls) {
+  allEdges(out).forEach(([e, cont]) => {
+    const off = abs[e.container || cont.id] || {x: 0, y: 0};
+    (e.sections || []).forEach(s => {
+      const pts = [s.startPoint, ...(s.bendPoints || []), s.endPoint].map(p => `${p.x + off.x},${p.y + off.y}`);
+      const path = el("path", {d: "M" + pts.join(" L"), class: cls(e)}, root);
+      path.dataset.ends = e.c ? `${e.c.a[0]}|${e.c.b[0]}` : (e.a ? `${M.top}.${e.a.s}|${M.top}.${e.a.t}` : `${e.sources[0]}|${e.targets[0]}`);
+      if (e.c) el("title", {}, path).textContent = `${short(e.c.a.join("."))} → ${short(e.c.b.join("."))} (${e.c.type})`;
+    });
+    (e.labels || []).forEach(l => { const g = el("g", {class: "elab", transform: `translate(${l.x + off.x},${l.y + off.y})`}, root);
+      el("rect", {width: l.width, height: l.height, rx: 5}, g); el("text", {x: 7, y: 12.5}, g).textContent = l.text.length > 34 ? l.text.slice(0, 32) + "…" : l.text; });
+  });
+}
+function hot(path) { document.querySelectorAll("path.edge").forEach(p => { const on = path && p.dataset.ends.split("|").includes(path); p.classList.toggle("hot", !!on); p.classList.toggle("dim", !!path && !on); }); }
+
+async function drawParts(kinds, title, lead) {
+  const extra = `<div class="legend">${kinds.map(k => `<span><i style="border-color:${KCOL[k]}${k === "Mechanical" ? ";border-top-style:dashed" : ""}"></i>${k}</span>`).join("")}<span><i class="box" style="background:var(--facts)"></i>from .ioc</span><span><i class="box" style="background:var(--arch)"></i>written in arch</span></div>` +
+    (focus ? `<span class="chip focus" id="unfocus">Focus: ${H(focus)} ✕</span>` : "");
+  const cv = canvasShell(title, lead, extra);
+  if ($("#unfocus")) $("#unfocus").onclick = () => { focus = null; render(); };
+  const {graph} = buildElectrical(kinds);
+  if (!graph.children.length) { cv.innerHTML = `<div class="empty">Nothing of this kind is modelled yet.<br>Add ports whose type specialises ${kinds.join(" / ")} in the arch file, and connect them.</div>`; return; }
+  // pass 1: let ELK choose the port order that avoids crossings; pass 2: pin ports under the title
+  const first = await elk.layout(JSON.parse(JSON.stringify(graph)));
+  const firstAbs = absMap(first);
+  graph.children.forEach(c => c.children.forEach(n => {
+    const laid = firstAbs[n.id].n, bySide = {EAST: [], WEST: []};
+    laid.ports.forEach(pt => bySide[pt.x > laid.width / 2 ? "EAST" : "WEST"].push(pt));
+    Object.values(bySide).forEach(list => list.sort((a, b) => a.y - b.y).forEach((pt, i) => {
+      const src = n.ports.find(q => q.id === pt.id); src.x = pt.x; src.y = HEAD - 4 + i * PORT_H; }));
+    n.layoutOptions["elk.portConstraints"] = "FIXED_POS";
+  }));
+  const out = await elk.layout(graph);
+  const abs = absMap(out);
+  const svg = el("svg", {}, cv), root = el("g", {}, svg);
+  out.children.forEach(c => {
+    const a = abs[c.id], g = el("g", {class: "cont", transform: `translate(${a.x},${a.y})`}, root);
+    el("rect", {width: c.width, height: c.height, rx: 12}, g);
+    el("text", {x: 14, y: 24, class: "t"}, g).textContent = M.parts[c.id].name;
+    const nr = partReqs(c.id).length; el("text", {x: 14 + M.parts[c.id].name.length * 9.5 + 10, y: 24, class: "s"}, g).textContent = `${nr} requirement${nr === 1 ? "" : "s"}`;
+    g.style.cursor = "pointer"; g.addEventListener("click", ev => { if (ev.target.closest(".leaf")) return; showPart(c.id); });
+  });
+  const missing = new Set(M.connections.filter(c => !c.ok).flatMap(c => [c.a_txt, c.b_txt]));
+  drawEdges(root, out, abs, e => `edge ${e.c.kind}${e.c.ok ? "" : " bad"}`);
+  out.children.forEach(c => (c.children || []).forEach(n => {
+    const a = abs[n.id], p = M.parts[n.id];
+    const g = el("g", {class: `leaf ${p.source}`, transform: `translate(${a.x},${a.y})`}, root); g.dataset.part = n.id;
+    el("rect", {class: "b", width: n.width, height: n.height, rx: 8}, g);
+    el("rect", {class: "band", x: 0, y: 8, width: 4, height: n.height - 16}, g);
+    el("text", {x: 14, y: 20, class: "t"}, g).textContent = p.name;
+    el("text", {x: 14, y: 35, class: "ty"}, g).textContent = p.type || "";
+    const hidden = p.ports.filter(q => !q.missing).length - n.ports.filter(pt => !p.ports.find(x => `${n.id}.${x.name}` === pt.id)?.missing).length; if (hidden > 0) el("text", {x: 14, y: n.height - 7, class: "more"}, g).textContent = `+${hidden} port${hidden > 1 ? "s" : ""} not in this view`;
+    n.ports.forEach(pt => { const q = p.ports.find(x => `${n.id}.${x.name}` === pt.id); const east = pt.x > n.width / 2;
+      el("rect", {class: "port", x: pt.x, y: pt.y, width: pt.width, height: pt.height, rx: 2, stroke: q.missing ? "var(--crit)" : KCOL[q.kind], "stroke-dasharray": q.missing ? "2 2" : ""}, g);
+      const t = el("text", {class: "plab", x: east ? pt.x - 5 : pt.x + pt.width + 5, y: pt.y + 8, "text-anchor": east ? "end" : "start", style: q.missing ? "fill:var(--crit-ink)" : ""}, g); t.textContent = q.missing ? `${q.name} (gone)` : q.name;
+      el("title", {}, t).textContent = `${q.name}: ${q.meaning || q.type}${q.pins && q.pins.length ? " · " + q.pins.map(x => x.join(" ")).join(", ") : ""}`; });
+    g.addEventListener("click", ev => { ev.stopPropagation(); showPart(n.id); });
+    g.addEventListener("mouseenter", () => !selected && hot(n.id)); g.addEventListener("mouseleave", () => !selected && hot(null));
+  }));
+  panZoom(svg, out.width, out.height); markSel();
+}
+async function drawSystem() {
+  const cv = canvasShell("System", "Subsystems and everything that crosses between them. Click a subsystem for its interfaces, requirements and faults.",
+    `<div class="legend">${["Signal", "Power", "Mechanical"].map(k => `<span><i style="border-color:${KCOL[k]}${k === "Mechanical" ? ";border-top-style:dashed" : ""}"></i>${k}</span>`).join("")}</div>`);
+  const {graph} = buildSystem(); const out = await elk.layout(graph); const abs = absMap(out);
+  const svg = el("svg", {}, cv), root = el("g", {}, svg);
+  drawEdges(root, out, abs, e => `edge ${e.a.kind}`);
+  out.children.forEach(n => {
+    const src = graph.children.find(x => x.id === n.id), s = M.parts[n.id];
+    const g = el("g", {class: "leaf sysnode arch", transform: `translate(${n.x},${n.y})`}, root); g.dataset.part = n.id;
+    el("rect", {class: "b", width: n.width, height: n.height, rx: 10}, g);
+    el("text", {x: 14, y: 24, class: "t", style: "font-size:14px;letter-spacing:.04em"}, g).textContent = s.name;
+    const rs = partReqs(n.id), v = rs.filter(r => r.status === "Verified").length, f = rs.filter(r => r.status === "Failed").length;
+    el("text", {x: n.width - 12, y: 24, class: "ty", "text-anchor": "end"}, g).textContent = rs.length ? `${v}/${rs.length} ✓${f ? ` · ${f} ✕` : ""}` : "no reqs";
+    src.kids.forEach((k, i) => { el("text", {x: 14, y: 46 + i * 17, class: "ty"}, g).textContent = `${M.parts[k].name} : ${M.parts[k].type || ""}`; });
+    const oi = issuesFor(s.name, []).filter(i => i.state === "open").length;
+    if (oi) { const b = el("g", {transform: `translate(${n.width - 12},${n.height - 10})`}, g); el("text", {x: 0, y: 0, "text-anchor": "end", style: "font-size:11px;fill:var(--accent)"}, b).textContent = `${oi} open issue${oi > 1 ? "s" : ""}`; }
+    g.addEventListener("click", ev => { ev.stopPropagation(); showPart(n.id); });
+    g.addEventListener("mouseenter", () => !selected && hot(n.id)); g.addEventListener("mouseleave", () => !selected && hot(null));
+  });
+  panZoom(svg, out.width, out.height); markSel();
+}
+async function drawSoftware() {
+  const cv = canvasShell("Software (ROS2)", "Nodes and topics found in the code (robot does not need to be on), grouped by the computer each node runs on.",
+    `<div class="legend"><span><i class="box" style="background:var(--sunk);border:1px solid var(--hair)"></i>topic</span><span><i class="box" style="background:var(--surface);border:1px solid var(--faint)"></i>node</span></div>`);
+  if (!M.nodes.length) { cv.innerHTML = `<div class="empty">No ROS2 code found. Set [ros] paths in docs/model/model.toml.</div>`; return; }
+  const {graph} = buildSoftware(); const out = await elk.layout(graph); const abs = absMap(out);
+  const svg = el("svg", {}, cv), root = el("g", {}, svg);
+  out.children.filter(c => c.id.startsWith("h:")).forEach(c => { const src = graph.children.find(x => x.id === c.id);
+    const g = el("g", {class: "cont", transform: `translate(${c.x},${c.y})`}, root); el("rect", {width: c.width, height: c.height, rx: 12, style: src.none ? "stroke:var(--warn)" : ""}, g);
+    el("text", {x: 14, y: 24, class: "t", style: src.none ? "fill:var(--warn-ink)" : ""}, g).textContent = src.label;
+    if (!src.none) { g.style.cursor = "pointer"; g.addEventListener("click", ev => { if (!ev.target.closest(".rosnode")) showPart(c.id.slice(2)); }); } });
+  allEdges(out).forEach(([e, cont]) => { const off = abs[e.container || cont.id] || {x: 0, y: 0};
+    (e.sections || []).forEach(s => { const pts = [s.startPoint, ...(s.bendPoints || []), s.endPoint]; const d = "M" + pts.map(p => `${p.x + off.x},${p.y + off.y}`).join(" L");
+      el("path", {d, class: "rosedge", "marker-end": "url(#arr)"}, root); }); });
+  const defs = el("defs", {}, svg); const mk = el("marker", {id: "arr", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse"}, defs);
+  el("path", {d: "M0,0 L10,5 L0,10 z", fill: "var(--sig)"}, mk);
+  Object.values(abs).forEach(({x, y, n}) => {
+    if (n.id.startsWith("n:")) { const nd = graph.children.flatMap(c => c.children || []).find(z => z.id === n.id).n;
+      const g = el("g", {class: "rosnode", transform: `translate(${x},${y})`}, root); el("rect", {class: "b", width: n.width, height: n.height, rx: 8}, g);
+      el("text", {x: 12, y: 20, style: "font-size:12.5px;font-weight:650"}, g).textContent = nd.name;
+      el("text", {x: 12, y: 36, style: "font-size:10.5px;fill:var(--muted)"}, g).textContent = nd.file.split("/").pop() + (nd.lang === "c" ? " · micro-ROS" : "");
+      g.addEventListener("click", ev => { ev.stopPropagation(); showNode(nd.name); }); }
+    if (n.id.startsWith("t:")) { const t = graph.children.find(z => z.id === n.id).t; const lonely = !t.pub.length || !t.sub.length;
+      const g = el("g", {class: "topic", transform: `translate(${x},${y})`}, root); el("rect", {width: n.width, height: n.height, rx: 19, style: lonely ? "stroke:var(--warn)" : ""}, g);
+      el("text", {x: 12, y: 16, class: "mono", style: "font-size:11.5px"}, g).textContent = t.topic;
+      el("text", {x: 12, y: 30, class: "ty"}, g).textContent = t.types.join(", ").split("/").pop();
+      g.addEventListener("click", ev => { ev.stopPropagation(); showTopic(t.topic); }); }
+  });
+  panZoom(svg, out.width, out.height);
+}
+
+// ------------------------------------------------------------------ pages
+function page(html) { refit = null; $("#main").innerHTML = `<div class="page">${html}</div>`; wire($("#main")); }
+function overview() {
+  const rs = M.requirements, st = s => rs.filter(r => r.status === s).length;
+  const sevs = ["4", "3", "2", "1"].map(s => [s, M.faults.filter(f => f.sev === s).length]);
+  const bar = parts => `<div class="bar">${parts.filter(p => p[1]).map(p => `<span style="flex:${p[1]};background:${p[0]}"></span>`).join("")}</div>`;
+  const groups = {}; M.gaps.forEach(g => (groups[g.kind] ||= []).push(g));
+  page(`<h2>${H(M.name)} overview</h2><p class="lead">One model built from the .ioc, the ROS2 code, the docs and the architecture file. Problems mean the architecture no longer matches the facts; gaps are questions a design review would ask.</p>
+  <div class="tiles">
+    <div class="tile"><div class="n">${M.subsystems.length}</div><div class="l">subsystems · ${Object.values(M.parts).filter(p => p.depth >= 2).length} parts</div></div>
+    <div class="tile"><div class="n">${conns.length}</div><div class="l">connections · ${M.icd.length} cross subsystems</div>${bar([["var(--sig)", kindCount("Signal")], ["var(--pwr)", kindCount("Power")], ["var(--mech)", kindCount("Mechanical")]])}</div>
+    <div class="tile"><div class="n">${M.nodes.length}</div><div class="l">ROS2 nodes · ${M.topics.length} topics</div></div>
+    <div class="tile"><div class="n">${st("Verified")}<span style="font-size:15px;color:var(--faint)">/${rs.length}</span></div><div class="l">requirements verified · ${st("Failed")} failed</div>${bar([["var(--good)", st("Verified")], ["var(--crit)", st("Failed")], ["var(--appr)", st("Approved")], ["var(--hair)", st("Draft")]])}</div>
+    <div class="tile"><div class="n">${M.faults.length}</div><div class="l">faults analysed</div>${bar(sevs.map(([s, n]) => [`var(--sev${s})`, n]))}</div>
+  </div>
+  ${M.problems.length ? `<div class="panel" style="border-color:var(--crit)"><h3 style="color:var(--crit-ink)">Model problems <span class="chip">${M.problems.length}</span></h3><div class="dsub" style="margin-bottom:6px">The commit check stops on these.</div>${M.problems.map(p => `<div class="issue p"><span class="k">problem</span><span class="mono">${H(p)}</span></div>`).join("")}</div>` : `<div class="panel"><h3>✓ Architecture matches the facts</h3><div class="dsub">Every connection points to a port that exists, and every type matches.</div></div>`}
+  ${M.notes.length ? `<div class="panel"><h3>Notes</h3>${M.notes.map(p => `<div class="issue"><span class="k">note</span><span class="mono">${H(p)}</span></div>`).join("")}</div>` : ""}
+  <div class="panel"><h3>Gaps <span class="chip">${M.gaps.length}</span></h3>${Object.entries(groups).map(([k, gs]) => gs.map(g => `<div class="issue"><span class="k">${H(k)}</span><span class="${g.refs.length ? "g" : ""}" ${g.refs.length ? `data-part="${g.refs[0]}"` : ""}>${H(g.text)}</span></div>`).join("")).join("") || `<div class="dsub">None.</div>`}</div>`);
+}
+function interfaces() {
+  const pairs = {}; M.icd.forEach(i => (pairs[i.pair.join(" ↔ ")] ||= []).push(i));
+  page(`<h2>Interfaces between subsystems</h2><p class="lead">Generated from the wiring: every connection that crosses a subsystem boundary is an interface. Nobody types this table, so it cannot go out of date.</p>
+  ${Object.entries(pairs).map(([k, is]) => `<div class="panel"><h3>${H(k)} <span class="chip">${is.length}</span></h3><table class="icd"><tr><th>Via</th><th>From</th><th>To</th><th>Pins</th><th>Settings</th></tr>
+    ${is.map(i => `<tr><td><span class="kdot" style="background:${KCOL[i.kind]}"></span>${H(i.meaning)}</td><td class="mono"><span class="lnk" data-part="${i.from.split(".").slice(0, -1).join(".")}">${H(short(i.from))}</span></td><td class="mono"><span class="lnk" data-part="${i.to.split(".").slice(0, -1).join(".")}">${H(short(i.to))}</span></td>
+    <td class="mono">${i.pins.map(p => H(p.join(" "))).join("<br>") || "—"}</td><td>${i.settings.map(s => `${H(s[0])}: ${H(s[1])}`).join("<br>") || "—"}</td></tr>`).join("")}</table></div>`).join("") || `<div class="empty">No connections cross a subsystem boundary yet.</div>`}`);
+  document.querySelectorAll(".lnk").forEach(e => e.style.cssText = "color:var(--accent);cursor:pointer");
+}
+let rfilter = "All", rsearch = "";
+function requirements() {
+  const order = [M.top, ...M.subsystems];
+  const groups = {}; M.requirements.forEach(r => (groups[r.subsystem || "__none"] ||= []).push(r));
+  const vis = r => (rfilter === "All" || r.status === rfilter) && (!rsearch || (r.id + " " + r.text + " " + r.rationale).toLowerCase().includes(rsearch));
+  const card = r => { const fs = M.faults.filter(f => f.reqs.includes(r.id)); const ds = M.decisions.filter(d => d.reqs.includes(r.id));
+    return `<div class="rcard"><div class="top"><span class="id">${H(r.id)}</span>${pill(r.status)}<span class="meth">${H(METHOD[r.method] || r.method || "no method")}</span></div>
+      <div class="txt">${H(r.text)}</div>${r.rationale ? `<div class="why">${H(r.rationale)}</div>` : ""}${r.evidence.map(e => `<div class="ev">${H(e)}</div>`).join("")}
+      ${(r.media || []).length ? thumbs(r.media) : ""}
+      <div class="links">${r.parts.map(p => `<span class="chip" data-part="${p}">▣ ${H(short(p))}</span>`).join("")}${fs.map(f => `<span class="chip" data-fault="${f.id}" style="border-color:var(--sev${f.sev})">${f.id}</span>`).join("")}${ds.map(d => `<span class="chip" data-dec="${d.num}">decision ${d.num}</span>`).join("")}${issuesFor(null, [r.id]).filter(i => i.state === "open").map(i => `<span class="chip" data-issue="${i.number}">#${i.number}</span>`).join("")}</div>
+      ${SERVED ? `<div class="links"><button class="act" data-form="test" data-rid="${H(r.id)}">Record test</button><button class="act" data-form="update_req" data-rid="${H(r.id)}">Edit</button></div>` : ""}</div>`; };
+  page(`<h2>Requirements</h2><p class="lead">From docs/requirements.md. Each prefix lands in the subsystem of the same name; <code>satisfy</code> lines in the arch file pin a requirement to one part.</p>
+    <div class="filters"><input id="rs" placeholder="Search requirements…" value="${H(rsearch)}">${["All", "Draft", "Approved", "Verified", "Failed"].map(s => `<button class="fchip ${s === rfilter ? "on" : ""}" data-f="${s}">${s} <span style="opacity:.6">${s === "All" ? M.requirements.length : M.requirements.filter(r => r.status === s).length}</span></button>`).join("")}</div>
+    ${[...order, "__none"].filter(g => groups[g]).map(g => { const rs = groups[g].filter(vis); if (!rs.length) return ""; const v = groups[g].filter(r => r.status === "Verified").length;
+      return `<div class="sgroup"><h3>${g === "__none" ? `<span style="color:var(--warn-ink)">No matching subsystem</span>` : g === M.top ? "Whole system" : `<span class="lnk" data-part="${M.top}.${g}" style="cursor:pointer">${H(g)}</span>`}</h3><span class="c">${v}/${groups[g].length} verified</span></div><div class="rgrid">${rs.map(card).join("")}</div>`; }).join("")}`);
+  $("#rs").oninput = e => { rsearch = e.target.value.toLowerCase(); const pos = e.target.selectionStart; requirements(); $("#rs").focus(); $("#rs").setSelectionRange(pos, pos); };
+  document.querySelectorAll("[data-f]").forEach(b => b.onclick = () => { rfilter = b.dataset.f; requirements(); });
+}
+function faults() {
+  const sorted = [...M.faults].sort((a, b) => (b.sev || 0) - (a.sev || 0));
+  page(`<h2>Faults (FDIR)</h2><p class="lead">From docs/fdir.md, worst first. Each fault should be covered by a requirement that proves the response works.</p>
+    ${sorted.map(f => { const rs = f.reqs.map(x => reqById[x]).filter(Boolean);
+      return `<div class="fcard" style="--sevc:var(--sev${f.sev})"><div class="stripe"></div><div class="body"><div class="top"><span class="id">${H(f.id)}</span><span class="sev">S${H(f.sev)} · ${H(SEVN[f.sev] || "?")}</span>${rs.map(reqChip).join("")}</div>
+      <div class="fail" style="margin-top:6px">${H(f.failure)}</div><div class="eff">${H(f.effect)}</div>
+      <div class="chain"><div class="st"><b>Detect</b>${H(f.detection)}</div><div class="ar">→</div><div class="st"><b>Respond</b>${H(f.response)}</div><div class="ar">→</div><div class="st"><b>Recover</b>${H(f.recovery)}</div></div>
+      ${SERVED ? `<div class="links" style="margin-top:10px"><button class="act" data-form="update_fault" data-fid="${H(f.id)}">Edit</button></div>` : ""}
+      ${rs.length ? (rs.some(r => r.status === "Failed") ? `<div class="warnline">⚠ The covering requirement failed its last test: this response is not proven to work.</div>` : "") : `<div class="warnline">⚠ No requirement covers this fault.</div>`}</div></div>`; }).join("") || `<div class="empty">No faults yet.</div>`}`);
+}
+function decisions() {
+  page(`<h2>Decisions</h2><p class="lead">From docs/decisions/. Linked to parts and requirements through their Related line.</p>
+    ${M.decisions.map(d => `<div class="dcard" id="d${d.num}"><div class="num">${d.num}</div><div><div class="t">${H(d.title)}</div><div class="meta">${H(d.status)}${d.date ? " · " + H(d.date) : ""}</div>
+      ${d.decision ? `<div class="sec"><b>Decision</b><div>${H(d.decision)}</div></div>` : ""}${d.why ? `<div class="sec"><b>Why</b><div>${H(d.why)}</div></div>` : ""}
+      <div class="links" style="margin-top:10px">${d.parts.map(p => `<span class="chip" data-part="${p}">▣ ${H(short(p))}</span>`).join("")}${d.reqs.map(x => reqChip(reqById[x])).join("")}
+      ${SERVED ? `<button class="act" data-form="update_decision" data-num="${d.num}">Change status</button>` : ""}</div></div></div>`).join("") || `<div class="empty">No decisions yet.</div>`}`);
+}
+function render() {
+  closeDrawer();
+  ({overview, interfaces, requirements, faults, decisions,
+    system: drawSystem,
+    electrical: () => drawParts(["Signal"], "Electrical", "Buses and pins between modules. Port settings, pins and links are in each part's panel."),
+    power: () => drawParts(["Power"], "Power", "Where power comes from and who draws it."),
+    mechanical: () => drawParts(["Mechanical"], "Mechanical", "How parts are physically attached."),
+    software: drawSoftware, issues: issuesPage, docs: docsPage, media: mediaPage})[view]();
+}
+// ------------------------------------------------------------------ issues, docs, media
+const mediaByFile = Object.fromEntries((M.media || []).map(x => [x.file, x]));
+const murl = f => "media/" + f.split("/").map(encodeURIComponent).join("/");
+function issuesFor(sub, ids) { return (M.issues || []).filter(i => (sub && i.subsystems.includes(sub)) || i.reqs.some(r => ids.includes(r))); }
+const issueMini = i => `<div class="mitem" data-issue="${i.number}"><div class="h"><span class="id">#${i.number}</span><span class="lab ${i.kind}">${i.kind}</span></div>${H(i.title)}</div>`;
+function thumbs(files) {
+  return `<div class="thumbs">${files.map(f => { const x = mediaByFile[f] || {kind: "file", name: f};
+    const inner = x.kind === "image" ? `<img loading="lazy" src="${murl(f)}" alt="">` : x.kind === "video" ? `<video muted preload="metadata" src="${murl(f)}#t=0.5"></video>` : H((x.name.split(".").pop() || "").toUpperCase());
+    return `<div class="tm" data-media="${H(f)}" title="${H(x.name)}">${inner}</div>`; }).join("")}</div>`;
+}
+function lightbox(f) {
+  const x = mediaByFile[f] || {name: f, kind: "file", reqs: []};
+  const u = murl(f);
+  const view = x.kind === "image" ? `<img src="${u}">` : x.kind === "video" ? `<video src="${u}" controls autoplay></video>`
+    : x.kind === "pdf" ? `<iframe src="${u}" style="width:80vw;height:75vh;border:0;border-radius:8px;background:#fff"></iframe>` : `<pre id="lbtext">Loading…</pre>`;
+  const d = document.createElement("div"); d.className = "lightbox";
+  d.innerHTML = `<div class="in">${view}<div class="row"><b>${H(x.name)}</b><span style="opacity:.7">${H(x.date || "")}</span>${x.reqs.map(r => `<span class="chip" data-req="${H(r)}">${H(r)}</span>`).join("")}<span style="flex:1"></span><a href="${u}" target="_blank">Open file ↗</a></div></div>`;
+  d.onclick = ev => { if (ev.target === d) d.remove(); };
+  document.body.appendChild(d); wire(d);
+  d.querySelectorAll("[data-req]").forEach(e => e.addEventListener("click", () => d.remove()));
+  if ($("#lbtext")) fetch(u).then(r => r.text()).then(t => $("#lbtext").textContent = t.slice(0, 20000)).catch(() => $("#lbtext").textContent = "Preview needs doc serve (browsers block reading local files). Use Open file.");
+}
+document.addEventListener("keydown", e => { if (e.key === "Escape") { document.querySelector(".lightbox")?.remove(); document.querySelector(".modal")?.remove(); } });
+
+function mdLite(t) {
+  return t.split(/\n/).map(l => { const e = H(l);
+    if (/^###\s/.test(l)) return `<h3>${e.replace(/^###\s/, "")}</h3>`;
+    if (/^\s*[-*]\s/.test(l)) return `<div>• ${e.replace(/^\s*[-*]\s/, "")}</div>`;
+    return e.trim() ? `<div>${e}</div>` : ""; }).join("");
+}
+let ist = "open", ikind = "all", isub = "", iq = "";
+function issuesPage() {
+  const all = M.issues || [];
+  const vis = all.filter(i => (ist === "all" || i.state === ist) && (ikind === "all" || i.kind === ikind) && (!isub || i.subsystems.includes(isub))
+    && (!iq || (i.title + " " + i.body + " #" + i.number).toLowerCase().includes(iq)));
+  const ago = d => { if (!d) return ""; const s = (Date.now() - new Date(d)) / 1000; return s < 3600 ? `${Math.round(s / 60)} min ago` : s < 86400 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} d ago`; };
+  page(`<div class="ibar"><h2 style="margin:0">Issues</h2><span class="sp" style="flex:1"></span>${SERVED ? `<button class="act" data-form="idea">+ Idea</button><button class="act" data-form="bug">+ Bug</button>` : ""}</div>
+    <p class="lead">From GitHub${M.issue_error && M.issue_error !== "skipped" ? ` — <span style="color:var(--warn-ink)">not loaded: ${H(M.issue_error)}</span>` : M.issue_error === "skipped" ? " (skipped this build)" : ""}. ${SERVED ? "Refreshed every 5 minutes." : `Snapshot from ${H((M.built || "").replace("T", " "))}.`} Labels place each issue in a subsystem; requirement IDs in the text link it to requirements.</p>
+    <div class="filters"><input id="iq" placeholder="Search issues…" value="${H(iq)}">
+      ${["open", "closed", "all"].map(x => `<button class="fchip ${x === ist ? "on" : ""}" data-ist="${x}">${x}</button>`).join("")}
+      <span style="width:8px"></span>${["all", "idea", "bug"].map(x => `<button class="fchip ${x === ikind ? "on" : ""}" data-ik="${x}">${x}</button>`).join("")}
+      <select id="isub" class="fchip"><option value="">all subsystems</option>${M.subsystems.map(x => `<option ${x === isub ? "selected" : ""}>${x}</option>`).join("")}</select></div>
+    ${vis.map(i => `<div class="icard" id="i${i.number}"><div class="top"><span class="state ${i.state}">${i.state === "open" ? "● open" : "✓ closed"}</span><span class="num">#${i.number}</span><span class="t">${H(i.title)}</span>
+      ${i.labels.map(l => `<span class="lab ${l === "bug" ? "bug" : l === "idea" ? "idea" : ""}">${H(l)}</span>`).join("")}<span class="meta">${H(i.author)} · ${ago(i.updated)} · <a href="${H(i.url)}" target="_blank">GitHub ↗</a></span></div>
+      <div class="links" style="margin-top:6px">${i.subsystems.map(s => `<span class="chip" data-part="${M.top}.${s}">${H(s)}</span>`).join("")}${i.reqs.map(r => reqChip(reqById[r])).join("")}</div>
+      ${i.body ? `<details><summary>Details</summary><div class="body">${mdLite(i.body)}</div></details>` : ""}</div>`).join("") || `<div class="empty">No issues match.</div>`}`);
+  $("#iq").oninput = e => { iq = e.target.value.toLowerCase(); const p = e.target.selectionStart; issuesPage(); $("#iq").focus(); $("#iq").setSelectionRange(p, p); };
+  document.querySelectorAll("[data-ist]").forEach(b => b.onclick = () => { ist = b.dataset.ist; issuesPage(); });
+  document.querySelectorAll("[data-ik]").forEach(b => b.onclick = () => { ikind = b.dataset.ik; issuesPage(); });
+  $("#isub").onchange = e => { isub = e.target.value; issuesPage(); };
+}
+
+let curDoc = 0;
+function docsPage() {
+  const ds = M.docs || [];
+  if (!ds.length) return page(`<h2>Docs</h2><div class="empty">No Markdown docs found.</div>`);
+  const groups = [...new Set(ds.map(d => d.group))];
+  const d = ds[curDoc] || ds[0];
+  page(`<div class="docs"><div class="dlist">${groups.map(g => `<div class="g">${H(g)}</div>` + ds.map((x, i) => x.group === g ? `<button class="${i === curDoc ? "on" : ""}" data-doc="${i}">${H(x.title)}</button>` : "").join("")).join("")}
+    ${d.toc.length ? `<div class="g">On this page</div><div class="toc">${d.toc.map(t => `<a href="#" data-anchor="${H(t[2])}" class="l${t[0]}">${H(t[1])}</a>`).join("")}</div>` : ""}</div>
+    <div><div class="dsub mono" style="margin-bottom:8px">${H(d.file)}</div><div class="prose" id="prose">${d.html}</div></div></div>`);
+  document.querySelectorAll("[data-doc]").forEach(b => b.onclick = () => { curDoc = +b.dataset.doc; docsPage(); $("#main").scrollTop = 0; });
+  document.querySelectorAll("[data-anchor]").forEach(a => a.onclick = ev => { ev.preventDefault(); document.getElementById(a.dataset.anchor)?.scrollIntoView({behavior: "smooth"}); });
+  // requirement and fault IDs in the text become links
+  const ids = new Set([...M.requirements.map(r => r.id), ...M.faults.map(f => f.id)]);
+  const walker = document.createTreeWalker($("#prose"), NodeFilter.SHOW_TEXT), nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach(n => { if (n.parentElement.closest("pre,a")) return; const t = n.nodeValue; if (!/[A-Z]{2,6}-\d{3}/.test(t)) return;
+    const span = document.createElement("span");
+    span.innerHTML = H(t).replace(/\b([A-Z]{2,6}-\d{3})\b/g, (m0, id) => ids.has(id) ? `<span class="xref" data-${id.startsWith("FM-") ? "fault" : "req"}="${id}">${id}</span>` : m0);
+    n.replaceWith(span); });
+  // links inside a doc: anchors scroll, links to other docs open them here, the rest open in a new tab
+  $("#prose").querySelectorAll("a[href]").forEach(a => { const href = a.getAttribute("href");
+    if (href.startsWith("#")) a.onclick = ev => { ev.preventDefault(); document.getElementById(href.slice(1))?.scrollIntoView({behavior: "smooth"}); };
+    else if (/\.md(#.*)?$/.test(href) && !/^https?:/.test(href)) { const name = href.split("#")[0].split("/").pop(), i = ds.findIndex(x => x.file.split("/").pop() === name);
+      if (i >= 0) a.onclick = ev => { ev.preventDefault(); curDoc = i; docsPage(); $("#main").scrollTop = 0; }; else a.target = "_blank"; }
+    else a.target = "_blank"; });
+  $("#prose").querySelectorAll("img").forEach(img => { const src = img.getAttribute("src") || ""; if (src.startsWith("media/") || src.startsWith("./media/")) img.style.cursor = "zoom-in"; });
+  wire($("#prose"));
+}
+
+let mkind = "all";
+function mediaPage() {
+  const all = M.media || [];
+  const kinds = ["all", ...new Set(all.map(x => x.kind))];
+  const vis = all.filter(x => mkind === "all" || x.kind === mkind);
+  page(`<div class="ibar"><h2 style="margin:0">Media</h2><span style="flex:1"></span>${SERVED ? `<label class="act">Upload<input type="file" id="up" multiple style="display:none"></label>` : ""}</div>
+    <p class="lead">Files in docs/media/. A file whose name appears in a requirement's evidence shows up on that requirement and its part.</p>
+    <div class="filters">${kinds.map(k => `<button class="fchip ${k === mkind ? "on" : ""}" data-mk="${k}">${k} <span style="opacity:.6">${k === "all" ? all.length : all.filter(x => x.kind === k).length}</span></button>`).join("")}</div>
+    <div class="mgrid">${vis.map(x => `<div class="mcard" data-media="${H(x.file)}"><div class="th">${x.kind === "image" ? `<img loading="lazy" src="${murl(x.file)}">` : x.kind === "video" ? `<video muted preload="metadata" src="${murl(x.file)}#t=0.5"></video>` : `<span class="ext">.${H(x.name.split(".").pop())}</span>`}</div>
+      <div class="cap"><div class="n">${H(x.name)}</div><div class="d">${H(x.date)} · ${(x.size / 1024).toFixed(0)} KB</div><div class="links" style="margin-top:4px">${x.reqs.map(r => `<span class="chip" data-req="${H(r)}">${H(r)}</span>`).join("")}</div></div></div>`).join("") || `<div class="empty">No media yet. Put photos, videos and logs in docs/media/.</div>`}</div>`);
+  document.querySelectorAll("[data-mk]").forEach(b => b.onclick = () => { mkind = b.dataset.mk; mediaPage(); });
+  if ($("#up")) $("#up").onchange = async e => { for (const f of e.target.files) { const r = await upload(f); if (r) toast(r.message); } setTimeout(() => location.reload(), 800); };
+}
+
+// ------------------------------------------------------------------ live server: polling, toasts, forms
+function toast(msg, err) { const t = document.createElement("div"); t.className = "toast" + (err ? " err" : ""); t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), err ? 7000 : 3500); }
+function startPolling() {
+  const check = () => fetch("api/version", {cache: "no-store"}).then(r => r.json()).then(v => {
+    let b = $("#banner");
+    if (v.version && v.version !== M.version) {
+      if (!b) { b = document.createElement("div"); b.id = "banner"; b.className = "banner"; document.body.appendChild(b); }
+      const what = (v.log || []).map(x => x.slice(9)).filter(x => !x.startsWith("model rebuilt")).pop();
+      b.innerHTML = `<span>The project changed${what ? `: ${H(what)}` : ""}</span><button id="rl">Reload</button>`;
+      $("#rl").onclick = () => location.reload();
+    } else if (v.error && !b) { b = document.createElement("div"); b.id = "banner"; b.className = "banner"; b.style.background = "var(--crit)"; b.textContent = "Model error: " + v.error; document.body.appendChild(b); }
+  }).catch(() => {});
+  setInterval(check, 30000);
+}
+async function post(url, body) {
+  const r = await fetch(url, {method: "POST", headers: {"Content-Type": "application/json", "X-Doc": "1"}, body: JSON.stringify(body)});
+  const j = await r.json().catch(() => ({error: "server error"}));
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+async function upload(file) {
+  try { const r = await fetch("api/upload", {method: "POST", headers: {"X-Doc": "1", "X-Filename": encodeURIComponent(file.name)}, body: file});
+    const j = await r.json(); if (!r.ok) throw new Error(j.error); return j; } catch (e) { toast("Upload failed: " + e.message, true); return null; }
+}
+function newMenu() {
+  if ($("#nmenu")) return $("#nmenu").remove();
+  const m = document.createElement("div"); m.className = "menu"; m.id = "nmenu";
+  m.innerHTML = [["idea", "Idea", "I got an idea (GitHub issue)"], ["bug", "Bug", "Something behaves wrong (GitHub issue)"], ["req", "Requirement", "I committed to building something"],
+    ["test", "Test result", "I tested a requirement"], ["fault", "Fault", "I asked 'what if this breaks?'"], ["decision", "Decision", "I chose between options"]]
+    .map(([k, t, d]) => `<button data-form="${k}">${t}<small>${d}</small></button>`).join("");
+  document.body.appendChild(m); wire(m); m.querySelectorAll("button").forEach(b => b.addEventListener("click", () => m.remove()));
+  setTimeout(() => document.addEventListener("click", function off(ev) { if (!m.contains(ev.target)) { m.remove(); } document.removeEventListener("click", off); }), 0);
+}
+const S_ = M.served || {};
+const opt = (pairs, val) => pairs.map(([k, l]) => `<option value="${H(k)}" ${String(k) === String(val ?? "") ? "selected" : ""}>${H(l)}</option>`).join("");
+const reqOpts = () => M.requirements.filter(r => r.status !== "Deleted").map(r => [r.id, `${r.id} · ${r.status} · ${r.text.slice(0, 60)}`]);
+const PREFIXES = () => (S_.prefixes || Object.entries(M.prefix_names || {})).map(([k, n]) => [k, `${k} · ${n}`]);
+const LABELS = () => (S_.labels || M.subsystems.map(s => s.toLowerCase())).map(x => [x, x]);
+const METHODS_ = [["T", "Test"], ["I", "Inspection"], ["A", "Analysis"], ["D", "Demonstration"]];
+const SEV_ = [["1", "1 · Annoying"], ["2", "2 · Mission degraded"], ["3", "3 · Mission lost"], ["4", "4 · Hardware damage"]];
+function fld(k, label, hint, input) { return `<div class="fld" data-k="${k}"><label>${label}</label>${hint ? `<div class="hint">${hint}</div>` : ""}${input}<div class="warn" id="w_${k}"></div></div>`; }
+const inp = (k, v = "", ph = "") => `<input name="${k}" value="${H(v)}" placeholder="${H(ph)}">`;
+const area = (k, v = "", ph = "One item per line") => `<textarea name="${k}" placeholder="${H(ph)}">${H(v)}</textarea>`;
+const sel = (k, pairs, v, blank) => `<select name="${k}">${blank ? `<option value="">${blank}</option>` : ""}${opt(pairs, v)}</select>`;
+const today_ = () => new Date().toISOString().slice(0, 10);
+
+function formSpec(kind, d) {
+  const r = d.rid ? reqById[d.rid] : null, f = d.fid ? M.faults.find(x => x.id === d.fid) : null, dec = d.num ? M.decisions.find(x => x.num === d.num) : null;
+  switch (kind) {
+    case "idea": return {title: "New idea", sub: "Creates a GitHub issue labelled idea.", html:
+      fld("title", "Title", 'Short, e.g. "Heartbeat with failsafe stop"', inp("title")) + fld("what", "What: the idea in one or two sentences", "", area("what", "", "")) +
+      fld("why", "Why: what problem it solves or what it enables", "", area("why", "", "")) +
+      `<div class="two">${fld("sub", "Subsystem", "", sel("sub", LABELS()))}${fld("prio", "Priority", "", sel("prio", [["must", "must"], ["should", "should"], ["could", "could"]], "should"))}</div>` +
+      fld("questions", "Open questions", "Optional.", area("questions"))};
+    case "bug": return {title: "New bug", sub: "Creates a GitHub issue labelled bug.", html:
+      fld("title", "Title", 'Short, e.g. "Robot keeps driving after radio link is lost"', inp("title")) + fld("happened", "What happened", "", area("happened", "", "")) +
+      fld("expected", "What should have happened", "Mention the requirement ID if there is one.", area("expected", "", "")) + fld("steps", "Steps to reproduce", "Optional. One step per line.", area("steps")) +
+      `<div class="two">${fld("sub", "Subsystem", "", sel("sub", LABELS()))}${fld("firmware", "Firmware version / commit", "", inp("firmware", S_.firmware || ""))}</div>` +
+      fld("evidence", "Logs, photos, videos", "Upload adds the file to docs/media/ and its name here.", area("evidence") + `<label class="act" style="display:inline-block;margin-top:6px">Upload file<input type="file" data-upto="evidence" style="display:none"></label>`)};
+    case "req": return {title: "New requirement", sub: "Added to docs/requirements.md in its subsystem's section.", html:
+      fld("prefix", "Subsystem", "", sel("prefix", PREFIXES())) +
+      fld("shall", "Requirement", 'Form: "The &lt;thing&gt; shall &lt;do what&gt; &lt;measurable limit&gt;."', area("shall", "", "The robot shall …")) +
+      fld("rationale", "Rationale (why it matters)", "", inp("rationale")) +
+      `<div class="two">${fld("method", "How will you verify it?", "", sel("method", METHODS_, "T"))}${fld("status", "Status", "", sel("status", [["Draft", "Draft"], ["Approved", "Approved"]], "Draft"))}</div>`};
+    case "test": return {title: "Record a test result", sub: "Sets the status and appends the evidence line, exactly like doc test.", html:
+      fld("rid", "Requirement", "", sel("rid", reqOpts(), d.rid)) + (r ? `<div class="dsub" style="margin:-6px 0 12px">${H(r.text)}</div>` : "") +
+      `<div class="two">${fld("result", "Result", "", sel("result", [["Verified", "Passed"], ["Failed", "Failed"]]))}${fld("date", "Test date", "", `<input name="date" type="date" value="${today_()}">`)}</div>` +
+      fld("measured", "What did you measure / observe?", 'e.g. "stop at 5.2 s, 3 runs"', inp("measured")) +
+      fld("evidence", "Evidence (file in media/, log name, plot)", "Upload puts the file in docs/media/ and writes its name here.", inp("evidence") + `<label class="act" style="display:inline-block;margin-top:6px">Upload photo / video / log<input type="file" accept="image/*,video/*,.csv,.txt,.log,.pdf" data-upto="evidence" style="display:none"></label>`)};
+    case "fault": return {title: "New fault (FDIR row)", sub: "Added to docs/fdir.md.", html:
+      fld("failure", "What fails?", 'e.g. "Radio link lost"', inp("failure")) + fld("effect", "Effect on the system / mission", "", inp("effect")) +
+      fld("detection", "How is it detected?", 'e.g. "no heartbeat ACK for 5 s"', inp("detection")) + fld("response", "Immediate response (isolate / make safe)", "", inp("response")) +
+      fld("recovery", "Recovery", 'e.g. "resume when link returns; operator re-arms"', inp("recovery")) +
+      `<div class="two">${fld("sev", "Severity", "Worst credible outcome.", sel("sev", SEV_))}${fld("req", "Requirement that covers it", "Optional.", sel("req", reqOpts(), "", "none yet"))}</div>`};
+    case "update_fault": return {title: `Edit ${f.id}`, sub: "Changes this row in docs/fdir.md.", html:
+      fld("failure", "What fails?", "", inp("failure", f.failure)) + fld("effect", "Effect", "", inp("effect", f.effect)) + fld("detection", "Detection", "", inp("detection", f.detection)) +
+      fld("response", "Immediate response", "", inp("response", f.response)) + fld("recovery", "Recovery", "", inp("recovery", f.recovery)) +
+      `<div class="two">${fld("sev", "Severity", "", sel("sev", SEV_, f.sev))}${fld("req", "Requirement that covers it", "", sel("req", reqOpts(), f.req, "none"))}</div>`, extra: {fid: f.id}};
+    case "update_req": return {title: `Edit ${r.id}`, sub: "Every change is written to the change log at the bottom of requirements.md.", html:
+      fld("field", "What changes?", "", sel("field", [["status", `Status (now ${r.status})`], ["text", "Requirement text"], ["rationale", "Rationale"], ["method", `Verification method (now ${r.method || "-"})`]])) +
+      `<div id="fv"></div>`, extra: {rid: r.id}};
+    case "delete_req": return {title: `Mark ${r.id} deleted`, sub: "The row stays with status Deleted, and the ID is never reused. Faults that point to it will show a warning.", html:
+      `<div class="dsub" style="margin-bottom:12px">${H(r.text)}</div>` + fld("why", "Why is it dropped?", "Required: future you will want to know.", inp("why")), op: "update_req", extra: {rid: r.id, field: "status", value: "Deleted"}};
+    case "update_decision": return {title: `Decision ${dec.num}: ${dec.title}`, sub: "Decisions are never rewritten: change the status, or supersede with a new decision.", html:
+      fld("field", "What changes?", "", sel("field", [["status", `Status (now ${dec.status || "-"})`], ["related", "Related issues / requirement IDs"]])) + `<div id="fv"></div>`, extra: {num: dec.num}};
+    case "decision": return {title: "New decision record", sub: "Written to docs/decisions/ with the next number.", html:
+      fld("title", "Title (state the decision itself)", 'e.g. "Use ROS2 Humble on all machines", not "ROS2 version"', inp("title")) +
+      `<div class="two">${fld("status", "Status", "", sel("status", [["Accepted", "Accepted"], ["Proposed", "Proposed"]]))}${fld("supersedes", "Replaces an older decision?", "", sel("supersedes", M.decisions.map(x => [x.num, `${x.num} · ${x.title}`]), "", "no"))}</div>` +
+      fld("related", "Related issues / requirement IDs", "e.g. #15, COMM-004", inp("related")) +
+      fld("context", "Context: what problem forced a choice, and what constraints matter?", "Facts only. One point per line.", area("context")) +
+      `<div class="fld"><label>Options you compared</label><div class="hint">Optional.</div><div id="opts"></div><button class="act" id="addopt" type="button">+ Option</button></div>` +
+      fld("decision", "Decision in one or two sentences", "", area("decision", "", "")) + fld("factor", "Deciding factor (what tipped it?)", "", inp("factor")) +
+      fld("consequences", "Consequences: what gets easier, harder, what to do next, when to revisit", "One point per line.", area("consequences"))};
+  }
+}
+function openForm(kind, data = {}) {
+  if (!SERVED) return toast("Forms need doc serve", true);
+  const spec = formSpec(kind, data);
+  const op = spec.op || kind;
+  const m = document.createElement("div"); m.className = "modal";
+  m.innerHTML = `<div class="box"><h3>${H(spec.title)}</h3><div class="sub">${spec.sub}</div><form id="frm">${spec.html}</form>
+    <div id="pvw" style="display:none"></div><div class="mfoot"><span class="sp dsub" id="fmsg"></span><button class="btn" id="fcancel">Cancel</button><button class="newbtn" id="fgo">Preview</button></div></div>`;
+  document.body.appendChild(m);
+  m.onclick = ev => { if (ev.target === m) m.remove(); };
+  $("#fcancel").onclick = () => m.remove();
+  const frm = $("#frm");
+  // dependent fields
+  const fv = $("#fv");
+  const drawFv = () => { if (!fv) return; const fieldv = frm.field.value, r = reqById[data.rid], dec = M.decisions.find(x => x.num === data.num);
+    if (kind === "update_req") fv.innerHTML = fieldv === "status" ? fld("value", "New status", "", sel("value", [["Draft", "Draft"], ["Approved", "Approved"], ["Verified", "Verified"], ["Failed", "Failed"], ["Deleted", "Deleted (dropped; the ID is never reused)"]], r.status)) + `<div id="whyw"></div>`
+      : fieldv === "text" ? fld("value", "Requirement", 'Form: "The &lt;thing&gt; shall &lt;do what&gt; &lt;measurable limit&gt;."', area("value", r.text, "")) + (r.status === "Verified" ? `<div class="fld"><label><input type="checkbox" name="retest" checked style="width:auto"> It was Verified: set back to Approved (retest needed)</label></div>` : "")
+      : fieldv === "rationale" ? fld("value", "Rationale", "", inp("value", r.rationale)) : fld("value", "Verification method", "", sel("value", METHODS_, r.method || "T"));
+    if (kind === "update_decision") fv.innerHTML = fieldv === "status" ? fld("value", "New status", "", sel("value", [["Proposed", "Proposed"], ["Accepted", "Accepted"], ["Rejected", "Rejected"], ["Superseded", "Superseded by a newer decision"]], (dec.status || "").split(" ")[0])) + `<div id="byw"></div>`
+      : fld("value", "Related issues / requirement IDs", "Replaces the current value.", inp("value", dec.related));
+    const v = frm.value; if (v) v.onchange = () => { if ($("#whyw")) $("#whyw").innerHTML = v.value === "Deleted" ? fld("why", "Why is it dropped?", "", inp("why")) : "";
+      if ($("#byw")) $("#byw").innerHTML = v.value === "Superseded" ? fld("by", "Superseded by decision number", "", sel("by", M.decisions.map(x => [x.num, `${x.num} · ${x.title}`]))) : ""; }; };
+  if (frm.field) { frm.field.onchange = drawFv; drawFv(); }
+  if ($("#addopt")) { let n = 0; $("#addopt").onclick = () => { n++; const o = document.createElement("div"); o.className = "opts";
+    o.innerHTML = fld(`o${n}_name`, `Option ${n}: name`, "", inp(`o${n}_name`)) + `<div class="two">${fld(`o${n}_pros`, "Pros", "", area(`o${n}_pros`))}${fld(`o${n}_cons`, "Cons", "", area(`o${n}_cons`))}</div>`;
+    $("#opts").appendChild(o); }; }
+  if (frm.shall || (kind === "update_req")) frm.addEventListener("input", () => { const t = frm.shall || (frm.field && frm.field.value === "text" ? frm.value : null); if (!t) return;
+    const w = []; if (!/shall/i.test(t.value)) w.push('no "shall"'); if (!/\d/.test(t.value)) w.push("no number to measure");
+    const box = $("#w_" + t.name); if (box) box.textContent = t.value && w.length ? "⚠ " + w.join(", ") + " (you can keep it anyway)" : ""; });
+  frm.querySelectorAll("[data-upto]").forEach(u => u.onchange = async () => { for (const file of u.files) { $("#fmsg").textContent = `Uploading ${file.name}…`;
+    const r = await upload(file); if (r) { const t = frm[u.dataset.upto]; t.value = (t.value ? t.value + (t.tagName === "TEXTAREA" ? "\n" : ", ") : "") + r.file; $("#fmsg").textContent = r.message; } } });
+  const collect = () => { const o = {...(spec.extra || {})}; new FormData(frm).forEach((v, k) => { if (!/^o\d+_/.test(k)) o[k] = v; });
+    if (frm.retest) o.retest = frm.retest.checked;
+    if (kind === "decision") { o.options = []; document.querySelectorAll("#opts .opts").forEach((x, i) => o.options.push({name: frm[`o${i + 1}_name`].value, pros: frm[`o${i + 1}_pros`].value, cons: frm[`o${i + 1}_cons`].value})); }
+    return o; };
+  let stage = "form", body = null;
+  $("#fgo").onclick = async () => {
+    try {
+      if (stage === "form") { body = collect(); const r = await post(`api/preview/${op}`, body);
+        $("#pvw").style.display = ""; frm.style.display = "none";
+        $("#pvw").innerHTML = `<div class="dsub">Will write: <span class="mono">${H(r.target)}</span></div>${(r.warnings || []).map(w => `<div class="warn" style="color:var(--warn-ink);margin:6px 0">⚠ ${H(w)}</div>`).join("")}<div class="pv">${H(r.preview)}</div>`;
+        $("#fgo").textContent = op === "idea" || op === "bug" ? "Create issue" : "Write it"; $("#fcancel").textContent = "Back"; $("#fcancel").onclick = () => { stage = "form"; frm.style.display = ""; $("#pvw").style.display = "none"; $("#fgo").textContent = "Preview"; $("#fcancel").textContent = "Cancel"; $("#fcancel").onclick = () => m.remove(); };
+        stage = "preview";
+      } else { $("#fgo").disabled = true; $("#fmsg").textContent = "Saving…"; const r = await post(`api/apply/${op}`, body);
+        m.remove(); toast(r.message + (r.url ? " " + r.url : "")); setTimeout(() => location.reload(), 900); }
+    } catch (e) { $("#fgo").disabled = false; $("#fmsg").textContent = ""; toast(e.message, true); }
+  };
+}
+
+loadHash(); const _sel = selected; chrome(); render(); if (_sel && M.parts[_sel]) setTimeout(() => showPart(_sel), 500);
+if (SERVED) startPolling();
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeDrawer(); });
+</script></body></html>

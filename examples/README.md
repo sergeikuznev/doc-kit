@@ -25,7 +25,7 @@ checklist line, a corrected requirement in the change log, and the status page.
 ## odometry-walkthrough
 
 The files `doc` produced while adding wheel odometry to a small robot,
-following the story in [docs/GUIDE.md](../docs/GUIDE.md#4-one-feature-start-to-finish):
+following the story in [the handbook](../docs/HANDBOOK.md#one-feature-start-to-finish):
 
 | Step | Command | Result |
 |---|---|---|
