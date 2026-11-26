@@ -1,7 +1,7 @@
 # The engineering record handbook
 
-The [README](../README.md) explains how to run `doc`. This handbook explains the
-thinking behind each record: what it is for, when to write one, what a good one
+[Using the page](PAGE.md) and [Using the terminal](TERMINAL.md) explain how to
+use doc-kit. This handbook explains the thinking behind each record: what it is for, when to write one, what a good one
 looks like, and how the records connect into one picture of your project.
 
 Every example comes from the two worked projects in [examples/](../examples/):
@@ -129,7 +129,7 @@ and what must protect it**. When PWR-001 passes its test, the decision is proven
 Usually the fault comes first: failure analysis is where safety requirements
 come from. A fault row with no linked requirement is a plan nobody has promised
 or tested yet. The example deliberately leaves **FM-002** (brownout on motor
-stall) unlinked, and `doc report` lists it under *Needs attention*.
+stall) unlinked, and the page lists it under *Gaps*.
 
 ### Chain 3: a failure becomes a lesson
 
@@ -148,7 +148,7 @@ The failed test is not deleted. It is the most useful part of the record.
 ## 3. Issue: ideas and bugs
 
 **What:** a GitHub issue that captures an idea or a problem in 30 seconds so it
-is not lost. Command: `doc idea`, `doc bug`.
+is not lost. Write it: **+ New → Idea / Bug** on the page, or `doc idea` / `doc bug`.
 
 **Write one when:** you think "we should..." or "that's wrong" and are not going
 to act on it in the next few minutes.
@@ -171,7 +171,7 @@ bugs without the expected behaviour, so nobody knows when it is fixed.
 ## 4. Decision
 
 **What:** a short record of **why** you chose one option over others. Written
-once, never edited. Command: `doc decision`.
+once, never edited. Write it: **+ New → Decision**, or `doc decision`.
 
 **Write one when:**
 - you compared two or more real options, or
@@ -208,7 +208,7 @@ Full example: [decision 001](../examples/power-system/docs/decisions/001-use-a-3
 ## 5. Requirement
 
 **What:** a measurable promise about what the system **shall** do, written so it
-can be tested and end up Verified or Failed. Command: `doc req`.
+can be tested and end up Verified or Failed. Write it: **+ New → Requirement**, or `doc req`.
 
 **Write one when:** you commit to building something, or a decision or fault
 needs a promise behind it.
@@ -241,7 +241,7 @@ evidence.
 
 **What:** one row per thing that can go wrong, planning how it is **detected**,
 **isolated** and **recovered from**. FDIR stands for Fault Detection, Isolation
-and Recovery. Command: `doc fault`.
+and Recovery. Write it: **+ New → Fault**, or `doc fault`.
 
 **Write one when:** you ask "what if this breaks?" about a part, a link or a
 power rail. Best done while designing, before it happens for real.
@@ -278,7 +278,7 @@ recovery; leaving the Req column empty forever (see Chain 2).
 ## 7. Verification and evidence
 
 **What:** proof that a requirement is met: what you measured, and where the
-proof is stored. Command: `doc test ID`.
+proof is stored. Write it: **Record test** on the requirement (with the photo or log as an upload), or `doc test ID`.
 
 **Evidence has two parts:**
 1. **The result:** "34, 33 and 35 min over 3 runs from a full balance charge."
@@ -299,8 +299,8 @@ proof is stored. Command: `doc test ID`.
 later pass. It shows what went wrong and that it was fixed.
 
 **Retest when:** the requirement's wording changes, the design under it changes,
-or the evidence is older than a significant hardware change. `doc update` offers
-to reset a Verified requirement when you reword it.
+or the evidence is older than a significant hardware change. Editing the text
+of a Verified requirement offers to set it back to Approved for a retest.
 
 ---
 
@@ -325,7 +325,7 @@ robots link to it, so there is never a second, drifting copy.
 ## 9. Procedure
 
 **What:** numbered steps for something you would otherwise forget or do wrong.
-Command: `doc procedure`.
+Write it: `doc procedure` (terminal; no page form yet).
 
 **Write one when:** a task took you more than one attempt to get right, or a
 mistake in it damages hardware (charging, flashing, calibrating, mounting).
@@ -340,7 +340,7 @@ Example: [charging a LiPo pack](../examples/power-system/docs/procedures/chargin
 ## 10. Checklist
 
 **What:** the pre-power checklist: short checks run before powering up after any
-hardware change. Command: `doc check`.
+hardware change. Write it: `doc check` (terminal; no page form yet).
 
 **Write a line when:** something broke, or nearly did. Each line carries the
 date and the reason in the history table, so nobody deletes it as "obvious".
@@ -358,7 +358,7 @@ lines with no reason (then they get removed).
 ## 11. Devlog
 
 **What:** ten minutes a week: what was done, what broke or was learned, what is
-next. Command: `doc log`.
+next. Write it: `doc log` (terminal; no page form yet).
 
 **Why bother:** it is the most readable record of how the project evolved, and
 it catches anything the other records missed.
@@ -372,13 +372,13 @@ the details; put failures and lessons in, not only progress.
 
 Projects change. The record should show how, not hide it.
 
-| Situation | What to do | Command |
-|---|---|---|
-| A requirement's number turns out wrong | Change it; the old text goes in the change log; retest if it was Verified | `doc update ID` |
-| A requirement is no longer needed | Mark it **Deleted** with a reason. Never reuse the ID | `doc update ID` |
-| You change your mind about a decision | Write a **new** decision that supersedes the old one; the old one is marked "Superseded by NNN" | `doc decision` |
-| A proposed decision is agreed | Change its status to Accepted | `doc update NNN` |
-| A fault now has a requirement covering it | Fill in the Req column | `doc update FM-NNN` |
+| Situation | What to do | On the page | Terminal |
+|---|---|---|---|
+| A requirement's number turns out wrong | Change it; the old text goes in the change log; retest if it was Verified | Edit | `doc update ID` |
+| A requirement is no longer needed | Mark it **Deleted** with a reason. Never reuse the ID | Mark deleted | `doc update ID` |
+| You change your mind about a decision | Write a **new** decision that supersedes the old one; the old one is marked "Superseded by NNN" | + New → Decision, "Replaces" | `doc decision` |
+| A proposed decision is agreed | Change its status to Accepted | Change status | `doc update NNN` |
+| A fault now has a requirement covering it | Fill in the Req column | Edit on the fault | `doc update FM-NNN` |
 
 From the power-system example: PWR-002 was first written with a 3.0 V cutoff.
 Under load, cell voltage sags, so 3.0 V left no margin. It was changed to 3.3 V,
@@ -447,12 +447,13 @@ fix the procedure right then.
 
 At the end of the week (10-15 minutes):
 
-1. `doc report` and read **Needs attention**: failed requirements, untested ones,
-   failure modes with no requirement, decisions still proposed.
-2. Turn each item you will act on into an issue (`doc idea`) or plan the test.
-3. `doc log`: what was done, what broke, what is next.
+1. Open the page: **Overview** (problems must be zero, then the gaps),
+   **Requirements → Failed** and **Approved** (not yet tested), warnings on **Faults**.
+   Or `doc report` and its **Needs attention** list.
+2. Turn each item you will act on into an issue (+ New → Idea) or plan the test.
+3. Write the devlog entry: what was done, what broke, what is next (`doc log`).
 
-The report is your to-do list for the next week, generated from the record
+That list is your to-do list for the next week, generated from the record
 instead of from memory.
 
 ### Before you start building something: check what is already promised
@@ -495,7 +496,7 @@ update the requirements it created.
 
 Point them to, in this order:
 
-1. `doc report`: the current state in one page.
+1. The page: **System**, then a subsystem's panel, then **Requirements**.
 2. `docs/decisions/`: why things are the way they are. Reading these saves weeks
    of "why didn't you just...?" conversations.
 3. `requirements.md`: what the robot must do and what is proven.
@@ -512,7 +513,7 @@ record is the material:
 | Why this design? | Decisions with their options and deciding factors |
 | What happens when it fails? | The fault table and which requirements cover it |
 | How do you know it works? | Verified requirements and their evidence |
-| What is still open? | The *Needs attention* list from `doc report` |
+| What is still open? | The *Gaps* on the page, or *Needs attention* in `doc report` |
 
 ### When you start the next robot: reuse
 
@@ -630,55 +631,29 @@ requirements or no fault analysed, a fault no requirement covers, a topic
 nobody subscribes to, a ROS node not allocated to any computer, a module with
 nothing connected.
 
-### Using the page
+### Seeing it
 
-- **System** shows subsystems and what crosses between them. Click one for its
-  interfaces, requirements and faults; *Open in Electrical* focuses on it.
-- **Electrical, Power, Mechanical** show parts inside their subsystems with only
-  the ports used in that view. Click a part for every port, its pins, saved
-  peripheral settings (CubeMX only saves changed values; unsaved ones are
-  marked "CubeMX default"), what it connects to, and its requirements, faults
-  and decisions.
-- **Software** shows nodes grouped by the computer they run on, with topics
-  between them.
-- **Interfaces** is generated: every connection that crosses a subsystem
-  boundary, with pins and bus settings. This replaces a hand-written ICD for
-  everything that is wired.
-
-### Live, from any device
-
-`doc serve` serves the same page with forms, from your Mac now and from an
-always-on machine later. The forms ask the same questions as the terminal and
-call the same code, so a requirement written from your phone at the bench is
-byte-for-byte the row `doc req` would write. Recording a test is the case it is
-best at: pick the requirement, Passed or Failed, what you measured, take the
-photo, Write it. The photo lands in `docs/media/`, its name in the evidence,
-and the page shows it on the requirement from then on.
-
-The page writes only what doc-kit writes. CubeMX owns the `.ioc`, your editor
-owns the code, `doc model` owns the facts file, and nothing is ever removed:
-a dropped requirement is marked Deleted with a reason, a replaced decision is
-Superseded.
+Every view, panel and form of the page is explained with screenshots in
+[Using the page](PAGE.md); the commands are in [Using the terminal](TERMINAL.md#5-the-system-model-from-the-terminal).
 
 ---
 
 ## 16. Quick reference
 
-| When this happens | Write | Command |
-|---|---|---|
-| You get an idea | Issue | `doc idea` |
-| Something behaves wrong | Bug issue | `doc bug` |
-| You choose between options | Decision | `doc decision` |
-| You commit to building something | Requirement | `doc req` |
-| You ask "what if it breaks?" | Fault row | `doc fault` |
-| You test a requirement | Evidence | `doc test ID` |
-| You do a task with steps you'd forget | Procedure | `doc procedure` |
-| Something breaks or nearly breaks | Checklist line | `doc check` |
-| Something written earlier changes | Update | `doc update` |
-| End of the week | Devlog entry | `doc log` |
-| You want the big picture | Status report | `doc report` |
-| Wiring, modules or ROS2 code changed | System map | `doc model` |
-| You want the map and forms on your phone | Live server | `doc serve` |
+| When this happens | Write | On the page | Terminal |
+|---|---|---|---|
+| You get an idea | Issue | + New → Idea | `doc idea` |
+| Something behaves wrong | Bug issue | + New → Bug | `doc bug` |
+| You choose between options | Decision | + New → Decision | `doc decision` |
+| You commit to building something | Requirement | + New → Requirement | `doc req` |
+| You ask "what if it breaks?" | Fault row | + New → Fault | `doc fault` |
+| You test a requirement | Evidence | Record test | `doc test ID` |
+| You do a task with steps you'd forget | Procedure | | `doc procedure` |
+| Something breaks or nearly breaks | Checklist line | | `doc check` |
+| Something written earlier changes | Update | Edit, Mark deleted, Change status | `doc update` |
+| End of the week | Devlog entry | | `doc log` |
+| You want the big picture | | Overview | `doc report` |
+| Wiring, modules or ROS2 code changed | Arch file | the page rebuilds itself | `doc model` |
 
 ### Habits
 
@@ -691,7 +666,7 @@ Superseded.
   Releases for files over a few MB.
 
 - **Use what you wrote:** tick the checklist before every power-up, follow procedures
-  instead of memory, and read `doc report` during the weekly devlog. More in [chapter 14](#14-using-the-record).
+  instead of memory, and read the Overview during the weekly review. More in [chapter 14](#14-using-the-record).
 
 ### Start small
 

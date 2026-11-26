@@ -33,7 +33,7 @@ main{overflow:auto;min-width:0;position:relative}
 .btn:hover{border-color:var(--faint)}.chip{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;font-size:12px;border:1px solid var(--hair);background:var(--surface);cursor:pointer;color:var(--ink);white-space:nowrap}
 .chip.focus{border-color:var(--accent);color:var(--accent)}
 .canvas{flex:1;overflow:hidden;cursor:grab;background:radial-gradient(circle,var(--hair) 1px,transparent 1px) 0 0/22px 22px}
-.canvas:active{cursor:grabbing}.canvas svg{display:block;width:100%;height:100%;user-select:none;-webkit-user-select:none}
+.canvas:active{cursor:grabbing}.canvas svg{display:block;width:100%;height:100%;user-select:none;-webkit-user-select:none;touch-action:none}
 .empty{color:var(--muted);padding:40px;text-align:center}
 /* svg */
 svg text{fill:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
@@ -55,7 +55,7 @@ aside{width:0;overflow:hidden;border-left:1px solid var(--hair);background:var(-
 aside.open{width:440px;overflow:auto}aside .in{padding:18px 20px 40px;width:440px}
 aside .x{float:right}.dh{font-size:17px;font-weight:650;margin:2px 0}.dsub{color:var(--muted);font-size:12.5px;margin-bottom:12px}
 aside h4{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);margin:18px 0 8px}
-.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:13px}.kv div:nth-child(odd){color:var(--muted)}
+.kv{display:grid;grid-template-columns:minmax(0,max-content) minmax(42%,1fr);gap:3px 14px;font-size:13px}.kv div{overflow-wrap:anywhere}.kv div:nth-child(odd){color:var(--muted)}
 .ptab{width:100%;border-collapse:collapse;font-size:12.5px}.ptab td,.ptab th{padding:6px 6px;border-bottom:1px solid var(--hair);text-align:left;vertical-align:top}
 .ptab th{color:var(--faint);font-weight:600;font-size:11.5px}.ptab tr.off td{color:var(--faint)}.ptab tr.det td{background:var(--sunk);padding:8px 10px}
 .ptab .lnk{color:var(--accent);cursor:pointer}.ptab tr.row{cursor:pointer}.ptab tr.row:hover td{background:var(--sunk)}
@@ -161,7 +161,12 @@ aside h4{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:va
 .act{font:inherit;font-size:12px;padding:3px 9px;border-radius:7px;border:1px solid var(--hair);background:var(--surface);color:var(--ink);cursor:pointer}.act:hover{border-color:var(--accent);color:var(--accent)}
 .act.dz:hover{border-color:var(--crit);color:var(--crit-ink)}
 @media(max-width:900px){.docs{grid-template-columns:1fr}.two{grid-template-columns:1fr}}
-@media(max-width:900px){.shell{grid-template-columns:1fr}nav{display:flex;overflow:auto;border-right:0;border-bottom:1px solid var(--hair);padding:6px}nav .grp{display:none}nav button{width:auto;white-space:nowrap}aside.open{position:fixed;inset:0;width:auto}}
+@media(max-width:900px){.shell{display:flex;flex-direction:column}nav{flex:none;display:flex;overflow-x:auto;border-right:0;border-bottom:1px solid var(--hair);padding:6px;gap:2px}
+nav .grp{display:none}nav button{width:auto;white-space:nowrap;padding:6px 10px}main{flex:1;min-height:0}
+header{padding:10px 14px;gap:10px}header .sub{display:none}.counters{gap:6px}.counter{padding:3px 8px;font-size:12px}.newbtn{padding:5px 10px}
+aside.open{position:fixed;inset:0;width:auto;z-index:30}aside .in{width:auto}.page{padding:16px 14px 50px}
+.dtool{flex-wrap:wrap;padding:10px 12px;gap:8px}.dtool .lead{display:none}.dtool .legend{order:3;width:100%;flex-wrap:wrap;gap:10px}
+.rgrid{grid-template-columns:1fr}.chain{grid-template-columns:1fr}.chain .ar{display:none}.filters input{min-width:0;width:100%}}
 </style></head><body>
 <header><div><h1 id="title"></h1><div class="sub" id="subtitle"></div></div><div class="counters" id="counters"></div></header>
 <div class="shell"><nav id="nav"></nav><main id="main"></main><aside id="drawer"><div class="in" id="drawer-in"></div></aside></div>
@@ -403,7 +408,7 @@ function allEdges(n, out = []) { (n.edges || []).forEach(e => out.push([e, n]));
 
 let zoom = null;
 function canvasShell(title, lead, extra = "") {
-  $("#main").innerHTML = `<div class="diagram"><div class="dtool"><div><h2>${title}</h2><p class="lead">${lead}</p></div><span class="sp"></span>${extra}<button class="btn" id="fit">Fit</button></div><div class="canvas" id="cv"></div></div>`;
+  $("#main").innerHTML = `<div class="diagram"><div class="dtool"><div><h2>${title}</h2><p class="lead">${lead}</p></div><span class="sp"></span>${extra}<button class="btn" id="zout" title="Zoom out">−</button><button class="btn" id="zin" title="Zoom in">+</button><button class="btn" id="fit">Fit</button></div><div class="canvas" id="cv"></div></div>`;
   wire($("#main"));
   return $("#cv");
 }
@@ -413,6 +418,8 @@ function panZoom(svg, W, H) {
   const fit = () => { const r = svg.getBoundingClientRect(), k = Math.max((W + 40) / r.width, (H + 40) / r.height, 1 / 1.15);
     const w = r.width * k, h = r.height * k; vb = {x: W / 2 - w / 2, y: H / 2 - h / 2, w, h}; set(); };
   fit(); $("#fit").onclick = fit; refit = fit;
+  const zoomBy = s => { const cx = vb.x + vb.w / 2, cy = vb.y + vb.h / 2; vb = {x: cx - vb.w * s / 2, y: cy - vb.h * s / 2, w: vb.w * s, h: vb.h * s}; set(); };
+  $("#zin").onclick = () => zoomBy(0.75); $("#zout").onclick = () => zoomBy(1.33);
   svg.addEventListener("wheel", ev => { ev.preventDefault(); const r = svg.getBoundingClientRect(); const s = Math.exp(ev.deltaY * 0.0015);
     const scale = Math.max(vb.w / r.width, vb.h / r.height), mx = vb.x + (ev.clientX - r.left) * scale, my = vb.y + (ev.clientY - r.top) * scale;
     vb = {x: mx - (mx - vb.x) * s, y: my - (my - vb.y) * s, w: vb.w * s, h: vb.h * s}; set(); }, {passive: false});
@@ -510,7 +517,7 @@ async function drawSystem() {
 }
 async function drawSoftware() {
   const cv = canvasShell("Software (ROS2)", "Nodes and topics found in the code (robot does not need to be on), grouped by the computer each node runs on.",
-    `<div class="legend"><span><i class="box" style="background:var(--sunk);border:1px solid var(--hair)"></i>topic</span><span><i class="box" style="background:var(--surface);border:1px solid var(--faint)"></i>node</span></div>`);
+    `<div class="legend"><span><i class="box" style="background:var(--sunk);border:1px solid var(--faint);border-radius:6px;width:16px"></i>topic</span><span><i class="box" style="background:var(--surface);border:1px solid var(--faint)"></i>node</span><span><i style="border-color:var(--sig)"></i>publish → subscribe</span></div>`);
   if (!M.nodes.length) { cv.innerHTML = `<div class="empty">No ROS2 code found. Set [ros] paths in docs/model/model.toml.</div>`; return; }
   const {graph} = buildSoftware(); const out = await elk.layout(graph); const abs = absMap(out);
   const svg = el("svg", {}, cv), root = el("g", {}, svg);

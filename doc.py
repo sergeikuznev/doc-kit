@@ -2113,7 +2113,8 @@ def cmd_init(args):
     os.chmod(tool, 0o755)
     created.append("tools/doc.py (updated to " + __version__ + ")" if existed else "tools/doc.py")
     for extra in ("docmodel.py", "docmodel_page.html", "docserve.py", os.path.join("vendor", "elk.bundled.js"),
-                  os.path.join("vendor", "LICENSE-elkjs.md"), "README.md", os.path.join("docs", "HANDBOOK.md")):
+                  os.path.join("vendor", "LICENSE-elkjs.md"), "README.md", os.path.join("docs", "PAGE.md"), os.path.join("docs", "TERMINAL.md"),
+                  os.path.join("docs", "HANDBOOK.md")):
         src = os.path.join(kit, extra)
         if os.path.exists(src):
             dst = os.path.join(target, "tools", "guides", os.path.basename(extra)) if extra.endswith(".md") and "LICENSE" not in extra \

@@ -889,7 +889,9 @@ def _inline(t):
     t = re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", r'<a href="\2">\1</a>', t)
     t = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", t)
     t = re.sub(r"(?<![\w*])\*([^*\n]+)\*(?!\w)", r"<em>\1</em>", t)
-    return t.replace("&lt;br&gt;", "<br>")
+    for tag in ("br", "sub", "/sub", "sup", "/sup"):
+        t = t.replace(f"&lt;{tag}&gt;", f"<{tag}>")
+    return t
 
 
 def md_html(text):
@@ -969,6 +971,8 @@ def md_html(text):
     return "\n".join(out), heads
 
 
+GUIDE_IMAGES = "https://raw.githubusercontent.com/sergeikuznev/doc-kit/master/docs/images/"
+
 MEDIA_KIND = {".jpg": "image", ".jpeg": "image", ".png": "image", ".gif": "image", ".webp": "image", ".svg": "image",
               ".heic": "image", ".mp4": "video", ".mov": "video", ".webm": "video", ".m4v": "video",
               ".csv": "data", ".json": "data", ".txt": "data", ".log": "data", ".pdf": "pdf"}
@@ -982,7 +986,7 @@ def collect_extras(root, m, with_issues=True):
     groups = [("Project", os.path.join(root, "docs"), ["README.md", "requirements.md", "fdir.md", "devlog.md"]),
               ("Procedures", os.path.join(root, "docs", "procedures"), None),
               ("Interfaces", os.path.join(root, "docs", "icd"), None),
-              ("How to use doc-kit", os.path.join(here, "guides"), ["README.md", "HANDBOOK.md"])]
+              ("How to use doc-kit", os.path.join(here, "guides"), ["README.md", "PAGE.md", "TERMINAL.md", "HANDBOOK.md"])]
     for group, folder, names in groups:
         if not os.path.isdir(folder):
             continue
@@ -992,6 +996,9 @@ def collect_extras(root, m, with_issues=True):
             if not os.path.isfile(path):
                 continue
             body, heads = md_html(open(path, encoding="utf-8").read())
+            if group == "How to use doc-kit":
+                # screenshots live in the doc-kit repo, not in every project
+                body = re.sub(r'src="(?:\./)?(?:docs/)?images/', f'src="{GUIDE_IMAGES}', body)
             title = next((h[1] for h in heads if h[0] == 1), f[:-3].replace("_", " "))
             docs.append({"group": group, "file": os.path.relpath(path, root) if group != "How to use doc-kit" else f"doc-kit/{f}",
                          "title": title, "html": body, "toc": [h for h in heads if h[0] in (2, 3)]})
