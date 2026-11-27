@@ -1,71 +1,66 @@
 # Using the page
 
-The page is the main way to use doc-kit. It shows the whole robot in one place
-(wiring, software, requirements, faults, decisions, issues, docs, photos), and
-it is where you record what happens: a test result with a photo, a new idea, a
-decision. Every change you make on it is written to your Markdown files and
-committed to git, exactly as if you had typed it in the terminal.
+The page is how you use doc-kit. It shows the whole robot in one place (wiring,
+software, requirements, faults, decisions, issues, docs, photos), and it is
+where you change it: subsystems and boards, parts and wires, test results with
+a photo, ideas, decisions, procedures. Every change is previewed, written to
+plain files in your repo, committed and pushed.
 
 Concepts (what a requirement is, what makes a good fault row) are in the
-[handbook](HANDBOOK.md). The same actions in a shell are in
-[TERMINAL.md](TERMINAL.md). Each step below ends with its terminal equivalent
-in grey, so you can switch at any point.
+[handbook](HANDBOOK.md). The few terminal commands (install, hooks, CI) are in
+[TERMINAL.md](TERMINAL.md).
 
-All screenshots come from a mock project: the `.ioc` is real, the modules,
+All screenshots come from a demo project: the `.ioc` is real, the modules,
 wiring, ROS2 code and records are invented.
 
 **Contents**
 
 1. [Opening the page](#1-opening-the-page)
 2. [Finding your way around](#2-finding-your-way-around)
-3. [The views](#3-the-views)
-4. [The records](#4-the-records)
-5. [Issues, docs and media](#5-issues-docs-and-media)
-6. [Writing from the page](#6-writing-from-the-page)
-7. [Staying up to date](#7-staying-up-to-date)
-8. [When the wiring no longer matches the hardware](#8-when-the-wiring-no-longer-matches-the-hardware)
-9. [Workflows](#9-workflows)
-10. [On your phone](#10-on-your-phone)
-11. [What the page will and will not do](#11-what-the-page-will-and-will-not-do)
-12. [Running the server long-term](#12-running-the-server-long-term)
+3. [Setup: subsystems, boards, code](#3-setup-subsystems-boards-code)
+4. [Building the robot: parts and wiring](#4-building-the-robot-parts-and-wiring)
+5. [The views](#5-the-views)
+6. [The records](#6-the-records)
+7. [Issues, docs and media](#7-issues-docs-and-media)
+8. [Writing records](#8-writing-records)
+9. [Staying up to date](#9-staying-up-to-date)
+10. [When the wiring no longer matches the hardware](#10-when-the-wiring-no-longer-matches-the-hardware)
+11. [Workflows](#11-workflows)
+12. [On your phone](#12-on-your-phone)
+13. [What the page will and will not do](#13-what-the-page-will-and-will-not-do)
+14. [Running the server long-term](#14-running-the-server-long-term)
 
 ---
 
 ## 1. Opening the page
 
-There are two ways to open it.
-
-| | `doc serve` (live) | `doc model` (a file) |
-|---|---|---|
-| What you get | the page at `http://127.0.0.1:8765`, with forms | `docs/system.html`, read-only |
-| Updates | pulls from GitHub every minute and offers a reload | rebuilt each time you run it |
-| Issues | refreshed every 5 minutes | a snapshot from when you ran it |
-| Writing | forms commit and push | none (use the terminal) |
-| Needs | Python 3.11+, git; `gh` for issues | Python 3.11+ |
+In your project (after `doc init`, see the [README](../README.md#quick-start)):
 
 ```bash
-cd your-project
 doc serve
 ```
 
-Leave that terminal window open; Ctrl+C stops it. Options: `--port 8765`,
-`--interval 60` (seconds between GitHub checks), `--no-push` (commit locally only).
+Open `http://127.0.0.1:8765`. Leave that terminal window open; Ctrl+C stops
+the server. Options: `--port 8765`, `--interval 60` (seconds between GitHub
+checks), `--no-push` (commit locally only).
 
-**From your phone or another laptop.** The server listens on this machine
-only, so nothing on your Wi-Fi can reach it. To open it from your own
-devices, share it through [Tailscale](https://tailscale.com):
+**Why `127.0.0.1`?** It means only this computer can connect. The page can
+commit and push to your repo and has no login, so it must not be open to
+everyone on the Wi-Fi. **Why 8765?** Just a free port; any other works with `--port`.
+
+**From your phone or another laptop**, share it through
+[Tailscale](https://tailscale.com):
 
 ```bash
 tailscale serve --bg 8765
 ```
 
 It prints an address like `https://your-mac.tailXXXX.ts.net/`. Open that on any
-device signed into your tailnet. `tailscale serve --https=443 off` stops sharing.
+device signed into your tailnet: your tailnet is the login.
+`tailscale serve --https=443 off` stops sharing.
 
-> The first time, set up the model once: `doc model setup` asks which `.ioc`
-> file belongs to each board and which folders hold ROS2 code, then writes a
-> starter `docs/model/<name>_arch.sysml`. Describing your modules and wiring in
-> that file is explained in the [handbook](HANDBOOK.md#15-the-system-model).
+**Without a server**, `doc model` writes the same page to `docs/system.html`:
+read-only, a snapshot of when you ran it.
 
 ---
 
@@ -73,16 +68,16 @@ device signed into your tailnet. `tailscale serve --https=443 off` stops sharing
 
 ![Overview with numbered parts](images/page-01-overview.png)
 
-1. **Counters and + New.** *Model problems* (red) means the wiring in your arch
-   file no longer matches the hardware; *gaps* are open questions; *verified*
-   is how many requirements are proven. **+ New** opens the forms (only with
-   `doc serve`). Click a counter to jump to it.
-2. **Sections.** *Views* draw the robot, *Records* hold what it must do and why,
-   *Project* holds issues, docs and media. The grey number is how many items each has.
+1. **Counters and + New.** *Model problems* (red) means the wiring no longer
+   matches the hardware; *gaps* are open questions; *verified* is how many
+   requirements are proven. **+ New** opens the forms. Click a counter to jump to it.
+2. **Sections.** *Model* has the overview and **Setup**; *Views* draw the
+   robot; *Records* hold what it must do and why; *Project* holds issues, docs
+   and media. The grey number is how many items each has.
 3. **Tiles.** Size of the model, connections by kind (signal, power,
    mechanical), requirement progress and faults by severity.
-4. **Problems.** Every line is something the pre-commit check will stop on, with
-   the file and line number. When the wiring is consistent it says so.
+4. **Problems.** Every line is something the commit check would stop on.
+   When the wiring is consistent it says so.
 5. **Gaps.** The questions a design review would ask: a subsystem with no
    requirements, a fault with no requirement covering it, a topic nobody
    subscribes to, a ROS node not assigned to any computer. Gaps are not errors;
@@ -93,13 +88,165 @@ bookmark or a reload brings you back to the same view with the same part open.
 
 ---
 
-## 3. The views
+## 3. Setup: subsystems, boards, code
+
+**Setup** (under *Model*) is where a new project starts. Nothing is filled in
+for you: you add your own subsystems, point each board at its `.ioc` file, and
+say where your ROS2 code is.
+
+![Setup page](images/page-24-setup.png)
+
+1. **Subsystems** and **+ Subsystem**. A subsystem is a box in the system
+   diagram *and* the prefix of requirement IDs: `COMM-002` belongs to `COMM`.
+2. **Requirements only**: a group with no box, for requirements about the
+   whole robot (`SYS`) or fault handling (`FDIR`). Its requirements belong to
+   the whole system.
+3. **Order.** The arrows set the order of the requirement sections and of the
+   lists on the page.
+4. **Edit / Delete.** A prefix that requirements already use cannot change
+   (IDs never change); change the name instead. Deleting is refused while the
+   subsystem holds parts or live requirements. One whose old, deleted
+   requirements used its prefix is kept as *deleted*, so those IDs are never reused.
+5. **Boards**: microcontrollers with a CubeMX project, each pointing at its own `.ioc`.
+
+![Setup: ROS2 folders and port types](images/page-25-setup-more.png)
+
+1. **ROS2 code folders**: scanned for nodes, publishers and subscribers. The
+   robot does not need to be on.
+2. **Port types**: a port connects only to a port of the same type. The common
+   ones are built in (SPI, I²C, UART, USB, CAN, GPIO, PWM, encoder, analog,
+   Ethernet, WiFi, radio link, power, mechanical). Add your own when you want a
+   check to be stricter, e.g. `Power5V` so a 12 V output cannot be wired to a 5 V input.
+
+### Choosing subsystems
+
+Group them the way the robot comes apart.
+
+| Robot | Subsystems |
+|---|---|
+| One chassis, one MCU and a computer | by function: `CTRL` (MCU and what is wired to it), `COMP` (Raspberry Pi), `COMM` (radios), `DRIVE` (drivers, motors), `PWR` (battery, regulators), plus `SYS` and `FDIR` as requirements only |
+| Several assemblies (a base and an arm, each with its own MCU) | by assembly: `BASE`, `ARM`, `PWR`, `SW`, plus `SYS`, `FDIR`. The base ↔ arm link then shows up as an interface |
+
+Two radios (LoRa on the MCU, WiFi on the Pi) both go in `COMM`: a subsystem
+holds as many parts as you need.
+
+### Adding a subsystem
+
+![Subsystem form](images/page-26-subsystem-form.png)
+
+1. **Prefix**: 2 to 6 capitals, e.g. `ARM`. It starts every requirement ID of
+   this subsystem.
+2. **Name** (and an optional line on what is in it).
+3. **Box in the system diagram**: untick for a requirements-only group.
+
+Every Setup change shows a preview before anything is written:
+
+![Setup preview](images/page-27-setup-preview.png)
+
+1. **The files** it will write and commit: `docs/model/model.toml`, the arch
+   file, the subsystem table in `docs/README.md`, and the subsystem list of the
+   GitHub issue forms (so issue labels match your subsystems).
+2. **The change**, as a diff.
+3. **Write it** commits and pushes. **Back** returns to the form.
+
+### Adding a board
+
+![Board form](images/page-28-board-form.png)
+
+1. **Its .ioc file**, from every `.ioc` in the repo. Library samples
+   (`micro_ros_stm32cubemx_utils/sample_project.ioc`) and legacy copies are
+   marked; one already used by another board cannot be picked. Each board
+   names its exact file, so several projects in one folder are never confused.
+2. **Short name**: the part's name in the diagram (`mcu`, `base_mcu`, `arm_mcu`).
+3. **The subsystem** it sits in.
+4. **Scan its Core/Src**: adds the folder to the ROS2 code folders, for micro-ROS firmware.
+
+The board appears in its subsystem with every pin, bus, timer and clock
+setting from the `.ioc`, and stays in step with CubeMX: change the `.ioc`, and
+the page shows it on the next rebuild. A computer without an `.ioc` (a
+Raspberry Pi, a laptop) is an ordinary part: add it in the System views.
+
+---
+
+## 4. Building the robot: parts and wiring
+
+Parts and wires are added in the diagrams. Click **Edit** in the toolbar of
+the System, Electrical, Power or Mechanical view.
+
+![Edit mode](images/page-29-edit-mode.png)
+
+1. **Edit / Done** switches edit mode on and off. In edit mode every part and
+   every port of the view's kind is drawn, connected or not.
+2. **+ Part** adds a module, sensor, driver, battery or computer.
+3. **The hint bar** says what the next click does.
+4. **Click a port** to start a wire. It is highlighted.
+5. **Click the other end**: a port of the same type, or a part. Clicking a
+   part offers to give it a new port of the right type.
+
+Click a wire to remove it; click a part to open its panel. Esc cancels.
+
+![Connect form](images/page-30-connect-form.png)
+
+1. **From**: the port you clicked.
+2. **To part**: the part you clicked.
+3. **Port**: its ports of the same type, or **+ new … port**.
+4. **Name of the new port**, when you add one.
+
+You never deal with port direction: doc-kit marks one end as the mirror of the
+other (`~SpiBus` in the file) by itself. Several devices on one SPI bus are fine:
+connect the same MCU port to each.
+
+### Parts
+
+![Part panel actions](images/page-31-part-actions.png)
+
+1. **Edit part / Connect ports… / Delete** in the part's panel.
+   *Connect ports…* opens the Electrical view of its subsystem in edit mode.
+2. **Ports and what each connects to.** **✕** removes that connection.
+
+![Part form](images/page-32-part-form.png)
+
+1. **Subsystem**: moving a part keeps its wires.
+2. **What it is**: part number or one line.
+3. **Ports**: a name and a type each. Renaming a port keeps its wires;
+   removing one removes its wires (the preview lists them).
+4. **+ Port.** Missing a type? *Add one* opens the port type form.
+
+Deleting a part removes its wires, and the links of requirements and ROS nodes
+to it; the preview lists everything that goes. Boards get their ports from the
+`.ioc` and parts made before doc-kit 0.3 may get theirs from a type in the arch
+file; for those, the form edits the name and description only.
+
+### Which computer runs a ROS node
+
+![Allocate form](images/page-33-allocate.png)
+
+In the **Software** view, click a node, then **Change** next to *Runs on*.
+Nodes that run nowhere yet are grouped under *Not allocated*.
+
+### Which part a requirement belongs to
+
+A requirement belongs to the subsystem of its prefix. When one part carries it
+(the battery for a runtime requirement), open the requirement and click
+**Pin to a part**.
+
+### What gets written
+
+Parts, ports, wires, allocations and pins are kept in
+`docs/model/<name>_arch.sysml`, a SysML v2 text file the page writes in a fixed
+layout: readable in a git diff, and checked against the facts on every build.
+You never have to open it. Hand edits are fine, but the page rewrites the
+layout (and drops `//` comments) on its next change.
+
+---
+
+## 5. The views
 
 ### System
 
 ![System view](images/page-02-system.png)
 
-1. **A subsystem** with the parts inside it. Click it for its panel.
+1. **A subsystem** with its name and the parts inside it. Click it for its panel.
 2. **What crosses between subsystems**: one line per kind, labelled with the
    ports it carries (`spi1, nrf24_csn, nrf24_ce`) or *power* / *mount*.
 3. **Open issues** placed in this subsystem.
@@ -116,8 +263,6 @@ Clicking empty space closes the panel.
 3. **Requirements** that belong here (every `COMM-###` lands in `COMM`).
 4. **Faults** covered by those requirements. Decisions and open issues follow below.
 
-> Terminal: `doc model` writes the same page as `docs/system.html`.
-
 ### Electrical, Power, Mechanical
 
 Three views of the same parts, each showing only the ports of its kind.
@@ -125,8 +270,8 @@ Three views of the same parts, each showing only the ports of its kind.
 ![Electrical view](images/page-04-electrical.png)
 
 1. **A subsystem** drawn as a dashed box around its parts.
-2. **A part from the facts**: the MCU, read from its `.ioc` (blue band).
-3. **A part you wrote** in the arch file (purple band).
+2. **A board**, read from its `.ioc` (blue band).
+3. **A part** you added (purple band).
 4. **A port.** Hover it for its pins.
 5. **Ports not shown** in this view, for example the power input in the Electrical view.
 6. **Legend.**
@@ -158,21 +303,20 @@ photos that belong to this part, and any gap that names it.
 
 ![Software view](images/page-07-software.png)
 
-1. **A computer** (a part in your arch file) with the nodes that run on it.
+1. **A computer** with the nodes that run on it.
 2. **A node**, with the file it was found in. Click for its topics and line numbers.
 3. **A topic** with its message type. Arrows go publisher → topic → subscriber.
-4. **Not allocated**: nodes no computer runs yet (amber). Add one line to the
-   arch file: `allocate ROS::chimera_teleop to chimera.CTRL.pi;`
+4. **Not allocated**: nodes no computer runs yet (amber). Click one and set *Runs on*.
 5. **A topic with only one side** (amber border): published but never
    subscribed, or the other way round.
 
-Everything here is read from the code, so the robot can be off. A topic name
-built at runtime (`'debug/' + name`) cannot be read for certain, so it is
-listed as a gap instead of guessed.
+Everything here is read from the code in the ROS2 code folders, so the robot
+can be off. A topic name built at runtime (`'debug/' + name`) cannot be read
+for certain, so it is listed as a gap instead of guessed.
 
 ---
 
-## 4. The records
+## 6. The records
 
 ### Interfaces (ICD)
 
@@ -196,7 +340,7 @@ from it.
 4. **Evidence**: one dated line per test.
 5. **Media**: any file in `docs/media/` whose name appears in the evidence.
 6. **Links**: the part it is pinned to, the faults it covers, decisions, open issues.
-7. **Actions**: *Record test* and *Edit* (with `doc serve`).
+7. **Actions**: *Record test* and *Edit*.
 
 ![Search and filters](images/page-10-requirements-filters.png)
 
@@ -225,7 +369,7 @@ from it.
 
 ---
 
-## 5. Issues, docs and media
+## 7. Issues, docs and media
 
 ### Issues
 
@@ -233,8 +377,8 @@ from it.
 
 1. **Search and filters**: open/closed, idea/bug, subsystem.
 2. **+ Idea / + Bug** create a GitHub issue from a form.
-3. **Placement**: the issue's labels put it in a subsystem; requirement IDs in
-   its text link it to those requirements.
+3. **Placement**: the issue's subsystem label (the prefix in lowercase, e.g.
+   `comm`) puts it in a subsystem; requirement IDs in its text link it to those requirements.
 4. **GitHub ↗** opens it on GitHub, where comments and closing happen.
 5. **Details** shows the issue body.
 
@@ -246,7 +390,7 @@ Issues need the GitHub CLI (`gh auth login`) on the machine running `doc serve`.
 
 1. **Your docs**: project notes, requirements, faults, devlog, procedures,
    checklist, interface notes.
-2. **How to use doc-kit**: the README and this handbook, inside the page.
+2. **How to use doc-kit**: the README and these guides, inside the page.
 3. **Requirement and fault IDs** in the text are links.
 
 Links between docs open inside the page; links to anything else open in a new tab.
@@ -266,12 +410,12 @@ Photos and videos open full size; logs and CSVs show their text.
 
 ---
 
-## 6. Writing from the page
+## 8. Writing records
 
 ![+ New](images/page-17-new-menu.png)
 
 1. **+ New**, top right on every page.
-2. **What just happened?** The same choices as the terminal menu.
+2. **What just happened?** Pick the record that fits.
 
 Cards also have their own buttons: *Record test* and *Edit* on requirements,
 *Edit* on faults, *Change status* on decisions, *Mark deleted* in a
@@ -280,7 +424,7 @@ requirement's panel.
 ![A form](images/page-18-form.png)
 
 1. **Pick the record**: here, which requirement you tested.
-2. **Choices are menus**, never free text, so the IDs and statuses are always valid.
+2. **Choices are menus**, never free text, so IDs and statuses are always valid.
 3. **Free text** with a hint of what a good answer looks like.
 4. **Upload**: the file goes to `docs/media/` with today's date in its name,
    and its name goes into the field.
@@ -289,7 +433,7 @@ requirement's panel.
 ![Preview](images/page-19-preview.png)
 
 1. **The file** that will change.
-2. **The exact text** that will be written: the same row `doc test` would write.
+2. **The exact text** that will be written.
 3. **Write it** saves, commits and pushes.
 4. **Back** returns to the form with your answers kept.
 
@@ -305,6 +449,9 @@ not exist.
 | Test result | requirement, passed/failed, what you measured, evidence (upload), date | the requirement's status and evidence |
 | Fault | what fails, effect, detection, response, recovery, severity, covering requirement | `docs/fdir.md`, next FM-ID |
 | Decision | title, status, related IDs, what it replaces, context, options with pros and cons, the decision, deciding factor, consequences | `docs/decisions/NNN-title.md` |
+| Procedure | title, applies to, time, tools and parts, steps, warnings, photo | `docs/procedures/<title>.md` |
+| Checklist line | the check, why it was added, section | `docs/procedures/pre_power_checklist.md`, with a history row |
+| Devlog | done, broke or learned, next, media | this week's entry in `docs/devlog.md` |
 | Edit requirement | status, text, rationale or method; *Mark deleted* asks why | the row, plus a line in the change log |
 | Edit fault | any column | the row |
 | Change decision status | Proposed, Accepted, Rejected, Superseded by NNN, or the Related line | the decision file |
@@ -312,11 +459,9 @@ not exist.
 Each save is one commit with a readable message (`doc: test COMM-002 verified`),
 then a push. An upload is its own commit.
 
-> Terminal: `doc` opens the same choices as a menu; see [TERMINAL.md](TERMINAL.md#3-commands).
-
 ---
 
-## 7. Staying up to date
+## 9. Staying up to date
 
 ![Reload notice](images/page-20-reload-banner.png)
 
@@ -326,57 +471,65 @@ then a push. An upload is its own commit.
 2. **Reload** brings you back to the same view with the same part open, now
    with fresh data.
 
-Without `doc serve` there is no notice: the file shows what it was built from.
-
 ---
 
-## 8. When the wiring no longer matches the hardware
+## 10. When the wiring no longer matches the hardware
 
-Rename a pin label in CubeMX, for example `NRF24_CE` to `RADIO_CE`, and the arch
-file still says `connect CTRL.mcu.nrf24_ce to COMM.radio.ce;`.
+Rename a pin label in CubeMX, for example `NRF24_CE` to `RADIO_CE`, and the
+wire to `nrf24_ce` now points at a pin that is gone.
 
 ![Problem on the overview](images/page-21-problem.png)
 
 1. **The red counter** appears on every page.
-2. **The problem**, with the arch file and line, and a hint about the likely cause.
+2. **The problem**, with a hint about the likely cause.
 
 ![Broken link](images/page-22-broken-link.png)
 
-1. **The port that is gone** from the facts, in red.
+1. **The port that is gone** from the `.ioc`, in red.
 2. **The link to it**, red and dashed, instead of silently drawing the old wire.
 3. **Focus** on one subsystem (from its panel) to see just the affected wiring.
 
-The pre-commit hook stops the commit with the same message. Fix the arch file
-(rename `nrf24_ce` to `radio_ce`) and commit both together.
+Fix it on the page: **Edit**, click the red wire to remove it, then connect
+`radio_ce` to the module's `ce`.
 
-Other things the check catches: an SPI bus wired to a GPIO (types do not match),
-a part type that is not defined, a node assigned to a computer that does not
-exist, a requirement that does not exist, one topic used with two message types.
+![Fix preview](images/page-34-fix-preview.png)
+
+1. **Fixes**: the preview lists the problems a change removes (in green) and
+   any it would add (in red), before you write it.
+2. **The change** to the arch file.
+
+The pre-commit hook stops a commit from your own clone with the same message,
+so a broken model never reaches GitHub unnoticed. Other things the check
+catches: an SPI bus wired to a GPIO (types do not match), a node assigned to a
+part that does not exist, a requirement that does not exist, one topic used
+with two message types.
 
 ---
 
-## 9. Workflows
-
-Each step shows what to do on the page, with the terminal equivalent in grey.
+## 11. Workflows
 
 ### A. First setup on a project
 
-1. Install doc-kit into the project: `python3 path/to/doc-kit/doc.py init .`
-2. `doc install-hook`, so every commit checks the wiring.
-3. `doc model setup`: pick each board's `.ioc`, the ROS2 folders, and the subsystem each board sits in.
-4. Write your modules and wiring in `docs/model/<name>_arch.sysml` ([how](HANDBOOK.md#15-the-system-model)).
-5. `doc serve`, open the page, and read **Overview → Problems** until it says *Architecture matches the facts*.
-6. Optional: `tailscale serve --bg 8765` to open it from your phone.
+1. In the terminal, once: `doc init`, `doc install-hook`, `doc serve`
+   (see the [README](../README.md#quick-start)).
+2. **Setup → + Subsystem** for each subsystem (section 3).
+3. **Setup → + Board** for each microcontroller: pick its `.ioc`, name it, pick its subsystem.
+4. **Setup → ROS2 code folders → Change**: add the folders with your ROS2 and micro-ROS code.
+5. **System → Edit → + Part** for every module, sensor, battery and computer.
+6. **Electrical → Edit**: click a board pin, then the module, for every wire.
+   Then **Power** and **Mechanical** the same way, if you want those views.
+7. **Software**: click each node in *Not allocated* and set *Runs on*.
+8. **Overview**: Problems should say *Architecture matches the facts*.
+9. Optional: `tailscale serve --bg 8765` to open it from your phone.
 
 ### B. Record a test at the bench, from your phone
 
-1. Open the page on your phone (section 10).
+1. Open the page on your phone (section 12).
 2. **Requirements**, find the one you tested (filter *Approved* or search), tap **Record test**.
 3. Passed or Failed, what you measured (*stopped after 0.4 s, 5 runs*).
 4. **Upload photo / video / log**: take the photo or pick the video.
 5. **Preview**, check the row, **Write it**.
 6. The requirement turns Verified or Failed, the photo appears on its card and on its part.
-   <br><sub>Terminal: copy the file into `docs/media/`, then `doc test COMM-002`.</sub>
 
 If it failed: go to the fault that requirement covers and check the warning,
 then file a bug (**+ New → Bug**) with the same photo.
@@ -384,41 +537,45 @@ then file a bug (**+ New → Bug**) with the same photo.
 ### C. From an idea to a verified requirement
 
 1. **+ New → Idea**: what, why, subsystem. It becomes a GitHub issue and shows in **Issues** and on the subsystem.
-   <br><sub>Terminal: `doc idea`</sub>
 2. Compare options, then **+ New → Decision** with the options, pros and cons and the deciding factor. Put the issue number on the Related line.
-   <br><sub>Terminal: `doc decision`</sub>
 3. **+ New → Requirement**: the measurable promise (*The robot shall stop within 0.5 s of losing the command link*). It lands in its subsystem.
-   <br><sub>Terminal: `doc req`</sub>
 4. **+ New → Fault** for what happens if it breaks, covered by that requirement.
-   <br><sub>Terminal: `doc fault`</sub>
-5. If a single part owns it, pin it there in the arch file: `satisfy 'COMM-002' by chimera.CTRL.mcu;`
+5. If a single part carries it, open the requirement and **Pin to a part**.
 6. Build it, then **Record test** (workflow B). Close the issue with `fixes #N` in the commit.
-   <br><sub>Terminal: `doc test COMM-002`</sub>
 
 ### D. A test fails
 
 1. **Record test** with *Failed* and what you saw.
 2. **Faults**: the fault this requirement covers now shows *not proven to work*.
 3. **+ New → Bug** with the steps and the evidence file.
-4. If something nearly broke, add a checklist line so it never happens again (terminal only for now: `doc check`).
+4. If something nearly broke, **+ New → Checklist line**, so it is checked before every power-up.
 5. Fix, test again, record *Passed*. The evidence keeps both lines, so the history shows the failure and the fix.
 
 ### E. A pin changed in CubeMX
 
-1. Save the `.ioc` and commit. The hook stops with the line in the arch file that points at the old name.
-2. Or open the page: **Overview** shows the problem, the view shows the red dashed link (section 8).
-3. Update the `connect` line, commit the `.ioc` and the arch file together.
-4. The **Interfaces** table updates itself with the new pin.
+1. Save the `.ioc` and push (or commit on the server's machine). The page shows the problem (section 10).
+2. **Electrical → Edit**: remove the red wire, connect the renamed pin.
+3. The preview says *fixes*. **Write it**. The **Interfaces** table updates itself with the new pin.
 
-### F. Weekly review
+From your own clone, the commit hook stops the `.ioc` commit with the same
+message; commit with the fix from the page, or `git commit --no-verify` and fix it on the page right after.
+
+### F. Adding a module
+
+1. **System → Edit → + Part** (or **+ Part here** in a subsystem's panel): name, what it is, ports.
+2. **Electrical → Edit**: click the board pin, then the module. Repeat for power in **Power**.
+3. If it carries a requirement, pin the requirement to it.
+4. If assembling it has steps someone could get wrong, **+ New → Procedure**.
+
+### G. Weekly review
 
 1. **Overview**: read Problems (must be zero) and Gaps (pick the ones worth acting on).
 2. **Requirements → Failed** and **Approved** (approved but not yet tested).
 3. **Faults**: any warning lines.
 4. **Issues**: what is open in each subsystem.
-5. Write the devlog entry: what was done, what broke, what is next (terminal: `doc log`).
+5. **+ New → Devlog**: what was done, what broke, what is next.
 
-### G. Showing the project to someone
+### H. Showing the project to someone
 
 1. In the Tailscale admin console, share the machine running `doc serve` with them (Machines → ⋯ → Share).
 2. Send the `https://…ts.net/` address. Start them on **System**, then a subsystem panel, then **Requirements**.
@@ -426,27 +583,30 @@ then file a bug (**+ New → Bug**) with the same photo.
 
 ---
 
-## 10. On your phone
+## 12. On your phone
 
 ![Phone](images/page-23-phone.png)
 
 The page works on a phone: sections scroll across the top, forms fill the
 screen, panels open full screen. Diagrams use the − / + / Fit buttons instead
 of a scroll wheel; drag to pan. The camera is offered directly when you upload
-from a form.
+from a form. Wiring is easier on a laptop: the ports are small on a phone screen.
 
 ---
 
-## 11. What the page will and will not do
+## 13. What the page will and will not do
 
-**It writes** only what doc-kit writes: requirements, test results, faults,
-decisions, GitHub issues, and files you upload into `docs/media/`. Every write
-goes through the same code as the terminal, so the files are identical either way.
+**It writes** your records (requirements, tests, faults, decisions, procedures,
+checklist lines, devlog), the model (`docs/model/model.toml` and the arch
+file), the generated subsystem table and issue-form lists, GitHub issues, and
+files you upload into `docs/media/`. It regenerates `<name>_facts.sysml` with
+each commit.
 
-**It never writes** the `.ioc` (CubeMX owns it), your code, the arch file (you
-write it in an editor), or the generated `<name>_facts.sysml`. It never deletes
-anything: a dropped requirement is marked Deleted with a reason, a replaced
-decision is Superseded.
+**It never writes** the `.ioc` (CubeMX owns it) or your code. It never deletes a
+record: a dropped requirement is marked Deleted with a reason, a replaced
+decision is Superseded, a subsystem whose prefix was used is kept as deleted.
+Parts and wires are really removed (git history keeps them), after a preview
+that lists everything that goes.
 
 **It refuses** to write a file that has uncommitted changes on the machine
 running the server, so it never commits half of your own edit. Commit or stash
@@ -456,20 +616,18 @@ first, then try again.
 own devices and anyone you share the machine with. Forms only accept requests
 from the page itself, so other websites cannot post to it.
 
-**Not on the page yet:** procedures, checklist lines and devlog entries
-(terminal: `doc procedure`, `doc check`, `doc log`), and editing the wiring
-(edit the arch file).
-
 ---
 
-## 12. Running the server long-term
+## 14. Running the server long-term
 
 The server is one command in a clone of the project, so moving it is easy:
 
-1. On the always-on machine (a lab PC), clone the project, install doc-kit's
-   requirements (Python 3.11+, git, `gh auth login`), and make sure it can push.
+1. On the always-on machine (a lab PC), clone the project, install Python 3.11+
+   and git, run `gh auth login`, and make sure it can push.
 2. Run `doc serve` in that clone, and `tailscale serve --bg 8765` there.
 3. Use that machine's `.ts.net` address from now on.
 
 Use a dedicated clone for the server, not the one you edit in: then the
-uncommitted-changes guard never gets in your way.
+uncommitted-changes guard never gets in your way. Everyone without access to
+that machine can still run `doc serve` in their own clone: the page works the
+same anywhere, and pushes like everyone else.

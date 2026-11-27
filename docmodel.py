@@ -39,18 +39,42 @@ class ModelError(Exception):
 
 # ================================================================ config
 
-def load_config(root):
+def _read(path, overrides=None):
+    """File text, or the text a pending page edit would write (for previews)."""
+    if overrides and path in overrides:
+        return overrides[path]
+    with open(path, encoding="utf-8") as f:
+        return f.read()
+
+
+def load_config(root, overrides=None):
     path = os.path.join(root, "docs", "model", "model.toml")
-    if not os.path.exists(path):
-        raise ModelError("no docs/model/model.toml (run: doc model setup)")
+    if not os.path.exists(path) and not (overrides and path in overrides):
+        raise ModelError("no docs/model/model.toml (run: doc init)")
     if tomllib is None:
         raise ModelError("doc model needs Python 3.11 or newer")
-    with open(path, "rb") as f:
-        cfg = tomllib.load(f)
-    cfg.setdefault("project", {}).setdefault("name", os.path.basename(root))
+    try:
+        cfg = tomllib.loads(_read(path, overrides))
+    except tomllib.TOMLDecodeError as e:
+        raise ModelError(f"docs/model/model.toml: {e}")
+    if not str(cfg.get("project", {}).get("name", "")).strip():
+        raise ModelError("docs/model/model.toml: [project] name is missing")
     cfg.setdefault("board", [])
+    cfg.setdefault("subsystem", [])
     cfg.setdefault("ros", {}).setdefault("paths", [])
     return cfg
+
+
+def subsystem_table(cfg, root=None):
+    """[(prefix, name, box, deleted)] from model.toml; older repos: the README table."""
+    if cfg.get("subsystem"):
+        return [(s["prefix"], s.get("name", s["prefix"]), s.get("box", True), bool(s.get("deleted")))
+                for s in cfg["subsystem"] if s.get("prefix")]
+    if root:
+        rows = _table(os.path.join(root, "docs", "README.md"), "| Prefix | Subsystem |")
+        return [(r[0], r[1], r[0] not in ("SYS", "FDIR"), False) for r in rows
+                if len(r) > 1 and re.fullmatch(r"[A-Z][A-Z0-9]{1,5}", r[0])]
+    return []
 
 
 def resolve_ioc(root, path):
@@ -148,8 +172,18 @@ PORT_DEFS = {  # type -> (kind, plain meaning)
     "EncoderIn": ("Signal", "encoder input"), "PwmOut": ("Signal", "PWM output"),
     "CaptureIn": ("Signal", "input capture"), "TimerPins": ("Signal", "timer pins"),
     "PeripheralPins": ("Signal", "peripheral pins"), "GpioOut": ("Signal", "GPIO output"),
-    "GpioIn": ("Signal", "GPIO input"),
+    "GpioIn": ("Signal", "GPIO input"), "EthernetLink": ("Signal", "Ethernet"), "WifiLink": ("Signal", "WiFi"),
+    "RadioLink": ("Signal", "radio link"),
 }
+KIND_MEANING = {"Signal": "signal", "Power": "power", "Mechanical": "mechanical mount"}
+
+
+def meaning_of(ptype, port_defs):
+    if ptype in PORT_DEFS:
+        return PORT_DEFS[ptype][1]
+    if port_defs.get(ptype, {}).get("doc"):
+        return port_defs[ptype]["doc"]
+    return KIND_MEANING.get(ptype, ptype)
 
 
 def _derived(ip, settings):
@@ -304,7 +338,7 @@ def scan_ros(root, paths):
             name = owner[-1][1]
             node = nodes.setdefault(name, {"name": name, "file": relf, "lang": lang, "pub": [], "sub": []})
             if lit is None:
-                unknown.append(f"{relf}:{line}: topic name is not plain text ({raw}); add it by hand")
+                unknown.append(f"{relf}:{line}: topic name is built at runtime ({raw}), so it cannot be read; write it as a plain string to have it mapped")
                 continue
             node[role].append({"topic": lit if lit.startswith("/") else "/" + lit, "type": mtype, "line": line})
         for _, name in found_nodes:
@@ -482,11 +516,17 @@ class Parser:
             sup = None
             if self.accept(":>"):
                 sup = self.path()[-1]
-            model["port_defs"][name] = {"super": sup, "line": line}
-            if self.peek()[1] == "{":
-                self.skip_block()
+            pdoc = ""
+            if self.accept("{"):
+                depth = 1
+                while depth:
+                    k2, v2, _ = self.take()
+                    if k2 == "doc":
+                        pdoc = re.sub(r"^/\*|\*/$", "", v2).strip()
+                    depth += {"{": 1, "}": -1}.get(v2, 0)
             else:
                 self.take(";")
+            model["port_defs"][name] = {"super": sup, "line": line, "doc": pdoc}
             return
         if v == "part" and self.peek(1)[1] == "def":
             self.take(); self.take()
@@ -576,8 +616,8 @@ def _kind_of(ptype, port_defs, seen=None):
     return None
 
 
-def build(root):
-    cfg = load_config(root)
+def build(root, overrides=None):
+    cfg = load_config(root, overrides)
     name = cfg["project"]["name"]
     problems, notes = [], []
 
@@ -590,10 +630,16 @@ def build(root):
     reqs, faults, decisions = load_docs(root)
 
     arch_path = os.path.join(root, "docs", "model", f"{name}_arch.sysml")
-    if not os.path.exists(arch_path):
-        raise ModelError(f"no {os.path.relpath(arch_path, root)}")
-    arch = Parser(open(arch_path, encoding="utf-8").read(), os.path.relpath(arch_path, root)).parse()
     afile = os.path.relpath(arch_path, root)
+    if os.path.exists(arch_path) or (overrides and arch_path in overrides):
+        arch = Parser(_read(arch_path, overrides), afile).parse()
+    else:
+        arch = {"port_defs": {}, "part_defs": {}, "parts": [], "allocations": [], "satisfies": [], "doc": ""}
+    if not arch["parts"]:
+        arch["parts"] = [{"name": name, "type": None, "parts": [], "ports": [], "connects": [], "doc": "", "line": 1}]
+    table = subsystem_table(cfg, root)
+    box_subs = [t[0] for t in table if t[2] and not t[3]]
+    group_only = [t[0] for t in table if not t[2] and not t[3]]
 
     defs = {}  # part def name -> {ports, source, doc, board?}
     for b in boards:
@@ -608,7 +654,7 @@ def build(root):
             if kind is None:
                 problems.append(f"{afile}:{q['line']}: port {dn}.{q['name']}: unknown type {q['type']}")
             ports.append({"name": q["name"], "type": q["type"], "conj": q["conj"], "kind": kind or "Signal",
-                          "meaning": PORT_DEFS.get(q["type"], (None, q["type"]))[1], "pins": [], "settings": []})
+                          "meaning": meaning_of(q["type"], arch["port_defs"]), "pins": [], "settings": []})
         defs[dn] = {"ports": ports, "source": "arch", "doc": d["doc"]}
 
     if len(arch["parts"]) != 1:
@@ -632,7 +678,7 @@ def build(root):
             if kind is None:
                 problems.append(f"{afile}:{q['line']}: port {key}.{q['name']}: unknown type {q['type']}")
             ports.append({"name": q["name"], "type": q["type"], "conj": q["conj"], "kind": kind or "Signal",
-                          "meaning": q["type"], "pins": [], "settings": [], "own": True})
+                          "meaning": meaning_of(q["type"], arch["port_defs"]), "pins": [], "settings": [], "own": True})
         d = defs.get(p["type"], {})
         parts[key] = {"path": key, "name": p["name"], "type": p["type"], "ports": ports, "doc": p["doc"] or d.get("doc", ""),
                       "source": d.get("source", "arch"), "subsystem": sub, "children": [], "depth": len(path) - 1,
@@ -642,6 +688,12 @@ def build(root):
         for c in p["parts"]:
             walk(c, path, sub)
     walk(top, [], None)
+    for s in box_subs:  # a subsystem from model.toml with nothing in it yet
+        key = f"{top['name']}.{s}"
+        if key not in parts:
+            parts[key] = {"path": key, "name": s, "type": None, "ports": [], "doc": "", "source": "arch", "subsystem": s,
+                          "children": [], "depth": 1, "board": None}
+            parts[top["name"]]["children"].append(key)
 
     def resolve(owner_path, segs, line, what):
         """owner.sub.part.port -> (part path, port) ; segments are relative to owner."""
@@ -714,10 +766,13 @@ def build(root):
         n["host"] = host.get(n["name"])
 
     # ---- requirement placement
-    subsystems = [c.split(".")[-1] for c in parts[top["name"]]["children"]]
+    found = [c.split(".")[-1] for c in parts[top["name"]]["children"]]
+    subsystems = [s for s in box_subs if s in found] + [s for s in found if s not in box_subs]
+    parts[top["name"]]["children"] = [f"{top['name']}.{s}" for s in subsystems]
     req_ids = {r["id"] for r in reqs}
+    whole = group_only if table else ["SYS"]
     for r in reqs:
-        r["subsystem"] = r["prefix"] if r["prefix"] in subsystems else (top["name"] if r["prefix"] == "SYS" else None)
+        r["subsystem"] = r["prefix"] if r["prefix"] in subsystems else (top["name"] if r["prefix"] in whole else None)
         r["parts"] = []
     for s in arch["satisfies"]:
         r = next((x for x in reqs if x["id"] == s["req"]), None)
@@ -748,7 +803,7 @@ def build(root):
     orphan = sorted({r["prefix"] for r in reqs if r["subsystem"] is None})
     for pfx in orphan:
         n = sum(r["prefix"] == pfx for r in reqs)
-        gap("requirements", f"{n} {pfx}-### requirement(s) match no subsystem: add part {pfx} or rename the prefix")
+        gap("requirements", f"{n} {pfx}-### requirement(s) match no subsystem: add subsystem {pfx} in Setup")
     for f in faults:
         if not f["reqs"]:
             gap("faults", f"{f['id']} ({f['failure']}) has no requirement covering it")
@@ -774,12 +829,15 @@ def build(root):
         t["types"] = sorted(t["types"])
     for n in nodes:
         if not n["host"]:
-            gap("software", f"ROS node {n['name']} is not allocated to any hardware (add: allocate ROS::{n['name']} to ...;)")
+            gap("software", f"ROS node {n['name']} runs on no computer yet (Software view: click it, Runs on)")
     for u in ros_unknown:
         gap("software", u)
+    for b in boards:
+        if not any(p["type"] == b["def"] for p in parts.values()):
+            gap("wiring", f"Board {b['board']} ({b['source']}) is not placed in any subsystem (remove it in Setup and add it again)")
     for k, p in parts.items():
         if p["depth"] >= 2 and p["ports"] and not any(c["ok"] and (c["a"][0] == k or c["b"][0] == k) for c in connections):
-            gap("wiring", f"{k} is in the architecture but nothing is connected to it", [k])
+            gap("wiring", f"{k} has ports but nothing is connected to it", [k])
 
     # ---- interfaces between subsystems (generated ICD)
     def sub_of(path):
@@ -801,7 +859,8 @@ def build(root):
     return {"name": name, "top": top["name"], "subsystems": subsystems, "parts": parts, "connections": connections,
             "boards": boards, "nodes": nodes, "topics": sorted(topics.values(), key=lambda t: t["topic"]),
             "requirements": reqs, "faults": faults, "decisions": decisions, "icd": icd, "gaps": gaps,
-            "problems": problems, "notes": notes, "arch_file": afile}
+            "problems": problems, "notes": notes, "arch_file": afile,
+            "prefix_names": {t[0]: t[1] for t in table}, "group_only": group_only}
 
 
 # ================================================================ facts export (SysML v2 text)
@@ -1021,7 +1080,6 @@ def collect_extras(root, m, with_issues=True):
             if any(med["name"] in e or re.search(rf"(?<![\w-]){re.escape(stem)}(?![\w-])", e) for e in r["evidence"]):
                 med["reqs"].append(r["id"])
                 r.setdefault("media", []).append(med["file"])
-    m["prefix_names"] = {r[0]: r[1] for r in _table(os.path.join(root, "docs", "README.md"), "| Prefix | Subsystem |") if len(r) > 1}
     issues, issue_error = ([], "skipped") if not with_issues else fetch_issues(root)
     m.update({"docs": docs, "media": media, "issues": issues, "issue_error": issue_error,
               "built": datetime.datetime.now().isoformat(timespec="seconds")})

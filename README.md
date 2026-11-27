@@ -8,11 +8,16 @@ and robotics projects.**
 
 doc-kit reads your CubeMX `.ioc` files, your ROS2 and micro-ROS code, and a
 plain-text record of requirements, faults and decisions in your repo, and turns
-them into one interactive page:
+them into one interactive page. The page is also where you work: you set up
+subsystems and boards, draw the wiring, and record tests, decisions and ideas
+on it. Every change becomes a git commit.
 
 - **See the whole robot.** Subsystems, wiring port to port, every pin and
   peripheral setting, the ROS2 graph, the interfaces between subsystems,
   requirements, faults, decisions, GitHub issues, docs and photos, all linked.
+- **Build it by clicking.** Add your subsystems and point each board at its
+  `.ioc` in Setup; add parts and wire them in the diagrams: click a pin, click
+  the module. No modelling language to learn, no boxes to arrange.
 - **Record what happens, where it happens.** At the bench, on your phone:
   pick the requirement, Passed, what you measured, take the photo, *Write it*.
   Every change becomes a git commit.
@@ -27,6 +32,8 @@ only shows what your files say, and only writes what you typed.
 
 | | |
 |---|---|
+| ![Setup](docs/images/page-24-setup.png) | ![Wiring in edit mode](docs/images/page-29-edit-mode.png) |
+| Setup: your subsystems, boards and code | Wiring: click a pin, then the module |
 | ![Electrical view with a part open](docs/images/page-05-part-panel.png) | ![Recording a test](docs/images/page-18-form.png) |
 | Click a part: every pin, setting and link | Record a test, with the photo |
 | ![Broken link](docs/images/page-22-broken-link.png) | ![Requirements](docs/images/page-09-requirements.png) |
@@ -36,9 +43,9 @@ only shows what your files say, and only writes what you typed.
 
 | Read | For |
 |---|---|
-| **[Using the page](docs/PAGE.md)** | the main guide: every view and form with annotated screenshots, and step-by-step workflows (first setup, a test from your phone, idea to verified requirement, a failing test, a pin changed in CubeMX, the weekly review) |
-| [Using the terminal](docs/TERMINAL.md) | the same actions from a shell, the commands, keys and hooks, scripting and CI |
-| [The handbook](docs/HANDBOOK.md) | the method: what each record is for, good and weak examples, how they connect, how to use the record afterwards, and how to describe your robot in the arch file |
+| **[Using the page](docs/PAGE.md)** | the main guide: Setup, building the wiring, every view and form with annotated screenshots, and step-by-step workflows (first setup, adding a module, a test from your phone, idea to verified requirement, a failing test, a pin changed in CubeMX, the weekly review) |
+| [Using the terminal](docs/TERMINAL.md) | the few commands: install, hooks, the server, checks in CI, updating |
+| [The handbook](docs/HANDBOOK.md) | the method: what each record is for, good and weak examples, how they connect, how to use the record afterwards, and how the system model is organised |
 | [examples/](examples/) | real output from two worked examples |
 
 ## Quick start
@@ -48,14 +55,15 @@ git clone https://github.com/sergeikuznev/doc-kit.git
 python3 doc-kit/doc.py init /path/to/your/project
 cd /path/to/your/project
 alias doc='python3 "$(git rev-parse --show-toplevel)/tools/doc.py"'   # add to ~/.zshrc once
+git add -A && git commit -m "docs: doc-kit"
 doc install-hook        # checks the wiring before each commit
-doc model setup         # once: pick each board's .ioc and your ROS2 folders
 doc serve               # the page, live, at http://127.0.0.1:8765
 ```
 
-Then describe your modules and wiring in `docs/model/<name>_arch.sysml`
-([how](docs/HANDBOOK.md#15-the-system-model)) and edit the subsystem lists in
-`docs/README.md` and `.github/ISSUE_TEMPLATE/*.yml`.
+`init` asks only for the project name; there are no default subsystems. On the
+page, open **Setup** and add your subsystems, boards (each with its `.ioc`) and
+ROS2 code folders, then click **Edit** in the System views to add parts and wire
+them ([step by step](docs/PAGE.md#a-first-setup-on-a-project)).
 
 **On your phone:** `doc serve` listens on this machine only. Share it with your
 own devices through [Tailscale](https://tailscale.com): `tailscale serve --bg 8765`.
@@ -68,14 +76,14 @@ own devices through [Tailscale](https://tailscale.com): `tailscale serve --bg 87
 Like FDIR (Fault Detection, Isolation and Recovery) names a loop of functions,
 doc-kit implements a loop. Each stage has a trigger in your work:
 
-| Stage | What it does | Trigger | On the page | Terminal |
-|---|---|---|---|---|
-| **Capture** | Record an idea or problem before it is lost | You notice something | + New → Idea / Bug | `doc idea`, `doc bug` |
-| **Decide** | Choose between options and record why | You compare alternatives | + New → Decision | `doc decision` |
-| **Commit** | Turn a choice into a measurable promise | You decide to build it | + New → Requirement | `doc req` |
-| **Anticipate** | Plan how failures are detected and handled | You ask "what if it breaks?" | + New → Fault | `doc fault` |
-| **Verify** | Prove the promise with evidence | You test it | Record test, with upload | `doc test` |
-| **Learn** | Turn incidents and experience into rules | Something breaks, or the week ends | | `doc check`, `doc procedure`, `doc log` |
+| Stage | What it does | Trigger | On the page |
+|---|---|---|---|
+| **Capture** | Record an idea or problem before it is lost | You notice something | + New → Idea / Bug |
+| **Decide** | Choose between options and record why | You compare alternatives | + New → Decision |
+| **Commit** | Turn a choice into a measurable promise | You decide to build it | + New → Requirement |
+| **Anticipate** | Plan how failures are detected and handled | You ask "what if it breaks?" | + New → Fault |
+| **Verify** | Prove the promise with evidence | You test it | Record test, with upload |
+| **Learn** | Turn incidents and experience into rules | Something breaks, or the week ends | + New → Checklist line / Procedure / Devlog |
 
 Around the loop: **Trace** (the page links faults, requirements, evidence,
 parts and issues) and **Revise** (Edit, Mark deleted, Change status; every
@@ -90,12 +98,13 @@ and mistakes turn into rules. That is what separates it from a notes folder.
 |---|---|---|
 | `.ioc` files | boards, peripherals, pins, settings, FreeRTOS tasks, clocks | CubeMX |
 | ROS2 / micro-ROS code | nodes, topics, message types (the robot can be off) | you, in code |
-| `docs/requirements.md`, `fdir.md`, `decisions/` | requirements, faults, decisions | the page or the terminal |
-| `docs/model/<name>_arch.sysml` | subsystems, modules, wiring, which computer runs which node | you, in SysML v2 text |
+| `docs/requirements.md`, `fdir.md`, `decisions/`, ... | requirements, faults, decisions, procedures | the page's forms |
+| `docs/model/model.toml`, `<name>_arch.sysml` | subsystems, boards, parts, wiring, which computer runs which node | the page's Setup and Edit |
 
 The first three are facts: doc-kit regenerates `<name>_facts.sysml` from them
-and you never edit it. The arch file is the one thing you write by hand, and
-every line of it is checked against the facts. Anything a scanner cannot read
+and nobody edits it. The architecture is what only you know (what is plugged
+into SPI1); you enter it on the page, it is stored as SysML v2 text, and every
+line of it is checked against the facts. Anything a scanner cannot read
 for certain (a topic name built at runtime) is listed as unknown, never
 guessed. Layout is automatic: you never arrange a diagram.
 
@@ -122,23 +131,23 @@ docs/
   icd/                      interface notes the wiring cannot show (message formats, timing);
                             the wired interfaces are generated on the page
   media/                    photos, videos, logs (shown in the system map)
-  model/                    created by doc model setup: model.toml, <name>_arch.sysml (yours),
+  model/                    model.toml and <name>_arch.sysml (written by the page),
                             <name>_facts.sysml (generated)
   report.html, system.html  generated pages
 .github/ISSUE_TEMPLATE/     Idea and Bug forms for the GitHub website
 tools/doc.py                the tool
-tools/docmodel.py, docmodel_page.html, docserve.py, vendor/   system map and server
+tools/docmodel.py, docmodel_page.html, docserve.py, docedit.py, vendor/   the page and its server
 tools/guides/               README and guides, shown in the page's Docs section
 ```
 
-Everything is plain Markdown, so you can edit any file by hand and the tool keeps working.
+Everything is plain text, so you can read and edit any file by hand and the tool keeps working.
 
 ## Customising
 
-- **Subsystems for requirement IDs:** edit the `| Prefix | Subsystem |` table in
-  `docs/README.md`. The tool reads it every time.
-- **Subsystems for issues:** edit the `options:` list in `.github/ISSUE_TEMPLATE/idea.yml`
-  and `bug.yml`. The page's forms and `doc idea` / `doc bug` read it too, so GitHub, the page and the terminal match.
+- **Subsystems:** Setup on the page. They set the requirement ID prefixes, the
+  boxes of the system diagram, the table in `docs/README.md` and the subsystem
+  labels of the GitHub issue forms, all from one list.
+- **Port types:** Setup → Port types, e.g. `Power5V` so a 12 V output cannot be wired to a 5 V input.
 - **Templates:** change the files in `docs/`; the tool only relies on the table headers.
 
 ## Using it in a team
@@ -153,12 +162,13 @@ machine's git identity. Each person who also commits from their own clone runs
 
 Pull the latest doc-kit and run `python3 doc.py init /path/to/your/project` again.
 It replaces everything in `tools/` and leaves all your existing docs untouched.
-Then run `doc install-hook` once more if the new version added hooks.
+Then run `doc install-hook` once more and restart `doc serve`
+([details](docs/TERMINAL.md#7-updating-doc-kit-in-a-project)).
 
 ## Requirements
 
-- Python 3.8 or newer, git; `doc model` and `doc serve` need Python 3.11 or newer
-- Optional: [GitHub CLI](https://cli.github.com) for `doc idea`, `doc bug` and issues in the system map
+- Python 3.11 or newer, git
+- Optional: [GitHub CLI](https://cli.github.com) for issues on the page and the idea and bug forms
 - Optional: [Tailscale](https://tailscale.com) to open `doc serve` from your phone and other devices
 - macOS and Linux. Windows is untested (the commit hook needs a Unix shell).
 

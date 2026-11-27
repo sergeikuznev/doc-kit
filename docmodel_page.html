@@ -159,7 +159,18 @@ aside h4{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:va
 .mfoot{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;align-items:center}.mfoot .sp{flex:1}
 .pv{background:var(--sunk);border-radius:8px;padding:10px 12px;font-family:ui-monospace,Menlo,monospace;font-size:12px;white-space:pre-wrap;max-height:320px;overflow:auto}
 .act{font:inherit;font-size:12px;padding:3px 9px;border-radius:7px;border:1px solid var(--hair);background:var(--surface);color:var(--ink);cursor:pointer}.act:hover{border-color:var(--accent);color:var(--accent)}
-.act.dz:hover{border-color:var(--crit);color:var(--crit-ink)}
+.act.dz:hover{border-color:var(--crit);color:var(--crit-ink)}.act:disabled,.newbtn:disabled{opacity:.35;cursor:default;pointer-events:none}
+.dadd{color:var(--good-ink)}.ddel{color:var(--crit-ink)}.dhunk{color:var(--faint)}.wgood{color:var(--good-ink)!important}.wbad{color:var(--crit-ink)!important}
+.phit{fill:transparent;cursor:crosshair}.editing .leaf{cursor:pointer}.port.pend{fill:var(--accent);stroke:var(--accent)!important;stroke-width:3}
+.ehit{fill:none;stroke:transparent;stroke-width:12;cursor:pointer}.ehit:hover+path.edge,.ehit:hover{stroke:var(--crit);stroke-opacity:.25}
+.addph rect{fill:none;stroke:var(--faint);stroke-dasharray:4 3}.addph text{font-size:12px;fill:var(--muted)}.addph{cursor:pointer}.addph:hover rect{stroke:var(--accent)}
+.ebtn{font:inherit;font-size:12.5px;padding:5px 10px;border-radius:7px;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);cursor:pointer;white-space:nowrap}
+.ebtn.on{background:var(--accent);color:#fff}.dtool .act{white-space:nowrap}.hintbar{padding:7px 18px;background:var(--accent-soft);color:var(--accent);font-size:12.5px;border-bottom:1px solid var(--hair);display:flex;gap:10px;align-items:center}
+.stab{width:100%;border-collapse:collapse;font-size:13px}.stab th,.stab td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--hair);vertical-align:middle}
+.stab th{color:var(--faint);font-size:11.5px;font-weight:600}.stab tr.gone td{color:var(--faint);text-decoration:line-through}.stab td.acts{text-align:right;white-space:nowrap}
+.prow{display:grid;grid-template-columns:1fr 1.3fr auto;gap:8px;margin-bottom:6px}.prow input,.prow select{font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--hair);border-radius:8px;background:var(--bg);color:var(--ink)}
+.cklist{max-height:260px;overflow:auto;border:1px solid var(--hair);border-radius:8px;padding:6px 10px}.cklist label{display:block;font-weight:400;font-size:13px;padding:2px 0}.cklist .g{font-size:11px;text-transform:uppercase;color:var(--faint);margin-top:6px}
+.fld input[type=checkbox]{width:auto;margin-right:6px}
 @media(max-width:900px){.docs{grid-template-columns:1fr}.two{grid-template-columns:1fr}}
 @media(max-width:900px){.shell{display:flex;flex-direction:column}nav{flex:none;display:flex;overflow-x:auto;border-right:0;border-bottom:1px solid var(--hair);padding:6px;gap:2px}
 nav .grp{display:none}nav button{width:auto;white-space:nowrap;padding:6px 10px}main{flex:1;min-height:0}
@@ -193,7 +204,7 @@ const kindCount = k => conns.filter(c => c.kind === k).length;
 
 // ------------------------------------------------------------------ chrome
 const VIEWS = [
-  ["Model", [["overview", "Overview", null, () => M.problems.length + M.gaps.length || ""]]],
+  ["Model", [["overview", "Overview", null, () => M.problems.length + M.gaps.length || ""], ...(SERVED ? [["setup", "Setup", null, () => ""]] : [])]],
   ["Views", [["system", "System", "var(--ink)", () => M.subsystems.length], ["electrical", "Electrical", "var(--sig)", () => kindCount("Signal")],
              ["power", "Power", "var(--pwr)", () => kindCount("Power")], ["mechanical", "Mechanical", "var(--mech)", () => kindCount("Mechanical")],
              ["software", "Software (ROS2)", "var(--arch)", () => M.nodes.length]]],
@@ -202,7 +213,7 @@ const VIEWS = [
   ["Project", [["issues", "Issues", null, () => (M.issues || []).filter(i => i.state === "open").length || ""], ["docs", "Docs", null, () => (M.docs || []).length],
                ["media", "Media", null, () => (M.media || []).length]]],
 ];
-let view = "overview", focus = null, selected = null;
+let view = "overview", focus = null, selected = null, editing = false, pend = null;
 function chrome() {
   $("#title").textContent = M.name;
   $("#subtitle").textContent = `${Object.keys(M.parts).length - 1} parts · ${conns.length} connections · built ${(M.built || "").replace("T", " ")}${SERVED ? " · live" : ""}`;
@@ -217,11 +228,11 @@ function chrome() {
     `<button data-v="${id}" class="${id === view ? "on" : ""}">${col ? `<span class="dot" style="background:${col}"></span>` : `<span class="dot"></span>`}${label}<span class="n">${n()}</span></button>`).join("")).join("");
   document.querySelectorAll("nav button").forEach(b => b.onclick = () => go(b.dataset.v));
 }
-function go(v, opts = {}) { focus = opts.focus ?? null; view = v; chrome(); render(); saveHash(); }
-function saveHash() { const h = [view, focus ? "focus:" + focus : "", selected ? "sel:" + selected : ""].filter(Boolean).join("/"); history.replaceState(null, "", "#" + h); }
+function go(v, opts = {}) { focus = opts.focus ?? null; view = v; if (opts.edit !== undefined) editing = opts.edit; pend = null; chrome(); render(); saveHash(); }
+function saveHash() { const h = [view, focus ? "focus:" + focus : "", selected ? "sel:" + selected : "", editing ? "edit" : ""].filter(Boolean).join("/"); history.replaceState(null, "", "#" + h); }
 function loadHash() { const parts = decodeURIComponent(location.hash.slice(1)).split("/"); const v = parts[0];
   if (v && document.querySelector) { view = VIEWS.flatMap(g => g[1]).some(x => x[0] === v) ? v : view; }
-  parts.slice(1).forEach(x => { if (x.startsWith("focus:")) focus = x.slice(6); if (x.startsWith("sel:")) selected = x.slice(4); }); }
+  parts.slice(1).forEach(x => { if (x.startsWith("focus:")) focus = x.slice(6); if (x.startsWith("sel:")) selected = x.slice(4); if (x === "edit" && SERVED) editing = true; }); }
 
 // ------------------------------------------------------------------ drawer
 let refit = null;
@@ -238,7 +249,7 @@ function wire(root) {
   root.querySelectorAll("[data-form]").forEach(e => e.onclick = ev => { ev.stopPropagation(); openForm(e.dataset.form, {...e.dataset}); });
   root.querySelectorAll("[data-media]").forEach(e => e.onclick = ev => { ev.stopPropagation(); lightbox(e.dataset.media); });
   root.querySelectorAll("[data-issue]").forEach(e => e.onclick = ev => { ev.stopPropagation(); go("issues"); setTimeout(() => document.getElementById("i" + e.dataset.issue)?.scrollIntoView({behavior: "smooth", block: "center"}), 60); });
-  root.querySelectorAll("[data-focus]").forEach(e => e.onclick = ev => { ev.stopPropagation(); go(e.dataset.view || "electrical", {focus: e.dataset.focus}); });
+  root.querySelectorAll("[data-focus]").forEach(e => e.onclick = ev => { ev.stopPropagation(); go(e.dataset.view || "electrical", {focus: e.dataset.focus, edit: e.dataset.edit ? true : undefined}); });
 }
 const reqChip = r => `<span class="chip" data-req="${H(r.id)}"><span class="pill ${H(r.status)}"><i>${ICON[r.status] ?? "?"}</i></span><span class="mono">${H(r.id)}</span></span>`;
 function reqList(rs, path) {
@@ -257,8 +268,10 @@ function showPart(path) {
   const linked = {};
   conns.forEach(c => { if (c.a[0] === path) (linked[c.a[1]] ||= []).push(c.b); if (c.b[0] === path) (linked[c.b[1]] ||= []).push(c.a); });
   let h = `<div class="dsub">${p.depth === 1 ? "Subsystem" : p.depth === 0 ? "System" : `Part in <span class="lnk" data-part="${M.top}.${p.subsystem}">${H(p.subsystem)}</span>`}${p.type ? ` · <span class="mono">${H(p.type)}</span>` : ""}</div>
-    <div class="dh">${H(p.name)}</div>`;
-  h += `<div class="links" style="margin:6px 0 4px"><span class="chip" style="color:var(--${p.source})">${p.source === "facts" ? "from .ioc (generated)" : "written in arch"}</span>${p.depth === 1 ? `<span class="chip focus" data-focus="${H(p.name)}">Open in Electrical</span>` : ""}</div>`;
+    <div class="dh">${H(p.name)}${p.depth === 1 && (M.prefix_names || {})[p.name] ? ` <span style="font-weight:400;color:var(--muted)">${H(M.prefix_names[p.name])}</span>` : ""}</div>`;
+  h += `<div class="links" style="margin:6px 0 4px"><span class="chip" style="color:var(--${p.source})">${p.source === "facts" ? "board, from its .ioc" : p.depth === 1 ? "subsystem" : "part"}</span>${p.depth === 1 ? `<span class="chip focus" data-focus="${H(p.name)}">Open in Electrical</span>` : ""}</div>`;
+  if (SERVED && p.depth === 1) h += `<div class="links" style="margin:10px 0"><button class="act" data-form="part" data-parent="${H(path)}">+ Part here</button><button class="act" onclick="go('setup')">Edit in Setup</button></div>`;
+  if (SERVED && p.depth >= 2) h += `<div class="links" style="margin:10px 0"><button class="act" data-form="part" data-orig="${H(path)}">Edit part</button><button class="act" data-focus="${H(p.subsystem)}" data-view="electrical" data-edit="1">Connect ports…</button><button class="act dz" data-form="part_delete" data-path="${H(path)}">Delete</button></div>`;
   if (p.doc) h += `<p>${H(p.doc)}</p>`;
   const b = M.boards.find(b => b.board === p.board);
   if (b) {
@@ -277,7 +290,7 @@ function showPart(path) {
       const det = q.settings && q.settings.length;
       h += `<tr class="${to.length ? "" : "off"} ${det ? "row" : ""}" data-i="${i}"><td class="mono">${det ? "▸ " : ""}${H(q.name)}</td><td><span class="kdot" style="background:${KCOL[q.kind]}"></span>${H(q.meaning || q.type)}</td>
         <td class="mono">${(q.pins || []).map(x => `${H(x[0])} <span style="color:var(--faint)">${H(x[1])}</span>`).join("<br>") || "—"}</td>
-        <td>${to.map(t => `<span class="lnk mono" data-part="${t[0]}">${H(short(t[0]))}.${H(t[1])}</span>`).join("<br>") || "—"}</td></tr>`;
+        <td>${to.map(t => `<span class="lnk mono" data-part="${t[0]}">${H(short(t[0]))}.${H(t[1])}</span>${SERVED ? ` <button class="act dz" style="padding:0 6px" title="Remove this connection" data-form="disconnect" data-a="${H(path + "." + q.name)}" data-b="${H(t.join("."))}">✕</button>` : ""}`).join("<br>") || "—"}</td></tr>`;
       if (det) h += `<tr class="det" data-d="${i}" style="display:none"><td colspan="4"><div class="kv">${q.settings.map(s => `<div>${H(s[0])}</div><div>${H(s[1])}</div>`).join("")}</div></td></tr>`;
     });
     h += `</table>`;
@@ -305,7 +318,7 @@ function showReq(id) {
   const where = r.parts.length ? r.parts : (r.subsystem ? [r.subsystem === M.top ? M.top : `${M.top}.${r.subsystem}`] : []);
   openDrawer(`<div class="dsub">Requirement · ${H(METHOD[r.method] || r.method || "no method")}</div><div class="dh mono">${H(r.id)}</div><div style="margin:6px 0">${pill(r.status)}</div>
     <p style="font-size:15px">${H(r.text)}</p><div class="dsub">${H(r.rationale)}</div>
-    <h4>Belongs to</h4><div class="links">${where.map(w => `<span class="chip" data-part="${w}">${H(short(w) || M.top)}</span>`).join("") || `<span class="warnline">No subsystem named ${H(r.prefix)}</span>`}</div>
+    <h4>Belongs to</h4><div class="links">${where.map(w => `<span class="chip" data-part="${w}">${H(short(w) || M.top)}</span>`).join("") || `<span class="warnline">No subsystem named ${H(r.prefix)}</span>`}${SERVED ? `<button class="act" data-form="satisfy" data-rid="${H(r.id)}">${r.parts.length ? "Change parts" : "Pin to a part"}</button>` : ""}</div>
     ${SERVED ? `<div class="links" style="margin:10px 0"><button class="act" data-form="test" data-rid="${H(r.id)}">Record test</button><button class="act" data-form="update_req" data-rid="${H(r.id)}">Edit</button><button class="act dz" data-form="delete_req" data-rid="${H(r.id)}">Mark deleted</button></div>` : ""}
     <h4>Evidence</h4>${r.evidence.map(e => `<div class="ev" style="font-size:12.5px;border-left:2px solid var(--hair);padding-left:8px;margin-bottom:6px">${H(e)}</div>`).join("") || `<div class="dsub">None yet.</div>`}
     ${(r.media || []).length ? thumbs(r.media) : ""}
@@ -322,7 +335,7 @@ function showNode(name) {
   const n = M.nodes.find(x => x.name === name);
   const row = (e, role) => `<tr class="row" data-topic="${H(e.topic)}"><td>${role}</td><td class="mono lnk">${H(e.topic)}</td><td class="mono">${H(e.type)}</td><td class="mono">:${e.line}</td></tr>`;
   openDrawer(`<div class="dsub">ROS2 node · ${H(n.lang === "c" ? "micro-ROS (C)" : n.lang === "py" ? "Python" : "C++")}</div><div class="dh">${H(n.name)}</div>
-    <div class="kv" style="margin-top:8px"><div>Source</div><div class="mono">${H(n.file)}</div><div>Runs on</div><div>${n.host ? `<span class="lnk" data-part="${n.host}">${H(short(n.host))}</span>` : `<span class="warnline">not allocated</span>`}</div></div>
+    <div class="kv" style="margin-top:8px"><div>Source</div><div class="mono">${H(n.file)}</div><div>Runs on</div><div>${n.host ? `<span class="lnk" data-part="${n.host}">${H(short(n.host))}</span>` : `<span class="warnline">not allocated</span>`}${SERVED ? ` <button class="act" data-form="allocate" data-node="${H(n.name)}">Change</button>` : ""}</div></div>
     <h4>Topics</h4><table class="ptab"><tr><th></th><th>Topic</th><th>Type</th><th>Line</th></tr>${n.pub.map(e => row(e, "pub")).join("")}${n.sub.map(e => row(e, "sub")).join("")}</table>`);
 }
 function showTopic(t) {
@@ -355,14 +368,18 @@ function buildElectrical(kinds) {
   const used = new Set(); const shown = cs.filter(c => !keep || (keep.has(c.a[0]) && keep.has(c.b[0])));
   shown.forEach(c => { used.add(c.a.join(".")); used.add(c.b.join(".")); });
   const containers = M.subsystems.map(s => {
-    const leaves = M.parts[`${M.top}.${s}`].children.filter(k => (!keep || keep.has(k)) && (kinds.length > 1 ? true : M.parts[k].ports.some(q => used.has(`${k}.${q.name}`))));
-    return leaves.length ? {id: `${M.top}.${s}`, children: leaves.map(k => leafNode(k, kinds, used)), edges: [],
+    const leaves = M.parts[`${M.top}.${s}`].children.filter(k => (!keep || keep.has(k)) && (editing || (kinds.length > 1 ? true : M.parts[k].ports.some(q => used.has(`${k}.${q.name}`)))));
+    if (editing) leaves.forEach(k => M.parts[k].ports.forEach(q => { if (kinds.includes(q.kind) && !q.missing) used.add(`${k}.${q.name}`); }));
+    const kids = leaves.map(k => leafNode(k, kinds, used));
+    if (editing && !kids.length && (!keep || s === focus)) kids.push({id: `${M.top}.${s}::add`, width: 150, height: 44, ports: [], layoutOptions: {}, add: `${M.top}.${s}`});
+    return kids.length ? {id: `${M.top}.${s}`, children: kids, edges: [],
       layoutOptions: {"elk.padding": "[top=40,left=16,bottom=16,right=16]", "elk.algorithm": "layered", "elk.direction": "RIGHT"}} : null;
   }).filter(Boolean);
   const present = new Set(containers.flatMap(c => c.children.map(x => x.id)));
   const root = {id: "root", layoutOptions: {"elk.algorithm": "layered", "elk.direction": "RIGHT", "elk.hierarchyHandling": "INCLUDE_CHILDREN", "elk.edgeRouting": "ORTHOGONAL",
     "elk.layered.spacing.nodeNodeBetweenLayers": "70", "elk.spacing.nodeNode": "30", "elk.spacing.edgeNode": "18", "elk.spacing.edgeEdge": "9", "elk.layered.spacing.edgeNodeBetweenLayers": "18",
-    "elk.layered.nodePlacement.strategy": "NETWORK_SIMPLEX", "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES"}, children: containers, edges: []};
+    "elk.layered.nodePlacement.strategy": "NETWORK_SIMPLEX", "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
+    "elk.separateConnectedComponents": "true", "elk.aspectRatio": "1.8", "elk.spacing.componentComponent": "40"}, children: containers, edges: []};
   shown.filter(c => present.has(c.a[0]) && present.has(c.b[0])).forEach((c, i) => {
     const sa = M.parts[c.a[0]].subsystem, sb = M.parts[c.b[0]].subsystem;
     const edge = {id: "e" + i, sources: [c.a.join(".")], targets: [c.b.join(".")], c};
@@ -380,7 +397,8 @@ function buildSystem() {
     const [x, y] = M.parts[c.a[0]].source === "facts" || (M.parts[c.a[0]].ports.find(q => q.name === c.a[1]) || {}).conj === false ? [sa, sb] : [sb, sa];
     const k = `${x}|${y}|${c.kind}`; (agg[k] ||= {s: x, t: y, kind: c.kind, items: []}).items.push(c);
   });
-  const nodes = M.subsystems.map(s => { const kids = M.parts[`${M.top}.${s}`].children; return {id: `${M.top}.${s}`, width: Math.max(170, s.length * 10 + 50, ...kids.map(k => M.parts[k].name.length * 7 + 40)), height: 52 + kids.length * 17, kids}; });
+  const nodes = M.subsystems.map(s => { const kids = M.parts[`${M.top}.${s}`].children; const full = (M.prefix_names || {})[s] || "";
+    return {id: `${M.top}.${s}`, width: Math.max(190, s.length * 11 + 110, full.length * 6.6 + 40, ...kids.map(k => (M.parts[k].name.length + Math.min(30, (M.parts[k].type || M.parts[k].doc || "").length) + 3) * 6.6 + 40)), height: 52 + (full ? 16 : 0) + kids.length * 17 + (editing ? 17 : 0), kids}; });
   const edges = Object.values(agg).map((a, i) => {
     const names = [...new Set(a.items.map(c => (M.parts[c.a[0]].source === "facts" ? c.a[1] : M.parts[c.b[0]].source === "facts" ? c.b[1] : c.type)))];
     const text = a.kind === "Signal" ? names.join(", ") : a.kind === "Power" ? "power" : "mount";
@@ -407,11 +425,23 @@ function absMap(n, ox = 0, oy = 0, out = {}) { out[n.id] = {x: ox + (n.x || 0), 
 function allEdges(n, out = []) { (n.edges || []).forEach(e => out.push([e, n])); (n.children || []).forEach(c => allEdges(c, out)); return out; }
 
 let zoom = null;
-function canvasShell(title, lead, extra = "") {
-  $("#main").innerHTML = `<div class="diagram"><div class="dtool"><div><h2>${title}</h2><p class="lead">${lead}</p></div><span class="sp"></span>${extra}<button class="btn" id="zout" title="Zoom out">−</button><button class="btn" id="zin" title="Zoom in">+</button><button class="btn" id="fit">Fit</button></div><div class="canvas" id="cv"></div></div>`;
+function canvasShell(title, lead, extra = "", edit = null) {
+  const eb = SERVED && edit ? (editing ? `<button class="act" data-form="part">+ Part</button><button class="ebtn on" id="edtog">Done</button>` : `<button class="ebtn" id="edtog">Edit</button>`) : "";
+  $("#main").innerHTML = `<div class="diagram"><div class="dtool"><div><h2>${title}</h2><p class="lead">${lead}</p></div><span class="sp"></span>${extra}${eb}<button class="btn" id="zout" title="Zoom out">−</button><button class="btn" id="zin" title="Zoom in">+</button><button class="btn" id="fit">Fit</button></div>${SERVED && edit && editing ? `<div class="hintbar" id="hint">${edit}</div>` : ""}<div class="canvas ${editing && edit ? "editing" : ""}" id="cv"></div></div>`;
+  if ($("#edtog")) $("#edtog").onclick = () => { editing = !editing; pend = null; render(); saveHash(); };
   wire($("#main"));
   return $("#cv");
 }
+const EDIT_HINT = "Editing. Click a port, then the port at the other end (or a part, to give it a new port). Click a wire to remove it. Click a part to edit it. Esc cancels.";
+function portClick(part, q) {
+  const full = `${part}.${q.name}`;
+  if (!pend) { pend = {full, part, q}; document.querySelectorAll(`.port[data-full="${CSS.escape(full)}"]`).forEach(r => r.classList.add("pend"));
+    $("#hint").innerHTML = `From <b class="mono">${H(short(full))}</b> (${H(q.meaning || q.type)}). Now click the other end: a port of the same type, or a part to add a new port there. <button class="act" id="pcancel">Cancel</button>`;
+    $("#pcancel").onclick = cancelPend; return; }
+  if (pend.full === full) return cancelPend();
+  const a = pend.full; cancelPend(); openForm("connect", {a, bpart: part, bport: q.name});
+}
+function cancelPend() { pend = null; document.querySelectorAll(".port.pend").forEach(r => r.classList.remove("pend")); if ($("#hint")) $("#hint").textContent = EDIT_HINT; }
 function panZoom(svg, W, H) {
   let vb = {x: -20, y: -20, w: W + 40, h: H + 40};
   const set = () => svg.setAttribute("viewBox", `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
@@ -424,13 +454,13 @@ function panZoom(svg, W, H) {
     const scale = Math.max(vb.w / r.width, vb.h / r.height), mx = vb.x + (ev.clientX - r.left) * scale, my = vb.y + (ev.clientY - r.top) * scale;
     vb = {x: mx - (mx - vb.x) * s, y: my - (my - vb.y) * s, w: vb.w * s, h: vb.h * s}; set(); }, {passive: false});
   let drag = null;
-  svg.addEventListener("pointerdown", ev => { if (ev.target.closest(".leaf,.rosnode,.topic,.sysnode")) return; ev.preventDefault(); window.getSelection()?.removeAllRanges(); drag = {x: ev.clientX, y: ev.clientY, vb: {...vb}}; svg.setPointerCapture(ev.pointerId); });
+  svg.addEventListener("pointerdown", ev => { if (ev.target.closest(".leaf,.rosnode,.topic,.sysnode,.ehit,.addph")) return; ev.preventDefault(); window.getSelection()?.removeAllRanges(); drag = {x: ev.clientX, y: ev.clientY, vb: {...vb}}; svg.setPointerCapture(ev.pointerId); });
   svg.addEventListener("pointermove", ev => { if (!drag) return; const r = svg.getBoundingClientRect(); const scale = Math.max(vb.w / r.width, vb.h / r.height);
     vb.x = drag.vb.x - (ev.clientX - drag.x) * scale; vb.y = drag.vb.y - (ev.clientY - drag.y) * scale; set(); });
   svg.addEventListener("pointerup", ev => {
     const moved = drag && Math.hypot(ev.clientX - drag.x, ev.clientY - drag.y) > 4;
     drag = null;
-    if (!moved && !ev.target.closest(".leaf,.rosnode,.topic,.sysnode,.cont")) closeDrawer();
+    if (!moved && !ev.target.closest(".leaf,.rosnode,.topic,.sysnode,.cont,.ehit,.addph")) { closeDrawer(); if (pend) cancelPend(); }
   });
 }
 function drawEdges(root, out, abs, cls) {
@@ -438,6 +468,9 @@ function drawEdges(root, out, abs, cls) {
     const off = abs[e.container || cont.id] || {x: 0, y: 0};
     (e.sections || []).forEach(s => {
       const pts = [s.startPoint, ...(s.bendPoints || []), s.endPoint].map(p => `${p.x + off.x},${p.y + off.y}`);
+      if (editing && e.c && e.c.ok !== undefined) { const hit = el("path", {d: "M" + pts.join(" L"), class: "ehit"}, root);
+        el("title", {}, hit).textContent = "Click to remove this connection";
+        hit.addEventListener("click", ev => { ev.stopPropagation(); openForm("disconnect", {a: e.c.a.join("."), b: e.c.b.join(".")}); }); }
       const path = el("path", {d: "M" + pts.join(" L"), class: cls(e)}, root);
       path.dataset.ends = e.c ? `${e.c.a[0]}|${e.c.b[0]}` : (e.a ? `${M.top}.${e.a.s}|${M.top}.${e.a.t}` : `${e.sources[0]}|${e.targets[0]}`);
       if (e.c) el("title", {}, path).textContent = `${short(e.c.a.join("."))} → ${short(e.c.b.join("."))} (${e.c.type})`;
@@ -449,16 +482,18 @@ function drawEdges(root, out, abs, cls) {
 function hot(path) { document.querySelectorAll("path.edge").forEach(p => { const on = path && p.dataset.ends.split("|").includes(path); p.classList.toggle("hot", !!on); p.classList.toggle("dim", !!path && !on); }); }
 
 async function drawParts(kinds, title, lead) {
-  const extra = `<div class="legend">${kinds.map(k => `<span><i style="border-color:${KCOL[k]}${k === "Mechanical" ? ";border-top-style:dashed" : ""}"></i>${k}</span>`).join("")}<span><i class="box" style="background:var(--facts)"></i>from .ioc</span><span><i class="box" style="background:var(--arch)"></i>written in arch</span></div>` +
+  const extra = `<div class="legend">${kinds.map(k => `<span><i style="border-color:${KCOL[k]}${k === "Mechanical" ? ";border-top-style:dashed" : ""}"></i>${k}</span>`).join("")}<span><i class="box" style="background:var(--facts)"></i>board (.ioc)</span><span><i class="box" style="background:var(--arch)"></i>part</span></div>` +
     (focus ? `<span class="chip focus" id="unfocus">Focus: ${H(focus)} ✕</span>` : "");
-  const cv = canvasShell(title, lead, extra);
+  const cv = canvasShell(title, lead, extra, EDIT_HINT);
   if ($("#unfocus")) $("#unfocus").onclick = () => { focus = null; render(); };
   const {graph} = buildElectrical(kinds);
-  if (!graph.children.length) { cv.innerHTML = `<div class="empty">Nothing of this kind is modelled yet.<br>Add ports whose type specialises ${kinds.join(" / ")} in the arch file, and connect them.</div>`; return; }
+  if (!graph.children.length) { cv.innerHTML = M.subsystems.length ? `<div class="empty">Nothing of this kind is wired yet.${SERVED ? `<br><br><button class="ebtn" onclick="editing=true;render();saveHash()">Edit</button> to add parts and connect their ports.` : ""}</div>`
+    : `<div class="empty">No subsystems yet.${SERVED ? ` <span class="xref" onclick="go('setup')">Open Setup</span> to add them.` : ""}</div>`; return; }
   // pass 1: let ELK choose the port order that avoids crossings; pass 2: pin ports under the title
   const first = await elk.layout(JSON.parse(JSON.stringify(graph)));
   const firstAbs = absMap(first);
   graph.children.forEach(c => c.children.forEach(n => {
+    if (n.add) return;
     const laid = firstAbs[n.id].n, bySide = {EAST: [], WEST: []};
     laid.ports.forEach(pt => bySide[pt.x > laid.width / 2 ? "EAST" : "WEST"].push(pt));
     Object.values(bySide).forEach(list => list.sort((a, b) => a.y - b.y).forEach((pt, i) => {
@@ -472,12 +507,15 @@ async function drawParts(kinds, title, lead) {
     const a = abs[c.id], g = el("g", {class: "cont", transform: `translate(${a.x},${a.y})`}, root);
     el("rect", {width: c.width, height: c.height, rx: 12}, g);
     el("text", {x: 14, y: 24, class: "t"}, g).textContent = M.parts[c.id].name;
-    const nr = partReqs(c.id).length; el("text", {x: 14 + M.parts[c.id].name.length * 9.5 + 10, y: 24, class: "s"}, g).textContent = `${nr} requirement${nr === 1 ? "" : "s"}`;
+    const nr = partReqs(c.id).length; el("text", {x: 14 + M.parts[c.id].name.length * 11 + 10, y: 24, class: "s"}, g).textContent = `${nr} requirement${nr === 1 ? "" : "s"}`;
     g.style.cursor = "pointer"; g.addEventListener("click", ev => { if (ev.target.closest(".leaf")) return; showPart(c.id); });
   });
   const missing = new Set(M.connections.filter(c => !c.ok).flatMap(c => [c.a_txt, c.b_txt]));
   drawEdges(root, out, abs, e => `edge ${e.c.kind}${e.c.ok ? "" : " bad"}`);
   out.children.forEach(c => (c.children || []).forEach(n => {
+    if (n.id.endsWith("::add")) { const a = abs[n.id], g = el("g", {class: "addph", transform: `translate(${a.x},${a.y})`}, root);
+      el("rect", {width: n.width, height: n.height, rx: 8}, g); el("text", {x: n.width / 2, y: 27, "text-anchor": "middle"}, g).textContent = "+ Part";
+      g.addEventListener("click", ev => { ev.stopPropagation(); openForm("part", {parent: n.id.slice(0, -5)}); }); return; }
     const a = abs[n.id], p = M.parts[n.id];
     const g = el("g", {class: `leaf ${p.source}`, transform: `translate(${a.x},${a.y})`}, root); g.dataset.part = n.id;
     el("rect", {class: "b", width: n.width, height: n.height, rx: 8}, g);
@@ -486,17 +524,22 @@ async function drawParts(kinds, title, lead) {
     el("text", {x: 14, y: 35, class: "ty"}, g).textContent = p.type || "";
     const hidden = p.ports.filter(q => !q.missing).length - n.ports.filter(pt => !p.ports.find(x => `${n.id}.${x.name}` === pt.id)?.missing).length; if (hidden > 0) el("text", {x: 14, y: n.height - 7, class: "more"}, g).textContent = `+${hidden} port${hidden > 1 ? "s" : ""} not in this view`;
     n.ports.forEach(pt => { const q = p.ports.find(x => `${n.id}.${x.name}` === pt.id); const east = pt.x > n.width / 2;
-      el("rect", {class: "port", x: pt.x, y: pt.y, width: pt.width, height: pt.height, rx: 2, stroke: q.missing ? "var(--crit)" : KCOL[q.kind], "stroke-dasharray": q.missing ? "2 2" : ""}, g);
+      const pr = el("rect", {class: "port", x: pt.x, y: pt.y, width: pt.width, height: pt.height, rx: 2, stroke: q.missing ? "var(--crit)" : KCOL[q.kind], "stroke-dasharray": q.missing ? "2 2" : ""}, g); pr.dataset.full = `${n.id}.${q.name}`;
+      if (pend && pend.full === pr.dataset.full) pr.classList.add("pend");
       const t = el("text", {class: "plab", x: east ? pt.x - 5 : pt.x + pt.width + 5, y: pt.y + 8, "text-anchor": east ? "end" : "start", style: q.missing ? "fill:var(--crit-ink)" : ""}, g); t.textContent = q.missing ? `${q.name} (gone)` : q.name;
+      if (editing && !q.missing) { const w = q.name.length * 6.4 + 8; const hit = el("rect", {class: "phit", x: east ? pt.x - w : pt.x, y: pt.y - 4, width: w + pt.width, height: pt.height + 8}, g);
+        hit.addEventListener("click", ev => { ev.stopPropagation(); portClick(n.id, q); }); }
       el("title", {}, t).textContent = `${q.name}: ${q.meaning || q.type}${q.pins && q.pins.length ? " · " + q.pins.map(x => x.join(" ")).join(", ") : ""}`; });
-    g.addEventListener("click", ev => { ev.stopPropagation(); showPart(n.id); });
+    g.addEventListener("click", ev => { ev.stopPropagation(); if (pend) { const a = pend.full; cancelPend(); return openForm("connect", {a, bpart: n.id}); } showPart(n.id); });
     g.addEventListener("mouseenter", () => !selected && hot(n.id)); g.addEventListener("mouseleave", () => !selected && hot(null));
   }));
   panZoom(svg, out.width, out.height); markSel();
 }
 async function drawSystem() {
   const cv = canvasShell("System", "Subsystems and everything that crosses between them. Click a subsystem for its interfaces, requirements and faults.",
-    `<div class="legend">${["Signal", "Power", "Mechanical"].map(k => `<span><i style="border-color:${KCOL[k]}${k === "Mechanical" ? ";border-top-style:dashed" : ""}"></i>${k}</span>`).join("")}</div>`);
+    `<div class="legend">${["Signal", "Power", "Mechanical"].map(k => `<span><i style="border-color:${KCOL[k]}${k === "Mechanical" ? ";border-top-style:dashed" : ""}"></i>${k}</span>`).join("")}</div>`,
+    "Editing. Add parts here; connect their ports in Electrical, Power or Mechanical (Edit there too). Subsystems are added in Setup.");
+  if (!M.subsystems.length) { cv.innerHTML = `<div class="empty">No subsystems yet.${SERVED ? `<br><br><button class="ebtn" onclick="go('setup')">Open Setup</button> to add them: they become the boxes here and the prefixes of requirement IDs.` : ""}</div>`; return; }
   const {graph} = buildSystem(); const out = await elk.layout(graph); const abs = absMap(out);
   const svg = el("svg", {}, cv), root = el("g", {}, svg);
   drawEdges(root, out, abs, e => `edge ${e.a.kind}`);
@@ -505,9 +548,13 @@ async function drawSystem() {
     const g = el("g", {class: "leaf sysnode arch", transform: `translate(${n.x},${n.y})`}, root); g.dataset.part = n.id;
     el("rect", {class: "b", width: n.width, height: n.height, rx: 10}, g);
     el("text", {x: 14, y: 24, class: "t", style: "font-size:14px;letter-spacing:.04em"}, g).textContent = s.name;
+    const full = (M.prefix_names || {})[s.name], y0 = full ? 16 : 0;
+    if (full) el("text", {x: 14, y: 41, class: "ty"}, g).textContent = full;
     const rs = partReqs(n.id), v = rs.filter(r => r.status === "Verified").length, f = rs.filter(r => r.status === "Failed").length;
     el("text", {x: n.width - 12, y: 24, class: "ty", "text-anchor": "end"}, g).textContent = rs.length ? `${v}/${rs.length} ✓${f ? ` · ${f} ✕` : ""}` : "no reqs";
-    src.kids.forEach((k, i) => { el("text", {x: 14, y: 46 + i * 17, class: "ty"}, g).textContent = `${M.parts[k].name} : ${M.parts[k].type || ""}`; });
+    src.kids.forEach((k, i) => { el("text", {x: 14, y: 46 + y0 + i * 17, class: "ty"}, g).textContent = M.parts[k].name + (M.parts[k].type ? ` : ${M.parts[k].type}` : M.parts[k].doc ? ` · ${M.parts[k].doc.slice(0, 28)}` : ""); });
+    if (editing) { const ph = el("g", {class: "addph", transform: `translate(14,${46 + y0 + src.kids.length * 17})`}, g); el("text", {x: 0, y: 0}, ph).textContent = "+ Part";
+      ph.addEventListener("click", ev => { ev.stopPropagation(); openForm("part", {parent: n.id}); }); }
     const oi = issuesFor(s.name, []).filter(i => i.state === "open").length;
     if (oi) { const b = el("g", {transform: `translate(${n.width - 12},${n.height - 10})`}, g); el("text", {x: 0, y: 0, "text-anchor": "end", style: "font-size:11px;fill:var(--accent)"}, b).textContent = `${oi} open issue${oi > 1 ? "s" : ""}`; }
     g.addEventListener("click", ev => { ev.stopPropagation(); showPart(n.id); });
@@ -518,7 +565,7 @@ async function drawSystem() {
 async function drawSoftware() {
   const cv = canvasShell("Software (ROS2)", "Nodes and topics found in the code (robot does not need to be on), grouped by the computer each node runs on.",
     `<div class="legend"><span><i class="box" style="background:var(--sunk);border:1px solid var(--faint);border-radius:6px;width:16px"></i>topic</span><span><i class="box" style="background:var(--surface);border:1px solid var(--faint)"></i>node</span><span><i style="border-color:var(--sig)"></i>publish → subscribe</span></div>`);
-  if (!M.nodes.length) { cv.innerHTML = `<div class="empty">No ROS2 code found. Set [ros] paths in docs/model/model.toml.</div>`; return; }
+  if (!M.nodes.length) { cv.innerHTML = `<div class="empty">No ROS2 code found.${SERVED ? ` Add the folders with your ROS2 / micro-ROS code in <span class="xref" onclick="go('setup')">Setup</span>.` : " Add ROS2 code folders in Setup (doc serve)."}</div>`; return; }
   const {graph} = buildSoftware(); const out = await elk.layout(graph); const abs = absMap(out);
   const svg = el("svg", {}, cv), root = el("g", {}, svg);
   out.children.filter(c => c.id.startsWith("h:")).forEach(c => { const src = graph.children.find(x => x.id === c.id);
@@ -583,7 +630,7 @@ function requirements() {
       ${(r.media || []).length ? thumbs(r.media) : ""}
       <div class="links">${r.parts.map(p => `<span class="chip" data-part="${p}">▣ ${H(short(p))}</span>`).join("")}${fs.map(f => `<span class="chip" data-fault="${f.id}" style="border-color:var(--sev${f.sev})">${f.id}</span>`).join("")}${ds.map(d => `<span class="chip" data-dec="${d.num}">decision ${d.num}</span>`).join("")}${issuesFor(null, [r.id]).filter(i => i.state === "open").map(i => `<span class="chip" data-issue="${i.number}">#${i.number}</span>`).join("")}</div>
       ${SERVED ? `<div class="links"><button class="act" data-form="test" data-rid="${H(r.id)}">Record test</button><button class="act" data-form="update_req" data-rid="${H(r.id)}">Edit</button></div>` : ""}</div>`; };
-  page(`<h2>Requirements</h2><p class="lead">From docs/requirements.md. Each prefix lands in the subsystem of the same name; <code>satisfy</code> lines in the arch file pin a requirement to one part.</p>
+  page(`<h2>Requirements</h2><p class="lead">From docs/requirements.md. Each prefix lands in the subsystem of the same name (subsystems are set in Setup); <i>Pin to a part</i> in a requirement's panel ties it to one part.</p>
     <div class="filters"><input id="rs" placeholder="Search requirements…" value="${H(rsearch)}">${["All", "Draft", "Approved", "Verified", "Failed"].map(s => `<button class="fchip ${s === rfilter ? "on" : ""}" data-f="${s}">${s} <span style="opacity:.6">${s === "All" ? M.requirements.length : M.requirements.filter(r => r.status === s).length}</span></button>`).join("")}</div>
     ${[...order, "__none"].filter(g => groups[g]).map(g => { const rs = groups[g].filter(vis); if (!rs.length) return ""; const v = groups[g].filter(r => r.status === "Verified").length;
       return `<div class="sgroup"><h3>${g === "__none" ? `<span style="color:var(--warn-ink)">No matching subsystem</span>` : g === M.top ? "Whole system" : `<span class="lnk" data-part="${M.top}.${g}" style="cursor:pointer">${H(g)}</span>`}</h3><span class="c">${v}/${groups[g].length} verified</span></div><div class="rgrid">${rs.map(card).join("")}</div>`; }).join("")}`);
@@ -614,7 +661,7 @@ function render() {
     electrical: () => drawParts(["Signal"], "Electrical", "Buses and pins between modules. Port settings, pins and links are in each part's panel."),
     power: () => drawParts(["Power"], "Power", "Where power comes from and who draws it."),
     mechanical: () => drawParts(["Mechanical"], "Mechanical", "How parts are physically attached."),
-    software: drawSoftware, issues: issuesPage, docs: docsPage, media: mediaPage})[view]();
+    software: drawSoftware, issues: issuesPage, docs: docsPage, media: mediaPage, setup: setupPage})[view]();
 }
 // ------------------------------------------------------------------ issues, docs, media
 const mediaByFile = Object.fromEntries((M.media || []).map(x => [x.file, x]));
@@ -739,7 +786,9 @@ function newMenu() {
   if ($("#nmenu")) return $("#nmenu").remove();
   const m = document.createElement("div"); m.className = "menu"; m.id = "nmenu";
   m.innerHTML = [["idea", "Idea", "I got an idea (GitHub issue)"], ["bug", "Bug", "Something behaves wrong (GitHub issue)"], ["req", "Requirement", "I committed to building something"],
-    ["test", "Test result", "I tested a requirement"], ["fault", "Fault", "I asked 'what if this breaks?'"], ["decision", "Decision", "I chose between options"]]
+    ["test", "Test result", "I tested a requirement"], ["fault", "Fault", "I asked 'what if this breaks?'"], ["decision", "Decision", "I chose between options"],
+    ["procedure", "Procedure", "I assembled / set up something with steps"], ["check", "Checklist line", "Something broke or nearly broke"],
+    ["log", "Devlog", "End of the week"], ["part", "Part", "A module, sensor, board or computer in the robot"]]
     .map(([k, t, d]) => `<button data-form="${k}">${t}<small>${d}</small></button>`).join("");
   document.body.appendChild(m); wire(m); m.querySelectorAll("button").forEach(b => b.addEventListener("click", () => m.remove()));
   setTimeout(() => document.addEventListener("click", function off(ev) { if (!m.contains(ev.target)) { m.remove(); } document.removeEventListener("click", off); }), 0);
@@ -757,9 +806,76 @@ const area = (k, v = "", ph = "One item per line") => `<textarea name="${k}" pla
 const sel = (k, pairs, v, blank) => `<select name="${k}">${blank ? `<option value="">${blank}</option>` : ""}${opt(pairs, v)}</select>`;
 const today_ = () => new Date().toISOString().slice(0, 10);
 
+const SET = () => S_.setup || {subsystems: [], boards: [], ros_paths: [], ioc_candidates: [], ros_candidates: [], port_types: []};
+const boxSubs = () => SET().subsystems.filter(s => s.box && !s.deleted);
+const leafParts = () => Object.values(M.parts).filter(p => p.depth >= 2);
+const portLabel = (path, q) => `${short(path)}.${q.name} · ${q.meaning || q.type}`;
+function typeOpts(v) {
+  const groups = {}; SET().port_types.forEach(t => (groups[t.kind] ||= []).push(t));
+  return Object.entries(groups).map(([k, ts]) => `<optgroup label="${H(k)}">${ts.map(t => `<option value="${H(t.name)}" ${t.name === v ? "selected" : ""}>${H(t.meaning)} (${H(t.name)})</option>`).join("")}</optgroup>`).join("");
+}
+const prow = (q = {}) => `<div class="prow" data-was="${H(q.name || "")}"><input data-pn placeholder="port name, e.g. spi" value="${H(q.name || "")}"><select data-pt><option value="">type…</option>${typeOpts(q.type)}</select><button class="act dz" type="button" data-rm>✕</button></div>`;
+function guessBoard(path) { const used = SET().boards.map(b => b.name); if (!used.includes("mcu")) return "mcu";
+  return (path.split("/").pop().replace(/\.ioc$/, "").toLowerCase().replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "") || "board").replace(/^(\d)/, "b$1"); }
 function formSpec(kind, d) {
   const r = d.rid ? reqById[d.rid] : null, f = d.fid ? M.faults.find(x => x.id === d.fid) : null, dec = d.num ? M.decisions.find(x => x.num === d.num) : null;
+  const sub = d.prefix ? SET().subsystems.find(x => x.prefix === d.prefix) : null;
+  const part = d.orig ? M.parts[d.orig] : null;
   switch (kind) {
+    case "subsystem": return {title: sub ? `Edit subsystem ${sub.prefix}` : "New subsystem", sub: "Subsystems are the boxes of the system diagram and the prefixes of requirement IDs (CTRL-001). Written to model.toml, the README table and the issue forms.", html:
+      `<div class="two">${fld("prefix", "Prefix", "2–6 capitals, e.g. CTRL. It starts every requirement ID of this subsystem.", inp("prefix", sub ? sub.prefix : "", "CTRL"))}${fld("name", "Name", "", inp("name", sub ? sub.name : "", "Control"))}</div>` +
+      fld("about", "What is in it", "Optional, one line.", inp("about", sub ? sub.about : "", "STM32 and the sensors wired to it")) +
+      `<div class="fld"><label><input type="checkbox" name="box" ${!sub || sub.box ? "checked" : ""}>Box in the system diagram</label><div class="hint">Untick for a requirements-only group, e.g. SYS (whole robot) or FDIR: its requirements belong to the whole system.</div></div>` +
+      (sub && sub.reqs ? `<div class="dsub">${sub.reqs} requirement(s) use ${H(sub.prefix)}-, so the prefix cannot change (IDs never change).</div>` : ""), extra: sub ? {orig: sub.prefix} : {}};
+    case "subsystem_delete": return {title: `Delete subsystem ${sub.prefix}`, sub: sub.reqs ? "" : "Removes it from model.toml, the README table and the issue forms.", html:
+      `<div class="dsub">${sub.parts ? `It still holds ${sub.parts} part(s): move or delete them first.` : sub.reqs ? `${sub.reqs} live requirement(s) use ${H(sub.prefix)}-: mark them deleted first.` : "Nothing uses it. If old (deleted) requirements used its prefix it is kept as deleted, so their IDs are never reused."}</div>`, extra: {prefix: sub.prefix}};
+    case "board": { const c = SET().ioc_candidates;
+      return {title: "Add a board", sub: "A microcontroller with a CubeMX project. Its pins, buses and peripheral settings are read from the .ioc file, so they are always current.", html:
+      fld("ioc", "Its .ioc file", "Each board points at its own .ioc file. Library samples and legacy copies are marked.", `<select name="ioc"><option value="">pick…</option>${c.map(x => `<option value="${H(x.path)}" ${x.used ? "disabled" : ""}>${H(x.path)}${x.note ? ` (${H(x.note)})` : ""}${x.used ? " · already used" : ""}</option>`).join("")}</select>`) +
+      `<div class="two">${fld("name", "Short name", "The part's name in the diagram, e.g. mcu, base_mcu.", inp("name", "", "mcu"))}${fld("subsystem", "Subsystem it sits in", "", sel("subsystem", boxSubs().map(x => [x.prefix, `${x.prefix} · ${x.name}`])))}</div>` +
+      `<div class="fld" id="scanf" style="display:none"><label><input type="checkbox" name="scan" checked>Scan its Core/Src for micro-ROS code</label><div class="hint" id="scanh"></div></div>`}; }
+    case "board_ioc": { const b = SET().boards.find(x => x.name === d.name), c = SET().ioc_candidates;
+      return {title: `Board ${b.name}: .ioc file`, sub: "Use this when the CubeMX project moved or was renamed.", html:
+      fld("ioc", "Its .ioc file", "", `<select name="ioc">${c.map(x => `<option value="${H(x.path)}" ${x.path === b.ioc ? "selected" : ""} ${x.used && x.path !== b.ioc ? "disabled" : ""}>${H(x.path)}${x.note ? ` (${H(x.note)})` : ""}</option>`).join("")}</select>`), extra: {orig: b.name}}; }
+    case "board_remove": return {title: `Remove board ${d.name}`, sub: "Removes it from model.toml and its part from the diagram, with every connection to its pins. The .ioc file is not touched.", html: "", extra: {name: d.name}};
+    case "ros_paths": return {title: "ROS2 code folders", sub: "Folders scanned for nodes, publishers and subscribers. The robot does not need to be on.", html:
+      `<div id="rplist">${SET().ros_paths.map(x => `<div class="prow" style="grid-template-columns:1fr auto"><input name="paths[]" value="${H(x)}"><button class="act dz" type="button" data-rm>✕</button></div>`).join("")}</div>` +
+      fld("pick", "Add a folder", "Found in the repo: ROS2 packages, STM32 Core/Src folders, folders under software/ or src/.", `<select id="rppick"><option value="">pick…</option>${SET().ros_candidates.filter(x => !SET().ros_paths.includes(x.path)).map(x => `<option value="${H(x.path)}">${H(x.path)} (${H(x.note)})</option>`).join("")}<option value="+">another folder (type it)…</option></select>`)};
+    case "port_type": return {title: "New port type", sub: "For connections the built-in types do not cover, e.g. a 5 V rail or a motor mount. Ports connect only to ports of the same type.", html:
+      `<div class="two">${fld("name", "Type name", "e.g. Power5V, MotorMount", inp("name", "", "Power5V"))}${fld("kind", "Kind (which view shows it)", "", sel("kind", [["Power", "Power"], ["Mechanical", "Mechanical"], ["Signal", "Signal"]]))}</div>` + fld("meaning", "Meaning", "Shown in panels and the ICD.", inp("meaning", "", "5 V rail"))};
+    case "port_type_delete": return {title: `Delete port type ${d.name}`, sub: "Only possible when no port uses it.", html: "", extra: {name: d.name}};
+    case "part": { const parent = part ? `${M.top}.${part.subsystem}` : d.parent || "", typed = part && part.type;
+      return {title: part ? `Edit ${short(d.orig)}` : "New part", sub: "A module, sensor, driver, battery or computer. Its ports are the pins, buses, power and mounts it connects with.", html:
+      `<div class="two">${fld("parent", "Subsystem", "", sel("parent", M.subsystems.map(x => [`${M.top}.${x}`, `${x}${(M.prefix_names || {})[x] ? " · " + M.prefix_names[x] : ""}`]), parent, M.subsystems.length ? "pick…" : "add subsystems in Setup first"))}${fld("name", "Name", "e.g. imu, lora, pi, battery", inp("name", part ? part.name : "", "imu"))}</div>` +
+      fld("doc", "What it is", "Part number or one line.", inp("doc", part ? part.doc : "", "ICM-42688-P IMU, SPI")) +
+      (typed ? `<div class="dsub">Ports come from ${M.boards.some(b => b.def === part.type) ? "its .ioc file" : `its type <span class="mono">${H(part.type)}</span> in the arch file`}.</div>`
+        : `<div class="fld"><label>Ports</label><div class="hint">You can also add ports later while connecting: click a port, then this part.</div><div id="prows">${(part ? part.ports.filter(q => q.own) : []).map(prow).join("")}</div><button class="act" type="button" id="addport">+ Port</button> <span class="dsub">Missing a type? <span class="xref" onclick="document.querySelector('.modal').remove();openForm('port_type')">Add one</span></span></div>`),
+      extra: part ? {orig: d.orig} : {}}; }
+    case "part_delete": return {title: `Delete ${short(d.path)}`, sub: "Removes the part, its connections, and the links of requirements and ROS nodes to it. The preview lists them.", html: "", extra: {path: d.path}};
+    case "connect": { const ports = leafParts().flatMap(p => p.ports.filter(q => !q.missing).map(q => [`${p.path}.${q.name}`, portLabel(p.path, q)]));
+      return {title: "Connect two ports", sub: "Both ends must have the same type. Wires crossing subsystems appear in the Interfaces page automatically.", html:
+      fld("a", "From", "", sel("a", ports, d.a)) + `<div class="two">${fld("b_part", "To part", "", sel("b_part", leafParts().map(p => [p.path, short(p.path)]), d.bpart, "pick…"))}${fld("b_port", "Port", "", `<select name="b_port"></select>`)}</div>` +
+      `<div id="bnew" style="display:none">${fld("b_new", "Name of the new port", "", inp("b_new"))}</div>`}; }
+    case "disconnect": return {title: "Remove connection", sub: "", html: `<div class="pv">${H(short(d.a))}  ↔  ${H(short(d.b))}</div>`, extra: {a: d.a, b: d.b}};
+    case "allocate": { const n = M.nodes.find(x => x.name === d.node);
+      return {title: `Where does ${n.name} run?`, sub: "The computer or board that runs this ROS node. Shown in the Software view and the part's panel.", html:
+      fld("to", "Runs on", "", sel("to", leafParts().map(p => [p.path, short(p.path)]), n.host || "", "not allocated")), extra: {node: n.name}}; }
+    case "satisfy": { const groups = {}; leafParts().forEach(p => (groups[p.subsystem] ||= []).push(p));
+      return {title: `${r.id} belongs to…`, sub: `Without a pin, a requirement belongs to its subsystem (${H(r.prefix)}). Pin it when one part carries it, e.g. the battery for a runtime requirement.`, html:
+      `<div class="dsub" style="margin-bottom:8px">${H(r.text)}</div><div class="cklist">${Object.entries(groups).map(([g, ps]) => `<div class="g">${H(g)}</div>` + ps.map(p => `<label><input type="checkbox" name="parts[]" value="${H(p.path)}" ${r.parts.includes(p.path) ? "checked" : ""} style="width:auto;margin-right:6px">${H(p.name)}${p.doc ? ` <span style="color:var(--faint)">${H(p.doc.slice(0, 40))}</span>` : ""}</label>`).join("")).join("") || "No parts yet."}</div>`, extra: {rid: r.id}}; }
+    case "procedure": return {title: "New procedure", sub: "Written to docs/procedures/. Steps someone else can follow without you.", html:
+      fld("title", "What is this the procedure for?", 'e.g. "mounting a motor thermistor"', inp("title")) +
+      `<div class="two">${fld("applies", "Applies to (part / requirement)", "Optional.", inp("applies"))}${fld("duration", "Rough time it takes", "Optional.", inp("duration"))}</div>` +
+      fld("needs", "Tools and parts needed", "Optional. One per line.", area("needs")) + fld("steps", "Steps, in order", "Write each step as an action. One per line.", area("steps")) +
+      fld("warnings", "Warnings (what breaks if skipped)", "Optional. One per line.", area("warnings")) +
+      fld("photo", "Photo", "Optional. Upload puts it in docs/media/.", inp("photo") + `<label class="act" style="display:inline-block;margin-top:6px">Upload<input type="file" accept="image/*,video/*" data-upto="photo" style="display:none"></label>`)};
+    case "check": return {title: "New checklist line", sub: "Added to the pre-power checklist, with a history row saying why.", html:
+      fld("item", "The check, as something you can tick", 'e.g. "All terminal block wires have ferrules (tug test)"', inp("item")) +
+      fld("why", "Why it was added (what broke or nearly broke)", "", inp("why")) +
+      `<div class="two">${fld("section", "Section", "", sel("section", [...(S_.checklist || []).map(x => [x, x]), ["+new", "+ new section"]]))}<div id="newsec" style="display:none">${fld("new_section", "New section name", "", inp("new_section"))}</div></div>`};
+    case "log": return {title: "Devlog: this week", sub: "Added to this week's entry in docs/devlog.md (created if needed).", html:
+      fld("done", "Done this week", "One per line.", area("done")) + fld("broke", "What broke or what you learned", "Optional.", area("broke")) +
+      fld("next", "Next steps", "Optional.", area("next")) + fld("media", "Photos / videos saved (file names)", "Optional.", area("media"))};
     case "idea": return {title: "New idea", sub: "Creates a GitHub issue labelled idea.", html:
       fld("title", "Title", 'Short, e.g. "Heartbeat with failsafe stop"', inp("title")) + fld("what", "What: the idea in one or two sentences", "", area("what", "", "")) +
       fld("why", "Why: what problem it solves or what it enables", "", area("why", "", "")) +
@@ -775,7 +891,7 @@ function formSpec(kind, d) {
       fld("shall", "Requirement", 'Form: "The &lt;thing&gt; shall &lt;do what&gt; &lt;measurable limit&gt;."', area("shall", "", "The robot shall …")) +
       fld("rationale", "Rationale (why it matters)", "", inp("rationale")) +
       `<div class="two">${fld("method", "How will you verify it?", "", sel("method", METHODS_, "T"))}${fld("status", "Status", "", sel("status", [["Draft", "Draft"], ["Approved", "Approved"]], "Draft"))}</div>`};
-    case "test": return {title: "Record a test result", sub: "Sets the status and appends the evidence line, exactly like doc test.", html:
+    case "test": return {title: "Record a test result", sub: "Sets the status and appends a dated evidence line to the requirement.", html:
       fld("rid", "Requirement", "", sel("rid", reqOpts(), d.rid)) + (r ? `<div class="dsub" style="margin:-6px 0 12px">${H(r.text)}</div>` : "") +
       `<div class="two">${fld("result", "Result", "", sel("result", [["Verified", "Passed"], ["Failed", "Failed"]]))}${fld("date", "Test date", "", `<input name="date" type="date" value="${today_()}">`)}</div>` +
       fld("measured", "What did you measure / observe?", 'e.g. "stop at 5.2 s, 3 runs"', inp("measured")) +
@@ -828,6 +944,29 @@ function openForm(kind, data = {}) {
     const v = frm.value; if (v) v.onchange = () => { if ($("#whyw")) $("#whyw").innerHTML = v.value === "Deleted" ? fld("why", "Why is it dropped?", "", inp("why")) : "";
       if ($("#byw")) $("#byw").innerHTML = v.value === "Superseded" ? fld("by", "Superseded by decision number", "", sel("by", M.decisions.map(x => [x.num, `${x.num} · ${x.title}`]))) : ""; }; };
   if (frm.field) { frm.field.onchange = drawFv; drawFv(); }
+  frm.addEventListener("click", ev => { if (ev.target.matches("[data-rm]")) { ev.preventDefault(); ev.target.closest(".prow").remove(); } });
+  if ($("#addport")) $("#addport").onclick = () => { $("#prows").insertAdjacentHTML("beforeend", prow()); $("#prows").lastElementChild.querySelector("input").focus(); };
+  if (kind === "part" && !data.orig && $("#prows") && !$("#prows").children.length) $("#prows").insertAdjacentHTML("beforeend", prow());
+  if (kind === "board") { const upd = () => { const c = SET().ioc_candidates.find(x => x.path === frm.ioc.value);
+      if (c && !frm.name.value) frm.name.value = guessBoard(c.path);
+      $("#scanf").style.display = c && c.src && !SET().ros_paths.includes(c.src) ? "" : "none"; if (c && c.src) $("#scanh").textContent = `Adds ${c.src} to the ROS2 code folders.`; };
+    frm.ioc.onchange = upd; }
+  if (kind === "ros_paths") $("#rppick").onchange = e => { let v = e.target.value; if (!v) return; if (v === "+") v = "";
+    $("#rplist").insertAdjacentHTML("beforeend", `<div class="prow" style="grid-template-columns:1fr auto"><input name="paths[]" value="${H(v)}" placeholder="folder, relative to the project"><button class="act dz" type="button" data-rm>✕</button></div>`);
+    if (!v) $("#rplist").lastElementChild.querySelector("input").focus(); e.target.value = ""; };
+  if (kind === "check") frm.section.onchange = () => { $("#newsec").style.display = frm.section.value === "+new" ? "" : "none"; };
+  if (kind === "check" && frm.section.value === "+new") $("#newsec").style.display = "";
+  if (kind === "connect") { const fill = () => { const [ap, aq] = [frm.a.value.split(".").slice(0, -1).join("."), frm.a.value.split(".").pop()];
+      const qa = (M.parts[ap] || {ports: []}).ports.find(q => q.name === aq); const bp = M.parts[frm.b_part.value];
+      if (!qa || !bp) { frm.b_port.innerHTML = ""; $("#bnew").style.display = "none"; return; }
+      const fits = bp.ports.filter(q => q.type === qa.type && !q.missing);
+      frm.b_port.innerHTML = fits.map(q => `<option value="${H(q.name)}" ${q.name === data.bport ? "selected" : ""}>${H(q.name)} · ${H(q.meaning || q.type)}</option>`).join("") +
+        (!bp.type ? `<option value="+new" ${!fits.length || data.bport === "+new" ? "selected" : ""}>+ new ${H(qa.meaning || qa.type)} port</option>` : "") ||
+        `<option value="">no ${H(qa.type)} port here</option>`;
+      if (data.bport && !fits.some(q => q.name === data.bport) && bp.ports.some(q => q.name === data.bport)) toast(`${data.bport} is ${bp.ports.find(q => q.name === data.bport).type}, not ${qa.type}: pick a matching port`, true);
+      const isNew = frm.b_port.value === "+new"; $("#bnew").style.display = isNew ? "" : "none";
+      if (isNew && !frm.b_new.value) frm.b_new.value = aq.replace(/\d+$/, "") || aq; };
+    frm.a.onchange = fill; frm.b_part.onchange = fill; frm.b_port.onchange = () => { $("#bnew").style.display = frm.b_port.value === "+new" ? "" : "none"; if (frm.b_port.value === "+new" && !frm.b_new.value) frm.b_new.value = frm.a.value.split(".").pop().replace(/\d+$/, ""); }; fill(); }
   if ($("#addopt")) { let n = 0; $("#addopt").onclick = () => { n++; const o = document.createElement("div"); o.className = "opts";
     o.innerHTML = fld(`o${n}_name`, `Option ${n}: name`, "", inp(`o${n}_name`)) + `<div class="two">${fld(`o${n}_pros`, "Pros", "", area(`o${n}_pros`))}${fld(`o${n}_cons`, "Cons", "", area(`o${n}_cons`))}</div>`;
     $("#opts").appendChild(o); }; }
@@ -836,17 +975,24 @@ function openForm(kind, data = {}) {
     const box = $("#w_" + t.name); if (box) box.textContent = t.value && w.length ? "⚠ " + w.join(", ") + " (you can keep it anyway)" : ""; });
   frm.querySelectorAll("[data-upto]").forEach(u => u.onchange = async () => { for (const file of u.files) { $("#fmsg").textContent = `Uploading ${file.name}…`;
     const r = await upload(file); if (r) { const t = frm[u.dataset.upto]; t.value = (t.value ? t.value + (t.tagName === "TEXTAREA" ? "\n" : ", ") : "") + r.file; $("#fmsg").textContent = r.message; } } });
-  const collect = () => { const o = {...(spec.extra || {})}; new FormData(frm).forEach((v, k) => { if (!/^o\d+_/.test(k)) o[k] = v; });
-    if (frm.retest) o.retest = frm.retest.checked;
+  const collect = () => { const o = {...(spec.extra || {})};
+    new FormData(frm).forEach((v, k) => { if (/^o\d+_/.test(k)) return; if (k.endsWith("[]")) (o[k.slice(0, -2)] ||= []).push(v); else o[k] = v; });
+    frm.querySelectorAll("input[type=checkbox][name]").forEach(cb => { if (!cb.name.endsWith("[]")) o[cb.name] = cb.checked; });
+    if (kind === "part" && $("#prows")) o.ports = [...frm.querySelectorAll(".prow")].map(r => ({name: r.querySelector("[data-pn]").value.trim(), type: r.querySelector("[data-pt]").value, was: r.dataset.was || ""}));
+    if (kind === "ros_paths" && !o.paths) o.paths = [];
+    if (kind === "satisfy" && !o.parts) o.parts = [];
     if (kind === "decision") { o.options = []; document.querySelectorAll("#opts .opts").forEach((x, i) => o.options.push({name: frm[`o${i + 1}_name`].value, pros: frm[`o${i + 1}_pros`].value, cons: frm[`o${i + 1}_cons`].value})); }
     return o; };
   let stage = "form", body = null;
+  if (!spec.html) setTimeout(() => $("#fgo").click(), 0);
   $("#fgo").onclick = async () => {
     try {
       if (stage === "form") { body = collect(); const r = await post(`api/preview/${op}`, body);
         $("#pvw").style.display = ""; frm.style.display = "none";
-        $("#pvw").innerHTML = `<div class="dsub">Will write: <span class="mono">${H(r.target)}</span></div>${(r.warnings || []).map(w => `<div class="warn" style="color:var(--warn-ink);margin:6px 0">⚠ ${H(w)}</div>`).join("")}<div class="pv">${H(r.preview)}</div>`;
-        $("#fgo").textContent = op === "idea" || op === "bug" ? "Create issue" : "Write it"; $("#fcancel").textContent = "Back"; $("#fcancel").onclick = () => { stage = "form"; frm.style.display = ""; $("#pvw").style.display = "none"; $("#fgo").textContent = "Preview"; $("#fcancel").textContent = "Cancel"; $("#fcancel").onclick = () => m.remove(); };
+        const diff = /^── /m.test(r.preview || "");
+        const pvh = diff ? H(r.preview).split("\n").map(l => l.startsWith("──") ? `<b>${l}</b>` : l.startsWith("@@") ? `<span class="dhunk">${l}</span>` : l.startsWith("+") ? `<span class="dadd">${l}</span>` : l.startsWith("-") ? `<span class="ddel">${l}</span>` : l).join("\n") : H(r.preview);
+        $("#pvw").innerHTML = `<div class="dsub">Will write and commit: <span class="mono">${H(r.target)}</span></div>${(r.warnings || []).map(w => w.startsWith("fixes:") ? `<div class="warn wgood" style="margin:6px 0">✓ ${H(w)}</div>` : `<div class="warn ${w.startsWith("new model problem") || w.startsWith("the model would not") ? "wbad" : ""}" style="color:var(--warn-ink);margin:6px 0">${w.startsWith("also") || w.startsWith("adds") || w.endsWith("folders") ? "•" : "⚠"} ${H(w)}</div>`).join("")}<div class="pv">${pvh}</div>`;
+        $("#fgo").textContent = op === "idea" || op === "bug" ? "Create issue" : /delete|remove|disconnect/.test(op) ? "Yes, do it" : "Write it"; $("#fcancel").textContent = "Back"; $("#fcancel").onclick = () => { stage = "form"; frm.style.display = ""; $("#pvw").style.display = "none"; $("#fgo").textContent = "Preview"; $("#fcancel").textContent = "Cancel"; $("#fcancel").onclick = () => m.remove(); };
         stage = "preview";
       } else { $("#fgo").disabled = true; $("#fmsg").textContent = "Saving…"; const r = await post(`api/apply/${op}`, body);
         m.remove(); toast(r.message + (r.url ? " " + r.url : "")); setTimeout(() => location.reload(), 900); }
@@ -854,7 +1000,41 @@ function openForm(kind, data = {}) {
   };
 }
 
+// ------------------------------------------------------------------ setup
+function setupPage() {
+  const st = SET(), subs = st.subsystems, live = subs.filter(x => !x.deleted);
+  const custom = st.port_types.filter(t => t.custom), builtin = st.port_types.filter(t => !t.custom);
+  page(`<h2>Setup</h2><p class="lead">What the model is built from. Every change here is previewed, then written to <span class="mono">docs/model/model.toml</span> (and the arch file, the README table and the issue forms where they depend on it), committed and pushed like any record.</p>
+  <div class="panel"><h3>Subsystems <span class="chip">${live.length}</span><span style="flex:1"></span><button class="newbtn" data-form="subsystem">+ Subsystem</button></h3>
+    <div class="dsub" style="margin-bottom:8px">The boxes of the system diagram, and the prefixes of requirement IDs: <span class="mono">CTRL-001</span> belongs to <span class="mono">CTRL</span>. Group them the way the robot comes apart: by board or function on one chassis (CTRL, COMP, COMM, DRIVE, PWR), by assembly when there are several (BASE, ARM). Add a box-less group such as SYS for whole-robot requirements.</div>
+    ${subs.length ? `<table class="stab"><tr><th></th><th>Prefix</th><th>Name</th><th>In diagram</th><th>Requirements</th><th>Parts</th><th></th></tr>${subs.map((x, i) => `<tr class="${x.deleted ? "gone" : ""}">
+      <td style="white-space:nowrap">${x.deleted ? "" : `<button class="act" style="padding:0 6px" data-mv="${H(x.prefix)}" data-dir="-1" ${i ? "" : "disabled"}>↑</button><button class="act" style="padding:0 6px" data-mv="${H(x.prefix)}" data-dir="1" ${i < subs.length - 1 ? "" : "disabled"}>↓</button>`}</td>
+      <td class="mono"><b>${H(x.prefix)}</b></td><td>${H(x.name)}${x.about ? `<div class="dsub" style="margin:0">${H(x.about)}</div>` : ""}</td>
+      <td>${x.box ? (M.parts[`${M.top}.${x.prefix}`] ? `<span class="lnk xref" data-part="${M.top}.${H(x.prefix)}">box</span>` : "box") : `<span class="dsub">requirements only</span>`}</td><td>${x.reqs}</td><td>${x.box ? x.parts : "—"}</td>
+      <td class="acts">${x.deleted ? `<span class="dsub">deleted (IDs kept)</span> <button class="act" data-op="subsystem_restore" data-prefix="${H(x.prefix)}">Restore</button>` : `<button class="act" data-form="subsystem" data-prefix="${H(x.prefix)}">Edit</button> <button class="act dz" data-form="subsystem_delete" data-prefix="${H(x.prefix)}">Delete</button>`}</td></tr>`).join("")}</table>`
+      : `<div class="empty" style="padding:20px">No subsystems yet. Add the first one: everything else (boards, parts, requirements) goes into a subsystem.</div>`}</div>
+  <div class="panel"><h3>Boards <span class="chip">${st.boards.length}</span><span style="flex:1"></span><button class="newbtn" data-form="board" ${boxSubs().length ? "" : "disabled title='Add a subsystem first'"}>+ Board</button></h3>
+    <div class="dsub" style="margin-bottom:8px">Microcontrollers with a CubeMX project. Each points at its own <span class="mono">.ioc</span> file; its pins, buses, timers and clock settings are read from there on every rebuild. Computers without an .ioc (a Raspberry Pi) are ordinary parts: add them in the System views with Edit.</div>
+    ${st.boards.length ? `<table class="stab"><tr><th>Name</th><th>.ioc file</th><th>Placed in</th><th></th></tr>${st.boards.map(b => `<tr><td class="mono"><b>${H(b.name)}</b></td><td class="mono" style="font-size:12px">${H(b.ioc)}</td>
+      <td>${b.placed.map(p => `<span class="chip" data-part="${H(p)}">${H(short(p))}</span>`).join(" ") || `<span class="warnline">not placed</span>`}</td>
+      <td class="acts"><button class="act" data-form="board_ioc" data-name="${H(b.name)}">Change .ioc</button> <button class="act dz" data-form="board_remove" data-name="${H(b.name)}">Remove</button></td></tr>`).join("")}</table>`
+      : `<div class="dsub">No boards yet.${st.ioc_candidates.length ? ` Found ${st.ioc_candidates.length} .ioc file(s) in the repo.` : " No .ioc files found in the repo."}</div>`}</div>
+  <div class="panel"><h3>ROS2 code folders <span class="chip">${st.ros_paths.length}</span><span style="flex:1"></span><button class="act" data-form="ros_paths">Change</button></h3>
+    <div class="dsub" style="margin-bottom:8px">Scanned for nodes, publishers and subscribers (C++, Python, micro-ROS C). The robot does not need to be on. Which computer runs each node is set on the node (Software view).</div>
+    ${st.ros_paths.map(x => `<div class="mono" style="padding:3px 0">${H(x)}</div>`).join("") || `<div class="dsub">None yet.</div>`}
+    <div class="dsub" style="margin-top:6px">${M.nodes.length} node(s), ${M.topics.length} topic(s) found.</div></div>
+  <div class="panel"><h3>Port types<span style="flex:1"></span><button class="act" data-form="port_type">+ Port type</button></h3>
+    <div class="dsub" style="margin-bottom:8px">A port connects only to a port of the same type. Built in: ${builtin.map(t => `<span class="mono">${H(t.name)}</span>`).join(", ")}.</div>
+    ${custom.length ? `<table class="stab"><tr><th>Type</th><th>Kind</th><th>Meaning</th><th></th></tr>${custom.map(t => `<tr><td class="mono">${H(t.name)}</td><td>${H(t.kind)}</td><td>${H(t.meaning)}</td><td class="acts"><button class="act dz" data-form="port_type_delete" data-name="${H(t.name)}">Delete</button></td></tr>`).join("")}</table>` : `<div class="dsub">No types of your own yet (e.g. Power5V for a 5 V rail, MotorMount for a mechanical mount).</div>`}</div>
+  <div class="panel"><h3>Project</h3><div class="kv"><div>Name</div><div class="mono">${H(st.project)}</div><div>Arch file</div><div class="mono">${H(M.arch_file)}</div><div>Server</div><div>${S_.push ? "commits and pushes" : "commits only (--no-push)"} · ${H(S_.commit || "")}</div></div></div>`);
+  document.querySelectorAll("[data-mv]").forEach(b => b.onclick = () => quick("subsystem_move", {prefix: b.dataset.mv, dir: b.dataset.dir}));
+  document.querySelectorAll("[data-op]").forEach(b => b.onclick = () => quick(b.dataset.op, {prefix: b.dataset.prefix}));
+}
+async function quick(op, body) {
+  try { const r = await post(`api/apply/${op}`, body); toast(r.message); setTimeout(() => location.reload(), 700); } catch (e) { toast(e.message, true); }
+}
+
 loadHash(); const _sel = selected; chrome(); render(); if (_sel && M.parts[_sel]) setTimeout(() => showPart(_sel), 500);
 if (SERVED) startPolling();
-document.addEventListener("keydown", e => { if (e.key === "Escape") closeDrawer(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") { if (pend) cancelPend(); else closeDrawer(); } });
 </script></body></html>

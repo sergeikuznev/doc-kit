@@ -1,7 +1,7 @@
 # The engineering record handbook
 
-[Using the page](PAGE.md) and [Using the terminal](TERMINAL.md) explain how to
-use doc-kit. This handbook explains the thinking behind each record: what it is for, when to write one, what a good one
+[Using the page](PAGE.md) explains how to use doc-kit (and
+[TERMINAL.md](TERMINAL.md) the few setup commands). This handbook explains the thinking behind each record: what it is for, when to write one, what a good one
 looks like, and how the records connect into one picture of your project.
 
 Every example comes from the two worked projects in [examples/](../examples/):
@@ -148,7 +148,7 @@ The failed test is not deleted. It is the most useful part of the record.
 ## 3. Issue: ideas and bugs
 
 **What:** a GitHub issue that captures an idea or a problem in 30 seconds so it
-is not lost. Write it: **+ New → Idea / Bug** on the page, or `doc idea` / `doc bug`.
+is not lost. Write it: **+ New → Idea / Bug** on the page.
 
 **Write one when:** you think "we should..." or "that's wrong" and are not going
 to act on it in the next few minutes.
@@ -171,7 +171,7 @@ bugs without the expected behaviour, so nobody knows when it is fixed.
 ## 4. Decision
 
 **What:** a short record of **why** you chose one option over others. Written
-once, never edited. Write it: **+ New → Decision**, or `doc decision`.
+once, never edited. Write it: **+ New → Decision**.
 
 **Write one when:**
 - you compared two or more real options, or
@@ -208,7 +208,7 @@ Full example: [decision 001](../examples/power-system/docs/decisions/001-use-a-3
 ## 5. Requirement
 
 **What:** a measurable promise about what the system **shall** do, written so it
-can be tested and end up Verified or Failed. Write it: **+ New → Requirement**, or `doc req`.
+can be tested and end up Verified or Failed. Write it: **+ New → Requirement**.
 
 **Write one when:** you commit to building something, or a decision or fault
 needs a promise behind it.
@@ -241,7 +241,7 @@ evidence.
 
 **What:** one row per thing that can go wrong, planning how it is **detected**,
 **isolated** and **recovered from**. FDIR stands for Fault Detection, Isolation
-and Recovery. Write it: **+ New → Fault**, or `doc fault`.
+and Recovery. Write it: **+ New → Fault**.
 
 **Write one when:** you ask "what if this breaks?" about a part, a link or a
 power rail. Best done while designing, before it happens for real.
@@ -278,7 +278,7 @@ recovery; leaving the Req column empty forever (see Chain 2).
 ## 7. Verification and evidence
 
 **What:** proof that a requirement is met: what you measured, and where the
-proof is stored. Write it: **Record test** on the requirement (with the photo or log as an upload), or `doc test ID`.
+proof is stored. Write it: **Record test** on the requirement (with the photo or log as an upload).
 
 **Evidence has two parts:**
 1. **The result:** "34, 33 and 35 min over 3 runs from a full balance charge."
@@ -325,7 +325,7 @@ robots link to it, so there is never a second, drifting copy.
 ## 9. Procedure
 
 **What:** numbered steps for something you would otherwise forget or do wrong.
-Write it: `doc procedure` (terminal; no page form yet).
+Write it: **+ New → Procedure**.
 
 **Write one when:** a task took you more than one attempt to get right, or a
 mistake in it damages hardware (charging, flashing, calibrating, mounting).
@@ -340,7 +340,7 @@ Example: [charging a LiPo pack](../examples/power-system/docs/procedures/chargin
 ## 10. Checklist
 
 **What:** the pre-power checklist: short checks run before powering up after any
-hardware change. Write it: `doc check` (terminal; no page form yet).
+hardware change. Write it: **+ New → Checklist line**.
 
 **Write a line when:** something broke, or nearly did. Each line carries the
 date and the reason in the history table, so nobody deletes it as "obvious".
@@ -358,7 +358,7 @@ lines with no reason (then they get removed).
 ## 11. Devlog
 
 **What:** ten minutes a week: what was done, what broke or was learned, what is
-next. Write it: `doc log` (terminal; no page form yet).
+next. Write it: **+ New → Devlog**.
 
 **Why bother:** it is the most readable record of how the project evolved, and
 it catches anything the other records missed.
@@ -372,13 +372,14 @@ the details; put failures and lessons in, not only progress.
 
 Projects change. The record should show how, not hide it.
 
-| Situation | What to do | On the page | Terminal |
-|---|---|---|---|
-| A requirement's number turns out wrong | Change it; the old text goes in the change log; retest if it was Verified | Edit | `doc update ID` |
-| A requirement is no longer needed | Mark it **Deleted** with a reason. Never reuse the ID | Mark deleted | `doc update ID` |
-| You change your mind about a decision | Write a **new** decision that supersedes the old one; the old one is marked "Superseded by NNN" | + New → Decision, "Replaces" | `doc decision` |
-| A proposed decision is agreed | Change its status to Accepted | Change status | `doc update NNN` |
-| A fault now has a requirement covering it | Fill in the Req column | Edit on the fault | `doc update FM-NNN` |
+| Situation | What to do | On the page |
+|---|---|---|
+| A requirement's number turns out wrong | Change it; the old text goes in the change log; retest if it was Verified | Edit |
+| A requirement is no longer needed | Mark it **Deleted** with a reason. Never reuse the ID | Mark deleted |
+| You change your mind about a decision | Write a **new** decision that supersedes the old one; the old one is marked "Superseded by NNN" | + New → Decision, "Replaces" |
+| A proposed decision is agreed | Change its status to Accepted | Change status |
+| A fault now has a requirement covering it | Fill in the Req column | Edit on the fault |
+| A subsystem is renamed | Change its name; its prefix stays, because requirement IDs never change | Setup → Edit |
 
 From the power-system example: PWR-002 was first written with a 3.0 V cutoff.
 Under load, cell voltage sags, so 3.0 V left no margin. It was changed to 3.3 V,
@@ -449,9 +450,8 @@ At the end of the week (10-15 minutes):
 
 1. Open the page: **Overview** (problems must be zero, then the gaps),
    **Requirements → Failed** and **Approved** (not yet tested), warnings on **Faults**.
-   Or `doc report` and its **Needs attention** list.
 2. Turn each item you will act on into an issue (+ New → Idea) or plan the test.
-3. Write the devlog entry: what was done, what broke, what is next (`doc log`).
+3. Write the devlog entry (**+ New → Devlog**): what was done, what broke, what is next.
 
 That list is your to-do list for the next week, generated from the record
 instead of from memory.
@@ -560,105 +560,137 @@ Two kinds of information, kept apart on purpose:
 
 - **Facts** are already written down somewhere else: pins and peripheral
   settings in the `.ioc`, topics in the ROS2 code, requirements and faults in
-  `docs/`. `doc model` reads them and writes `docs/model/<name>_facts.sysml`.
-  Never edit that file; change the source instead.
+  `docs/`. doc-kit reads them on every build and writes
+  `docs/model/<name>_facts.sysml`. Nobody edits that file; change the source instead.
 - **Architecture** is what only you know: that the nRF24 sits on SPI1, that the
-  radio belongs to COMM, that the EKF runs on the Pi. You write it in
-  `docs/model/<name>_arch.sysml`.
+  radio belongs to COMM, that the EKF runs on the Pi. You enter it on the page
+  (Setup, and **Edit** in the diagrams), and the page keeps it in
+  `docs/model/model.toml` and `docs/model/<name>_arch.sysml`.
 
-The facts file says SPI1 exists on PA5 to PA7 at 3.75 Mbit/s. Only the arch
-file can say what is plugged into it.
+The facts say SPI1 exists on PA5 to PA7 at 3.75 Mbit/s. Only the architecture
+can say what is plugged into it.
 
-### Setting up
+### Subsystems
 
-Run `doc model setup` once. It lists the `.ioc` files it finds and asks which
-board each one is and which subsystem holds it, then which folders hold ROS2 or
-micro-ROS code. Every board points at its own `.ioc` file, so folder names do
-not matter and a folder with several `.ioc` files is never guessed. The answers
-go in `docs/model/model.toml`, which you can also edit by hand.
+Subsystems are the boxes of the system diagram and the prefixes of requirement
+IDs: every `PWR-###` requirement lands in `PWR` without any extra step, and
+faults land where their covering requirement lands. A subsystem can also be
+*requirements only* (no box), for requirements about the whole robot (`SYS`)
+or about fault handling (`FDIR`).
 
-### Writing the arch file
+Group them the way the robot comes apart:
 
-SysML v2 text, a small subset:
+- **One chassis**: by function. `CTRL` (the MCU and what is wired to it),
+  `COMP` (the onboard computer), `COMM` (radios), `DRIVE` (drivers, motors),
+  `PWR` (battery, regulators).
+- **Several assemblies**, each with its own MCU (a base and an arm): by
+  assembly, `BASE` and `ARM`. The base ↔ arm link then becomes an interface in
+  the generated ICD, which is exactly what you want to agree on between them.
+
+A prefix is permanent once a requirement uses it; the name can change any time.
+
+### Boards, parts, ports, wires
+
+- **A board** is a microcontroller with a CubeMX project. It points at its own
+  `.ioc` file; its ports are read from there: one per peripheral (`spi1`,
+  `tim3`, `usb_otg_fs`) and one per labelled GPIO (`nrf24_csn`), each with its
+  pins and saved settings. Several `.ioc` files in one folder are never guessed
+  between.
+- **A part** is anything else: a module, sensor, driver, battery, computer.
+  You give it ports.
+- **A port type** says what a port carries, and so which view shows it:
+  Signal (SPI, I²C, UART, GPIO, …), Power or Mechanical. A wire joins two
+  ports of the same type. Make your own types (`Power5V`, `MotorMount`) when
+  the check should be stricter.
+- **A wire** (`connect` in the file) joins two ports.
+- **Runs on** (`allocate`) says which computer or board runs a ROS node.
+- **Pinned to** (`satisfy`) ties a requirement to one part instead of its whole subsystem.
+- **Decisions** link to parts by naming them on their Related line
+  (`**Related:** PWR-001, battery`).
+
+### What the file looks like
+
+You do not need to read or write it, but it is plain text, so here is what a
+diff in a pull request looks like. SysML v2 textual notation, a small subset:
 
 ```
-package CHIMERA_arch {
-    private import CHIMERA_facts::*;
+package ROVER_arch {
+    private import ROVER_facts::*;
 
-    port def PowerRail :> Power;          // your own link kinds: :> Power or :> Mechanical
-    part def NRF24L01 {                   // a module outside the MCU
-        port spi : ~SpiBus;               // ~ = the receiving end
-        port csn : ~GpioOut;
-        port vcc : ~PowerRail;
-    }
+    port def PowerRail :> Power;                  // a port type of your own
 
-    part chimera {                        // the robot
-        part CTRL { part mcu : STM32_ROBOT { port vin : ~PowerRail; } }
-        part COMM { part radio : NRF24L01; }
+    part rover {                                  // the robot
+        part CTRL {
+            part mcu : STM32_ROBOT;               // a board: ports from its .ioc
+        }
+        part COMM {
+            part radio {
+                doc /* nRF24L01+ 2.4 GHz radio */
+                port spi : ~SpiBus;               // ~ = the mirror end; the page sets it
+                port csn : ~GpioOut;
+                port vcc : ~PowerRail;
+            }
+        }
+
         connect CTRL.mcu.spi1 to COMM.radio.spi;
         connect CTRL.mcu.nrf24_csn to COMM.radio.csn;
     }
 
-    allocate ROS::chimera_ekf to chimera.CTRL.pi;   // which computer runs a node
-    satisfy 'PWR-002' by chimera.PWR.battery;       // a requirement owned by one part
+    allocate ROS::rover_ekf to rover.CTRL.pi;     // which computer runs a node
+    satisfy 'PWR-002' by rover.PWR.battery;       // a requirement owned by one part
 }
 ```
 
-- **Subsystems** are the parts directly inside the robot. Name them after your
-  requirement prefixes: every `PWR-###` requirement lands in `part PWR`
-  without any extra line. Faults land where their covering requirement lands.
-- **Port names on the MCU** come from the `.ioc`: one per peripheral (`spi1`,
-  `tim3`, `usb_otg_fs`) and one per labelled GPIO (`nrf24_csn`). The facts file
-  lists them all.
-- **Port types** decide the view a link appears in. The MCU's types (`SpiBus`,
-  `GpioOut`, `EncoderIn`, ...) are Signal. Define `port def X :> Power;` for
-  power rails and `:> Mechanical;` for mounts. Both ends of a `connect` must
-  have the same type, one end with `~`.
-- **Decisions** link to parts by naming them on their Related line
-  (`**Related:** PWR-001, battery`).
+The page rewrites this file in one fixed layout on every change. Hand edits
+are allowed and checked the same way, but `//` comments do not survive the next
+page edit. Files written by earlier doc-kit versions, with `part def` types of
+their own, keep working: such parts get their ports from their type.
 
 ### What the check catches
 
-`doc model` and the pre-commit hook stop on: a `connect` to a port that is not
-in the facts (pin renamed or removed in CubeMX), mismatched types (an SPI bus
-wired to a GPIO), an unknown part type, an `allocate` to a ROS node that is not
-in the code, a `satisfy` for a requirement that does not exist, one topic used
-with two message types. Broken links are drawn red in the page instead of
-disappearing.
+The page, `doc model --check` and the pre-commit hook stop on: a wire to a port
+that is not in the facts (pin renamed or removed in CubeMX), mismatched types
+(an SPI bus wired to a GPIO), an unknown part type, a node allocated to a part
+that does not exist, a pin for a requirement that does not exist, one topic used
+with two message types. Broken wires are drawn red and dashed instead of
+disappearing, and every page edit previews the problems it adds or fixes.
 
 Gaps are not errors, they are review questions: a subsystem with no
 requirements or no fault analysed, a fault no requirement covers, a topic
-nobody subscribes to, a ROS node not allocated to any computer, a module with
-nothing connected.
+nobody subscribes to, a ROS node not allocated to any computer, a part with
+nothing connected, a board not placed in any subsystem.
 
 ### Seeing it
 
-Every view, panel and form of the page is explained with screenshots in
-[Using the page](PAGE.md); the commands are in [Using the terminal](TERMINAL.md#5-the-system-model-from-the-terminal).
+Every view, panel and form is explained with screenshots in
+[Using the page](PAGE.md): Setup in [section 3](PAGE.md#3-setup-subsystems-boards-code),
+parts and wiring in [section 4](PAGE.md#4-building-the-robot-parts-and-wiring).
 
 ---
 
 ## 16. Quick reference
 
-| When this happens | Write | On the page | Terminal |
-|---|---|---|---|
-| You get an idea | Issue | + New → Idea | `doc idea` |
-| Something behaves wrong | Bug issue | + New → Bug | `doc bug` |
-| You choose between options | Decision | + New → Decision | `doc decision` |
-| You commit to building something | Requirement | + New → Requirement | `doc req` |
-| You ask "what if it breaks?" | Fault row | + New → Fault | `doc fault` |
-| You test a requirement | Evidence | Record test | `doc test ID` |
-| You do a task with steps you'd forget | Procedure | | `doc procedure` |
-| Something breaks or nearly breaks | Checklist line | | `doc check` |
-| Something written earlier changes | Update | Edit, Mark deleted, Change status | `doc update` |
-| End of the week | Devlog entry | | `doc log` |
-| You want the big picture | | Overview | `doc report` |
-| Wiring, modules or ROS2 code changed | Arch file | the page rebuilds itself | `doc model` |
+| When this happens | Write | On the page |
+|---|---|---|
+| You get an idea | Issue | + New → Idea |
+| Something behaves wrong | Bug issue | + New → Bug |
+| You choose between options | Decision | + New → Decision |
+| You commit to building something | Requirement | + New → Requirement |
+| You ask "what if it breaks?" | Fault row | + New → Fault |
+| You test a requirement | Evidence | Record test |
+| You do a task with steps you'd forget | Procedure | + New → Procedure |
+| Something breaks or nearly breaks | Checklist line | + New → Checklist line |
+| Something written earlier changes | Update | Edit, Mark deleted, Change status |
+| End of the week | Devlog entry | + New → Devlog |
+| You want the big picture | | Overview |
+| You add a module or a wire | Part, wire | System views → Edit |
+| A new board, subsystem or ROS2 folder | Setup entry | Setup |
+| A pin or a topic changed in the code | nothing: the page rebuilds itself | (fix any red wire with Edit) |
 
 ### Habits
 
 - **Close the loop:** when you close an issue, ask whether it created a decision,
-  requirement or procedure. `doc install-hook` asks you automatically.
+  requirement or procedure. After `doc install-hook`, a commit with `fixes #N` reminds you.
 - **Commit messages:** `type(area): what changed (#issue)`, with types
   `feat`, `fix`, `docs`, `refactor`, `chore`.
 - **Names:** lowercase, underscores, no spaces. Media starts with the date.

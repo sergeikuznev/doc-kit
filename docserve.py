@@ -11,13 +11,14 @@ What it does while running:
     model when any input changed, refreshes GitHub issues every 5 minutes;
   - serves the page, docs/media files, and /api/version (the page polls it and
     offers a reload when something changed);
-  - accepts the forms on the page: each one writes the same files the terminal
-    commands write (shared functions in doc.py), then commits and pushes.
+  - accepts the forms on the page: records (doc.py op_* functions) and the model
+    editor (docedit.py: Setup, parts, wiring), then commits and pushes.
 
 It refuses to write a file that has uncommitted changes in this working copy,
 so it never commits half of your own edits.
 """
 
+import difflib
 import hashlib
 import json
 import mimetypes
@@ -30,6 +31,7 @@ import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+import docedit
 import docmodel
 
 doc = sys.modules.get("__main__")  # doc.py, which imports this module
@@ -69,7 +71,13 @@ class Server:
     # ---------------------------------------------------------------- model
     def _fingerprint(self):
         h = hashlib.sha1()
-        for base in ("docs", "firmware", "ros2_ws", "tools"):
+        bases = ["docs", "firmware", "ros2_ws", "software", "tools"]
+        try:
+            cfg = docmodel.load_config(self.root)
+            bases += list(cfg["ros"]["paths"]) + [os.path.dirname(b.get("ioc", "")) for b in cfg["board"]]
+        except docmodel.ModelError:
+            pass
+        for base in dict.fromkeys(b for b in bases if b):
             top = os.path.join(self.root, base)
             for dirpath, dirs, files in os.walk(top):
                 dirs[:] = [d for d in dirs if d not in (".git", "build", "install", "log", "Debug", "Release", "Drivers", "Middlewares")]
@@ -99,15 +107,20 @@ class Server:
                 docmodel.collect_extras_link_issues(m)
                 m["served"] = {"push": self.push, "commit": self.git("rev-parse", "--short", "HEAD").stdout.strip(),
                                "firmware": self.git("describe", "--always", "--dirty").stdout.strip(),
-                               "labels": doc.subsystems(), "prefixes": doc.req_prefixes()}
+                               "labels": doc.subsystems(), "prefixes": [(r[0], r[1]) for r in doc.subsystem_rows()],
+                               "setup": docedit.setup_info(self.root, m), "checklist": doc.checklist_sections(),
+                               "procedures": sorted(os.listdir(os.path.join(self.root, "docs", "procedures")))
+                               if os.path.isdir(os.path.join(self.root, "docs", "procedures")) else []}
                 data = json.dumps({k: v for k, v in m.items() if k != "built"}, sort_keys=True, default=list)
-                version = hashlib.sha1(data.encode()).hexdigest()[:12]
+                here = os.path.dirname(os.path.abspath(docmodel.__file__))
+                tpl = os.stat(os.path.join(here, "docmodel_page.html"))  # a newer page template also counts
+                version = hashlib.sha1((data + str(tpl.st_mtime_ns)).encode()).hexdigest()[:12]
                 if version != self.version:
                     m["version"] = version
                     self.model, self.version, self.error = m, version, None
                     self.page = docmodel.page(m).encode()
                     self.note(f"model rebuilt (version {version})")
-            except docmodel.ModelError as e:
+            except (docmodel.ModelError, docedit.EditError) as e:
                 self.error = str(e)
                 self.note(f"model error: {e}")
             self.inputs = fp
@@ -130,10 +143,28 @@ class Server:
                 raise doc.OpError(f"{relp} has uncommitted changes in {self.root}. Commit or stash them first, "
                                   f"so the page does not commit half of your edit.")
 
+    def _facts(self):
+        """Regenerate <name>_facts.sysml, as the pre-commit hook would; returns its path if it changed."""
+        try:
+            m = docmodel.build(self.root)
+        except docmodel.ModelError:
+            return None
+        path = os.path.join(self.root, "docs", "model", f"{m['name']}_facts.sysml")
+        text = docmodel.facts_sysml(m)
+        if os.path.exists(path) and open(path, encoding="utf-8").read() == text:
+            return None
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        return path
+
     def commit(self, paths, message):
+        facts = self._facts()
+        if facts and facts not in paths:
+            paths = list(paths) + [facts]
         rels = [os.path.relpath(x, self.root) for x in paths]
         self.git("add", "--", *rels, check=True)
-        r = self.git("commit", "-m", message, "--", *rels)
+        # the page has already shown the problems this change adds, so the commit check is not run again
+        r = self.git("commit", "--no-verify", "-m", message, "--", *rels)
         if r.returncode:
             raise doc.OpError("commit stopped: " + (r.stdout + r.stderr).strip()[-800:])
         pushed = None
@@ -241,6 +272,23 @@ class Server:
             writes = D.op_update_fault(fid, new)
             preview = f"before: {D.join_row(row)}\nafter:  {D.join_row(new)}"
             msg = f"doc: update {fid}"
+        elif op == "procedure":
+            writes, preview = D.op_procedure(need("title"), f.get("applies", "").strip(), f.get("duration", "").strip(),
+                                             lines("needs"), lines("steps"), lines("warnings"), f.get("photo", "").strip())
+            msg = f"doc: procedure {need('title')}"
+        elif op == "check":
+            sec = (f.get("new_section") or "").strip() if f.get("section") == "+new" else f.get("section", "")
+            writes, preview = D.op_check(need("item"), need("why"), sec or "")
+            msg = f"doc: checklist line ({need('item')[:50]})"
+        elif op == "log":
+            writes, preview = D.op_log({k: lines(k) for k in ("done", "broke", "next", "media")})
+            msg = "doc: devlog"
+        elif op in docedit.OPS:
+            writes, msg, notes = docedit.run(op, self.root, f, self.model)
+            warnings += notes
+            preview, extra = self._model_preview(writes)
+            warnings += extra
+            msg = "doc: " + msg
         elif op == "update_decision":
             num, field = need("num"), need("field")
             value = need("value")
@@ -261,6 +309,26 @@ class Server:
             self.rebuild(force=True)
         return {"message": msg.replace("doc: ", "Saved: ") + ("" if pushed is None else " · pushed" if pushed else " · push failed, commit kept locally"),
                 "version": self.version}
+
+    def _model_preview(self, writes):
+        """Diff of each file, plus the model problems this change would add or fix."""
+        out = []
+        for path, text in writes:
+            relp = os.path.relpath(path, self.root)
+            old = open(path, encoding="utf-8").read().splitlines() if os.path.exists(path) else []
+            diff = list(difflib.unified_diff(old, text.splitlines(), relp, relp, n=1, lineterm=""))[2:]
+            out.append(f"── {relp}{' (new file)' if not old else ''}\n" + "\n".join(diff))
+        norm = lambda xs: {re.sub(r":\d+:", ":", x) for x in xs}
+        warn = []
+        try:
+            after = docmodel.build(self.root, dict(writes))["problems"]
+            before = (self.model or {}).get("problems", [])
+            added, fixed = norm(after) - norm(before), norm(before) - norm(after)
+            warn += [f"new model problem: {x}" for x in sorted(added)]
+            warn += [f"fixes: {x}" for x in sorted(fixed)]
+        except docmodel.ModelError as e:
+            warn.append(f"the model would not build: {e}")
+        return "\n\n".join(out), warn
 
     def upload(self, name, data):
         safe = re.sub(r"[^\w.\-]+", "_", os.path.basename(name)).strip("._") or "upload"
@@ -332,7 +400,7 @@ def make_handler(S):
                 if not m:
                     return self.send(404, {"error": "not found"})
                 return self.send(200, S.apply(m.group(2), json.loads(raw or b"{}"), dry=m.group(1) == "preview"))
-            except doc.OpError as e:
+            except (doc.OpError, docedit.EditError, docmodel.ModelError) as e:
                 return self.send(400, {"error": str(e)})
             except Exception as e:
                 return self.send(500, {"error": f"{type(e).__name__}: {e}"})

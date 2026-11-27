@@ -1,7 +1,7 @@
 # {{PROJECT}} pre-power checklist
 
 Run this before powering up after any hardware change.
-Every line exists because something broke, or nearly did. Add lines with: doc check
+Every line exists because something broke, or nearly did. Add lines on the page: + New › Checklist line.
 
 ## Wiring
 - [ ] No loose or exposed conductors near the chassis or moving parts.

@@ -23,7 +23,7 @@ body:
     id: subsystem
     attributes:
       label: Subsystem
-      options: [comms, power, motors, sensors, software, mech, fdir, other]
+      options: [general]   # written from the page (Setup): your subsystem prefixes in lowercase
     validations:
       required: true
   - type: dropdown
