@@ -374,6 +374,12 @@ class Server:
                     os.makedirs(os.path.dirname(path), exist_ok=True)
                     with open(path, "w", encoding="utf-8") as fh:
                         fh.write(text)
+            if inside:  # files git ignores (e.g. a parts folder listed in .gitignore) are written but not committed
+                rels = [os.path.relpath(w[0], self.root) for w in inside]
+                ign = set(self.git("check-ignore", "--", *rels).stdout.split())
+                if ign:
+                    warnings.append(f"{', '.join(sorted(ign))}: ignored by .gitignore, so saved on this computer only (not committed)")
+                    inside = [w for w in inside if os.path.relpath(w[0], self.root) not in ign]
             pushed = self.commit([w[0] for w in inside], msg) if inside else None
             self.rebuild(force=True, issues=False)
             self.inputs = None
