@@ -828,7 +828,7 @@ async function issueOp(op, body) {
   if (op === "issue_comment" && body.body) { (pendingComments[body.number] ||= []).push({type: "comment", who: S_.me || "you", at: now, body: body.body}); setTimeout(() => delete pendingComments[body.number], 15000);
     if ($("#icom")) $("#icom").value = ""; }
   const again = reopen; chrome(); if (["issues", "overview"].includes(view)) render(); if (again && op !== "issue_delete") again();
-  try { const r = await post(`api/apply/${op}`, body); toast(r.message); if (window.syncNow) syncNow(); }
+  try { await post(`api/apply/${op}`, body); if (window.syncNow) syncNow(); }
   catch (e) { toast(e.message, true); refreshModel(); }
 }
 function showIssue(n) { setTimeout(() => reopen = () => showIssue(n), 0); if (!n) return toast("Still being created on GitHub…");
@@ -954,9 +954,9 @@ async function refreshModel() {
 let pendingSync = 0, lastSyncErr = null;
 function syncPill(v) {
   let p = $("#sync"); if (!p) { p = document.createElement("span"); p.id = "sync"; p.className = "sync"; $("#counters").prepend(p); }
-  if (v.pending) { p.textContent = "↻ Syncing…"; p.className = "sync on"; p.title = "Pushing to GitHub in the background"; }
-  else if (v.sync_error && v.sync_error !== lastSyncErr) { p.textContent = "⚠ Sync failed"; p.className = "sync bad"; p.title = v.sync_error; }
-  else if (!v.sync_error || v.sync_error === lastSyncErr) { p.textContent = pendingSync ? "✓ Synced" : ""; p.className = pendingSync ? "sync ok" : "sync"; if (pendingSync) setTimeout(() => { if (!pendingSync) p.textContent = ""; }, 2500); }
+  // quiet while it works; only a failure is shown
+  if (v.sync_error && v.sync_error !== lastSyncErr) { p.textContent = "⚠ Sync failed"; p.className = "sync bad"; p.title = v.sync_error; }
+  else if (!v.pending && !v.sync_error) { p.textContent = ""; p.className = "sync"; }
   if (v.sync_error && v.sync_error !== lastSyncErr) { lastSyncErr = v.sync_error; toast("GitHub sync failed: " + v.sync_error.slice(9), true); }
   pendingSync = v.pending;
 }
@@ -1251,7 +1251,7 @@ function openForm(kind, data = {}) {
         m.remove(); M.issues = [{number: 0, title: body.title || "", labels: [op, body.sub, body.prio].filter(Boolean), state: "open", status: "backlog", kind: op,
           subsystems: (M.subsystems || []).filter(s => s.toLowerCase() === body.sub), reqs: [], url: "#", author: "you", updated: new Date().toISOString(), created: new Date().toISOString(),
           body: [body.what, body.why, body.happened].filter(Boolean).join("\n\n")}, ...(M.issues || [])];
-        if (view === "issues") render(); toast("Issue added · creating it on GitHub");
+        if (view === "issues") render();
         post(`api/apply/${op}`, body).then(() => window.syncNow && syncNow()).catch(e => { toast(e.message, true); refreshModel(); });
         return;
       }

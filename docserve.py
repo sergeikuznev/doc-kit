@@ -375,7 +375,7 @@ class Server:
             pushed = self.commit([w[0] for w in inside], msg) if inside else None
             self.rebuild(force=True, issues=False)
             self.inputs = None
-        tail = "" if not inside else " · not pushed (--no-push)" if pushed is None else " · syncing"
+        tail = "" if not inside or pushed else " · not pushed (--no-push)"
         if writes and not inside:
             tail = " · outside the project, so not committed"
         return {"message": msg.replace("doc: ", "Saved: ") + tail, "version": self.version, "warnings": warnings}
@@ -471,7 +471,7 @@ class Server:
                 self.rebuild(force=True)
         self.issue_jobs += 1
         self.later(f"issue #{n}", job)
-        return {"message": msg + " · syncing", "version": self.version}
+        return {"message": msg, "version": self.version}
 
 
     def _inside(self, path):

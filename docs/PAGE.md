@@ -584,8 +584,8 @@ The page never reloads by itself, and you never wait for GitHub:
   same scroll, same panel. Pushing to GitHub and GitHub calls (new issues,
   status changes, comments) happen in the background; a new issue shows as
   `#…` until GitHub gives it a number.
-- **↻ Syncing… / ✓ Synced** next to the counters shows the background work.
-  **⚠ Sync failed** (hover for why) means GitHub could not be reached or
+- The background work is silent. Only a problem shows: **⚠ Sync failed**
+  next to the counters (hover for why) means GitHub could not be reached or
   refused; the commit is kept on the server's computer and is pushed with the
   next change.
 - **Changes from elsewhere** (someone pushed, a file changed on the server, an
