@@ -22,6 +22,7 @@ import difflib
 import hashlib
 import json
 import mimetypes
+import queue
 import os
 import re
 import subprocess
@@ -45,6 +46,36 @@ class Server:
         self.issues, self.issue_error, self.issues_at = [], "not fetched yet", 0
         self.inputs = None
         self.log = []
+        # network work (git push, GitHub calls) runs one job at a time in the background, so saving is instant
+        self.jobs, self.pending, self.sync_error, self.push_wanted = queue.Queue(), 0, None, False
+        self.model_json = b"{}"
+        threading.Thread(target=self.worker, daemon=True).start()
+
+    def later(self, label, fn):
+        self.pending += 1
+        self.jobs.put((label, fn))
+
+    def worker(self):
+        while True:
+            label, fn = self.jobs.get()
+            try:
+                fn()
+            except Exception as e:
+                self.sync_error = f"{time.strftime('%H:%M:%S')} {label}: {e}"
+                self.note(f"sync failed: {label}: {e}")
+            finally:
+                self.pending -= 1
+
+    def want_push(self):
+        if not (self.push and self.git("remote").stdout.strip()) or self.push_wanted:
+            return
+        self.push_wanted = True
+
+        def job():
+            self.push_wanted = False
+            if self._push() is False:
+                raise RuntimeError("git push failed; the commit is kept on this computer and is pushed with the next change")
+        self.later("push", job)
 
     # ---------------------------------------------------------------- git
     def git(self, *args, check=False):
@@ -61,10 +92,11 @@ class Server:
     def pull(self):
         if not self.git("remote").stdout.strip():
             return
-        self.git("fetch", "--quiet")
+        self.git("fetch", "--quiet")  # network, outside the lock
         behind = self.git("rev-list", "--count", "HEAD..@{u}").stdout.strip()
         if behind and behind != "0":
-            r = self.git("pull", "--ff-only", "--quiet")
+            with self.lock:
+                r = self.git("merge", "--ff-only", "--quiet", "@{u}")
             self.note(f"pulled {behind} commit(s)" if r.returncode == 0 else
                       f"could not fast-forward ({r.stderr.strip().splitlines()[-1] if r.stderr.strip() else 'local changes'})")
 
@@ -91,10 +123,11 @@ class Server:
                     h.update(f"{dirpath}/{f}:{st.st_mtime_ns}:{st.st_size}".encode())
         return h.hexdigest()
 
-    def rebuild(self, force=False):
+    def rebuild(self, force=False, issues=True):
+        """issues=False: never wait for GitHub (used while a request waits for the answer)."""
         with self.lock:
             fp = self._fingerprint()
-            due = time.time() - self.issues_at > 300
+            due = issues and time.time() - self.issues_at > 300
             if not force and fp == self.inputs and not due:
                 return False
             if due:
@@ -120,6 +153,7 @@ class Server:
                     m["version"] = version
                     self.model, self.version, self.error = m, version, None
                     self.page = docmodel.page(m).encode()
+                    self.model_json = json.dumps(m, default=list).encode()
                     self.note(f"model rebuilt (version {version})")
             except (docmodel.ModelError, docedit.EditError) as e:
                 self.error = str(e)
@@ -170,9 +204,9 @@ class Server:
         r = self.git("commit", "--no-verify", *author, "-m", message, "--", *rels)
         if r.returncode:
             raise doc.OpError("commit stopped: " + (r.stdout + r.stderr).strip()[-800:])
-        pushed = self._push()
-        self.note(f"committed: {message}" + ("" if pushed is None else " (pushed)" if pushed else " (push FAILED)"))
-        return pushed
+        self.want_push()
+        self.note(f"committed: {message}")
+        return "queued" if self.push and self.git("remote").stdout.strip() else None
 
     def apply(self, op, f, dry, who=None):
         """Run one form. dry=True returns the preview only. who = (name, login) from Tailscale, if any."""
@@ -197,9 +231,13 @@ class Server:
             preview = f"Title:  {title}\nLabels: {', '.join(labels)}\n\n{body}"
             if dry:
                 return {"preview": preview, "warnings": warnings, "target": "GitHub issue"}
-            num, url = D.gh_create_issue(title, body, labels)
-            self.issues_at = 0
-            return {"message": f"Created #{num}", "url": url}
+            def job():
+                num, url = D.gh_create_issue(title, body, labels)
+                self.note(f"created issue #{num}")
+                self.issues_at = 0
+                self.rebuild(force=True)
+            self.later("create issue", job)
+            return {"message": "Issue added · creating it on GitHub", "version": self.version}
         if op == "req":
             shall = need("shall")
             warnings = D.req_text_problems(shall)
@@ -322,9 +360,9 @@ class Server:
                     with open(path, "w", encoding="utf-8") as fh:
                         fh.write(text)
             pushed = self.commit([w[0] for w in inside], msg) if inside else None
-            self.rebuild(force=True)
+            self.rebuild(force=True, issues=False)
             self.inputs = None
-        tail = "" if not inside else " · not pushed (--no-push)" if pushed is None else " · pushed" if pushed else " · push failed, commit kept locally"
+        tail = "" if not inside else " · not pushed (--no-push)" if pushed is None else " · syncing"
         if writes and not inside:
             tail = " · outside the project, so not committed"
         return {"message": msg.replace("doc: ", "Saved: ") + tail, "version": self.version, "warnings": warnings}
@@ -371,27 +409,37 @@ class Server:
             st = f.get("status")
             if st not in docmodel.ISSUE_OPEN and st not in ("done", "not planned", "duplicate"):
                 raise doc.OpError("unknown status")
-            set_status(st)
-            msg = f"#{n} → {st}"
+            work, msg, then = (lambda: set_status(st)), f"#{n} → {st}", st
         elif op == "issue_comment":
             body = str(f.get("body") or "").strip()
             then = f.get("then") or ""
             if not body and not then:
                 raise doc.OpError("Write a comment first")
-            if body:
-                self.gh("issue", "comment", str(n), "--body", body)
-            if then:
-                set_status(then)
+
+            def work():
+                if body:
+                    self.gh("issue", "comment", str(n), "--body", body)
+                if then:
+                    set_status(then)
             msg = f"#{n}: " + ", ".join(x for x in ("commented" if body else "", f"→ {then}" if then else "") if x)
         elif op == "issue_delete":
-            self.gh("issue", "delete", str(n), "--yes")
-            msg = f"#{n} deleted on GitHub"
+            work, msg, then = (lambda: self.gh("issue", "delete", str(n), "--yes")), f"#{n} deleted", None
         else:
             raise doc.OpError(f"unknown issue operation {op}")
-        self.note(msg)
-        self.issues_at = 0
-        self.rebuild(force=True)
-        return {"message": msg, "version": self.version}
+        if then:  # show it right away; GitHub catches up in the background
+            iss["status"], iss["state"] = then, "open" if then in docmodel.ISSUE_OPEN else "closed"
+        if op == "issue_delete":
+            self.issues = [i for i in self.issues if i["number"] != n]
+        self.rebuild(force=True, issues=False)
+
+        def job():
+            work()
+            self.note(msg)
+            self.issues_at = 0
+            self.rebuild(force=True)
+        self.later(f"issue #{n}", job)
+        return {"message": msg + " · syncing", "version": self.version}
+
 
     def _inside(self, path):
         return os.path.realpath(path).startswith(os.path.realpath(self.root) + os.sep)
@@ -415,20 +463,23 @@ class Server:
             if r.returncode:
                 self.git("revert", "--abort")
                 raise doc.OpError("could not undo: " + (r.stderr or r.stdout).strip()[-300:])
-            pushed = self._push()
+            self.want_push()
             self.note(f"undone: {head[1]}")
-            self.rebuild(force=True)
-        return {"message": f"Undone: {head[1][5:] if head[1].startswith('doc: ') else head[1]}" + (" · pushed" if pushed else ""), "version": self.version}
+            self.rebuild(force=True, issues=False)
+        return {"message": f"Undone: {head[1][5:] if head[1].startswith('doc: ') else head[1]}", "version": self.version}
 
     def _push(self):
         if not (self.push and self.git("remote").stdout.strip()):
             return None
         pr = self.git("push", "--quiet")
         if pr.returncode:  # someone pushed meanwhile: put ours on top and try once more
-            if self.git("pull", "--rebase", "--quiet").returncode == 0:
+            self.git("fetch", "--quiet")
+            with self.lock:
+                ok = self.git("rebase", "--quiet", "@{u}").returncode == 0
+                if not ok:
+                    self.git("rebase", "--abort")
+            if ok:
                 pr = self.git("push", "--quiet")
-            else:
-                self.git("rebase", "--abort")
         if pr.returncode:
             self.note("push failed: " + pr.stderr.strip()[-200:])
         return pr.returncode == 0
@@ -471,9 +522,9 @@ class Server:
         with open(path, "wb") as fh:
             fh.write(data)
         with self.lock:
-            pushed = self.commit([path], f"doc: add media {fname}")
-            self.rebuild(force=True)
-        return {"file": fname, "message": f"Uploaded {fname}" + (" · pushed" if pushed else "")}
+            self.commit([path], f"doc: add media {fname}")
+            self.rebuild(force=True, issues=False)
+        return {"file": fname, "message": f"Uploaded {fname}"}
 
 
 def xlsx(rows):
@@ -548,7 +599,7 @@ def make_handler(S):
                 # a reload shows the current files: rebuild now if anything changed (no waiting for the next check),
                 # and look for new commits on GitHub in the background (the reload banner appears if there are some)
                 try:
-                    S.rebuild()
+                    S.rebuild(issues=False)
                 except Exception as e:
                     S.note(f"rebuild failed: {e}")
                 if time.time() - getattr(S, "pulled_at", 0) > 10:
@@ -561,7 +612,10 @@ def make_handler(S):
             if m_:
                 return self.send(200, docmodel.issue_timeline(S.root, m_.group(1)))
             if path == "/api/version":
-                return self.send(200, {"version": S.version, "error": S.error, "log": S.log[-8:]})
+                return self.send(200, {"version": S.version, "error": S.error, "log": S.log[-8:], "pending": S.pending,
+                                       "sync_error": S.sync_error})
+            if path == "/api/model":
+                return self.send(200, S.model_json, "application/json")
             if path.startswith("/media/"):
                 rel_ = urllib.parse.unquote(path[len("/media/"):])
                 base = os.path.realpath(os.path.join(S.root, "docs", "media"))

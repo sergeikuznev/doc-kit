@@ -549,9 +549,10 @@ lists it.
 | Edit fault | any column | the row |
 | Change decision status | Proposed, Accepted, Rejected, Superseded by NNN, or the Related line | the decision file |
 
-Each save is one commit with a readable message (`doc: test COMM-002 verified`),
-then a push. An upload is its own commit. If someone else pushed in the
-meantime, the server rebases onto their change and pushes again.
+Each save is one commit with a readable message (`doc: test COMM-002 verified`);
+the push follows in the background (section 9). An upload is its own commit.
+If someone else pushed in the meantime, the server rebases onto their change
+and pushes again.
 
 ### Undo
 
@@ -569,13 +570,20 @@ the server's computer, changes use that computer's git identity.
 
 ## 9. Staying up to date
 
-![Reload notice](images/page-20-reload-banner.png)
+The page never reloads by itself, and you never wait for GitHub:
 
-1. **The project changed.** Someone pushed, a file changed on the server, or an
-   issue moved. The notice says what. Nothing reloads by itself, so you never
-   lose what you were looking at.
-2. **Reload** brings you back to the same view with the same part open, now
-   with fresh data.
+- **Saving is instant.** A form writes its files and commits on the server's
+  computer, and the page shows the result right away, in place: same view,
+  same scroll, same panel. Pushing to GitHub and GitHub calls (new issues,
+  status changes, comments) happen in the background; a new issue shows as
+  `#…` until GitHub gives it a number.
+- **↻ Syncing… / ✓ Synced** next to the counters shows the background work.
+  **⚠ Sync failed** (hover for why) means GitHub could not be reached or
+  refused; the commit is kept on the server's computer and is pushed with the
+  next change.
+- **Changes from elsewhere** (someone pushed, a file changed on the server, an
+  issue moved) appear on their own within about 10 seconds, also in place.
+  Reloading the browser tab rebuilds from the current files at once.
 
 ---
 
