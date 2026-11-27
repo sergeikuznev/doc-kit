@@ -13,6 +13,10 @@ view, with its panel.
 
 ![Search](images/search.png)
 
+1. **A result**, here a pin; ↑ / ↓ moves through the list, Enter opens it.
+2. **What it is**: pin, part, subsystem, node, topic, requirement, fault, decision, issue, doc or view.
+3. **The keys**: ↑ ↓ to move, Enter to open, Esc to close.
+
 The page follows your system's light or dark setting. Dark is a strict,
 square "operations" look: black canvas, hairlines, monospace for IDs and
 values, and colour only where it means something (cyan: selected, links and
@@ -26,7 +30,8 @@ Concepts (what a requirement is, what makes a good fault row) are in the
 [TERMINAL.md](TERMINAL.md).
 
 All screenshots come from a demo rover (dark theme, 1440 × 900): the `.ioc`
-is real, the modules, wiring, ROS2 code and records are invented.
+is real, the modules, wiring, ROS2 code and records are invented. The pink
+numbered boxes on a screenshot match the numbered list under it.
 
 **Contents**
 
@@ -83,33 +88,30 @@ read-only, a snapshot of when you ran it.
 
 ![Overview](images/overview.png)
 
-The top bar is on every page: the project name and how big the model is,
-then the counters (**Model problems** in red when there are any, **gaps** in
-amber, **verified** requirements), **Review pack**, **↶ ↷ ▾** (undo, redo,
-history), **Search** and **+ New**. Click a counter to jump to what it counts.
+1. **Counters.** *Model problems* (red, when there are any), *gaps* (amber)
+   and requirements *verified*. Click one to jump to what it counts.
+2. **Review pack** (section 6) and **↶ ↷ ▾**: undo, redo and history (section 8).
+3. **Search** (⌘K) and **+ New**, the forms for every record.
+4. **Sidebar.** *Model* (Overview, Setup), *Views* (System, Electrical, Power,
+   Software), *Records* (Interfaces, Requirements, Faults, Decisions, Power &
+   checks, BOM), *Project* (Issues, Docs, Media). The grey number is how many
+   items each holds.
+5. **Tiles**: subsystems and parts, connections (the bar splits signal and
+   power), ROS nodes and topics, requirements verified (and failed), faults by
+   severity.
+6. **Architecture coverage**: parts per subsystem and kind group (section 6).
+7. **Problems**: everything the commit check would stop on. When the wiring is
+   consistent it says *Architecture matches the facts*.
 
-The sidebar groups the page: *Model* (Overview, Setup), *Views* (System,
-Electrical, Power, Software), *Records* (Interfaces, Requirements, Faults,
-Decisions, Power & checks, BOM) and *Project* (Issues, Docs, Media). The grey
-number is how many items each holds; its icon is grey, the selected one cyan.
-
-The Overview itself:
-
-- **Tiles**: subsystems and parts, connections (the bar splits signal and
-  power), ROS nodes and topics, requirements verified (and failed), faults by
-  severity.
-- **Architecture coverage**: parts per subsystem and kind group (section 6).
-- **Problems**: everything the commit check would stop on. When the wiring is
-  consistent it says *Architecture matches the facts*.
-- **Gaps**, below:
+Below them, the **gaps**:
 
 ![Gaps](images/gaps.png)
 
-Gaps are the questions a design review would ask, each tagged with its area
-(faults, software, wiring, power, architecture): a fault no requirement covers,
-a subsystem with no fault analysed, a topic nobody publishes, a planned node
-not in the code yet, a power source with no `max_current`, no safety element.
-They are not errors; click one that names a part to open it.
+1. **Gaps**: how many, and what they are: the questions a design review would
+   ask. They are not errors.
+2. **Its area**: faults, software, wiring, power or architecture.
+3. **A gap**, e.g. a fault no requirement covers. Click one that names a part to open it.
+4. **An architecture check** (section 6), here: actuators but no safety element.
 
 The page remembers where you are in its address (`#electrical/sel:...`), so a
 bookmark or a reload brings you back to the same view with the same part open.
@@ -124,22 +126,22 @@ say where your ROS2 code is.
 
 ![Setup](images/setup.png)
 
-- **Subsystems** and **+ Subsystem**. A subsystem is a box in the system
-  diagram *and* the prefix of requirement IDs: `COMM-002` belongs to `COMM`.
-  The table shows its prefix, name, whether it is a box, and how many
-  requirements and parts it holds.
-- **Requirements only** groups have no box: for requirements about the whole
-  robot (`SYS`) or fault handling (`FDIR`).
-- **↑ ↓** set the order of the requirement sections and of the lists on the page.
-- **Edit / Delete.** A prefix that requirements already use cannot change
-  (IDs never change); change the name instead. Deleting is refused while the
-  subsystem holds parts or live requirements. One whose old, deleted
-  requirements used its prefix is kept as *deleted*, so those IDs are never reused.
-- **Boards** (**+ Board**): microcontrollers with a CubeMX project, each
-  pointing at its own `.ioc`.
-- **ROS2 code folders** (**Change**): scanned for nodes, publishers,
-  subscribers and launch files. The robot does not need to be on.
-- **Part kinds** and the **Parts library**, further down (below).
+1. **+ Subsystem** adds one (below).
+2. **A subsystem row**: prefix, name, whether it is a box in the diagram, how
+   many requirements and parts it holds. A subsystem is a box in the system
+   diagram *and* the prefix of requirement IDs: `COMM-002` belongs to `COMM`.
+   *Requirements only* groups (here `SYS`, the whole robot) have no box.
+3. **↑ ↓** set the order of the requirement sections and of the lists on the page.
+4. **Edit / Delete.** A prefix that requirements already use cannot change
+   (IDs never change); change the name instead. Deleting is refused while the
+   subsystem holds parts or live requirements. One whose old, deleted
+   requirements used its prefix is kept as *deleted*, so those IDs are never reused.
+5. **Boards**: microcontrollers with a CubeMX project, each pointing at its own `.ioc`.
+6. **+ Board** adds one (below).
+
+Further down: **ROS2 code folders** (**Change**; scanned for nodes, publishers,
+subscribers and launch files, the robot does not need to be on), then **Part
+kinds** and the **Parts library**.
 
 **Port types** live in the **Electrical** view (**+ Port type**, next to
 **+ Part**): a port connects only to a port of the same type. The common ones
@@ -149,10 +151,17 @@ be stricter, e.g. `Power5V` so a 12 V output cannot be wired to a 5 V input.
 
 ### Part kinds
 
+Every part has a kind: what it is in the architecture.
+
 ![Part kinds](images/setup-kinds.png)
 
-Every part has a kind: what it is in the architecture. Kinds sit in
-systems-engineering groups, one colour family per group:
+1. **A group**, from the systems-engineering list below.
+2. **A kind**, with its colour: one colour family per group.
+3. **What it means**, shown in the dropdowns.
+4. **How many parts** have it.
+5. **Use the standard list** goes back to the table below.
+6. **+ Kind** adds one; **Edit** and **Delete** on each row rename (parts
+   follow), regroup, recolour or remove it. *other* stays.
 
 | Group | Kinds |
 |---|---|
@@ -169,9 +178,7 @@ The kind colours the part's band in the diagrams, sorts the BOM, fills the
 coverage table and drives the architecture checks (section 6). A part without
 a kind is sorted by its name, type and part number: an encoder becomes
 *feedback*, a buck *power conversion*, a board from an `.ioc` an *MCU*.
-**+ Kind**, **Edit** and **Delete** add, rename (parts follow), regroup,
-recolour or remove kinds; the list is saved in `model.toml` as `[[kind]]`
-rows. **Use the standard list** goes back to the table above. *other* stays.
+The list is saved in `model.toml` as `[[kind]]` rows.
 
 ### Parts library
 
@@ -244,16 +251,14 @@ port of the view's kind is drawn, connected or not.
 
 ![Wiring in Electrical](images/wiring.png)
 
-Under the view's title: **Focus** (when the view shows one subsystem; **×**
-shows them all), **+ Port type**, **+ Part**, **Import from KiCad**, zoom and
-**Fit**, then the legend of part kinds and the hint of what clicks do.
+1. **Click a port** to start a wire: it lights up.
+2. **The cyan bar** says what the next click does.
+3. **Click the other end**: a port of the same type, or a part (it offers to
+   give that part a new port of the right type). The connect form then shows
+   **From**, **To part**, **Port** (its ports of the same type, or
+   **+ new … port**) and the wire details, folded away.
 
-To draw a wire, **click a port**: it lights up and the cyan bar says what
-the next click does. Then **click the other end**: a port of the same type, or
-a part (it offers to give that part a new port of the right type). The
-connect form then shows **From**, **To part**, **Port** (its ports of the same
-type, or **+ new … port**) and the wire details, folded away. Click empty
-space or press Esc to drop a picked port. A part cannot be wired to itself.
+Click empty space or press Esc to drop a picked port. A part cannot be wired to itself.
 
 You never deal with port direction: doc-kit marks one end as the mirror of the
 other (`~SpiBus` in the file) by itself. Several devices on one SPI bus are fine:
@@ -263,14 +268,19 @@ connect the same MCU port to each.
 
 ![Part panel](images/part-panel.png)
 
-Click a part to open its panel. In Electrical it starts with **Edit part**,
-**Connect ports…** (the Electrical view of its subsystem), **Save to parts
-library** and **Delete**. Then what the part is, and for a board everything
-CubeMX knows: the chip, clock tree, FreeRTOS tasks with priority, stack and
-entry function, timers, USB class. Further down: its ports (click a row for
-its pins and saved settings), what each connects to (**✕** removes that
-connection, **wire** opens the wire's details), and the requirements, faults,
-decisions, open issues and photos that belong to the part.
+Click a part to open its panel.
+
+1. **Where it comes from**: a board, from its `.ioc`, or a part you added.
+2. **Edit part**, **Connect ports…** (the Electrical view of its subsystem),
+   **Save to parts library**, **Delete**. Only in Electrical.
+3. **The chip**: part number, the `.ioc`, clock tree.
+4. **Middleware**: FreeRTOS tasks with priority, stack and entry function.
+5. **Internal peripherals**: timers, USB class and the like.
+
+Further down: its ports (click a row for its pins and saved settings), what
+each connects to (**✕** removes that connection, **wire** opens the wire's
+details), and the requirements, faults, decisions, open issues and photos
+that belong to the part.
 
 CubeMX only saves values you changed; a missing one is shown as *CubeMX
 default*, never guessed. Settings are shown in plain words: speed, role, clock
@@ -280,15 +290,17 @@ polarity and phase, and derived facts such as *SPI mode 3*.
 
 **+ Part** and **Edit part** open the same form:
 
-- **Subsystem**, then **Name** below it, then **Kind** (above).
-- **Start from the parts library** (at the top, when the library has parts)
-  fills in everything below.
-- **What it is**: part number or one line.
-- **Details**: named fields with a value (below). **+ Field** adds any field.
-- **Ports**: a name and a type each, with **Details** for each port.
-  **+ Port** adds one; *Missing a type? Add one* opens the port type form on
-  top, and brings you back. Renaming a port keeps its wires; removing one
-  removes its wires.
+1. **Subsystem**.
+2. **Name**, below it.
+3. **Kind** (section 3).
+4. **What it is**: part number or one line.
+5. **Details**: named fields with a value (below). **+ Field** adds any field.
+
+Further down, **Ports**: a name and a type each, with **Details** for each
+port. **+ Port** adds one; *Missing a type? Add one* opens the port type form
+on top, and brings you back. Renaming a port keeps its wires; removing one
+removes its wires. **Start from the parts library** (at the top, when the
+library has parts) fills in everything.
 
 Deleting a part removes its wires, and the links of requirements and ROS nodes
 to it (you confirm first). Boards get their ports from the `.ioc`; for those,
@@ -317,6 +329,17 @@ details too (e.g. the MCU's power input).
 ports and wires, so you do not draw them twice.
 
 ![Import from KiCad](images/kicad.png)
+
+1. **The netlist or schematic** to read.
+2. **Tick** a component to import it.
+3. **Matched**: the board's MCU is matched to that board (and a part whose
+   part number matches, to that part).
+4. **Becomes** a new part, or a part already on the page.
+5. **Subsystem and name** for a new part.
+6. **Kind**, suggested from the component.
+7. **Ground nets**: left out unless ticked.
+
+Step by step:
 
 1. **Pick the file.** A netlist exported from KiCad (Schematic Editor › File ›
    Export › Netlist…, *KiCad* format, saved in the repo), or the `.kicad_sch`
@@ -411,21 +434,24 @@ selection.
 
 ![System view](images/system.png)
 
-One box per subsystem, with its name and the parts inside (`name · type`).
-Top right of each box: requirements verified out of total (and how many
-failed), and **N open issues**, which opens Issues filtered to that subsystem.
-
-Lines are what crosses between subsystems: one per kind (grey signal, orange
-power), labelled with each connection as `pin — pin` with the pin names as
-CubeMX writes them (`SPI1 — spi`, `NRF24_CSN — csn`), up to four, then
-*+N more*. The lines have no arrows: a wire carries data both ways.
+1. **A subsystem**, with the parts inside (`name · type`). Click it for its panel.
+2. **A signal connection** crossing between subsystems, as `pin — pin` with
+   the pin names as CubeMX writes them (`SPI1 — spi`), up to four per line,
+   then *+N more*. No arrows: a wire carries data both ways.
+3. **A power connection** (orange).
+4. **Requirements** verified out of total, and how many failed. **N open
+   issues** on a box opens Issues filtered to that subsystem.
+5. **Legend.**
+6. **Zoom**: − / + / Fit.
 
 ![Subsystem panel](images/subsystem-panel.png)
 
-Click a subsystem for its panel: **+ Part here**, **Edit in Setup**, **Open in
-Electrical** (only this subsystem and what it is wired to), its parts, its
-**interfaces** to other subsystems with both ends, its **requirements** (every
-`COMM-###` lands in `COMM`), then faults, decisions and open issues.
+1. **+ Part here** and **Edit in Setup**.
+2. **Open in Electrical**: only this subsystem and what it is wired to.
+3. **Its parts.**
+4. **Interfaces** to other subsystems, with both ends.
+5. **Requirements** that belong here (every `COMM-###` lands in `COMM`), then
+   faults, decisions and open issues.
 
 ### Electrical
 
@@ -434,24 +460,32 @@ signal buses and pins in Electrical, power in Power.
 
 ![Electrical view](images/electrical.png)
 
-Each subsystem is a dashed box around its parts. Each part has a band in its
-kind's colour (cyan for an MCU) and its ports on the side facing what they
-connect to; a board's ports are its pins and buses from the `.ioc`, as CubeMX
-names them. *+N ports not in this view* counts the ones drawn in Power.
-Hover a port for its pins, hover a part to highlight its wires. Here the view
-is focused on `COMM` (from its panel), so it shows the radio and the MCU it
-is wired to.
+Here the view is focused on `COMM` (from its panel).
+
+1. **Focus**: the view shows one subsystem and what it is wired to; **×** shows them all.
+2. **+ Port type**, **+ Part**, **Import from KiCad**.
+3. **Legend**: part kinds and their colours.
+4. **The hint**: what clicks do.
+5. **A board**, from its `.ioc` (cyan band: an MCU), inside its subsystem's dashed box.
+6. **A port**: a pin or bus as CubeMX names it. Hover it for its pins.
+7. **A part** you added; its band is the colour of its kind.
+8. **Ports not in this view**, e.g. its power input, drawn in Power.
+
+Hover a part to highlight its wires.
 
 ### Power
 
 ![Power view](images/power.png)
 
-The same parts with only their **power ports**: battery outputs, regulator
-inputs and outputs, supply pins of boards and modules. Orange lines are power.
-Here the view is focused on `PWR`.
+The same parts with only their **power ports**. Here focused on `PWR`.
 
-- **Wire** a source (battery `out`, buck `vout`) to each device's input
-  (`vin`, `vcc`) the same way as in Electrical: click one port, then the other.
+1. **A source**: the battery's `out`.
+2. **A regulator**: a load on its input rail and a source on its output rail.
+3. **A load**: the MCU's supply input.
+4. **Legend.**
+
+- **Wire** a source to each device's input the same way as in Electrical:
+  click one port, then the other.
 - **Details** on a power port are what the power checks use: `voltage` on
   every port, `max_current` on a source (what it can supply), `current` on a
   load (what it draws). Set them in the part form (**Details** next to the
@@ -459,9 +493,7 @@ Here the view is focused on `PWR`.
 - **Every group of wired power ports is a rail.** Its load against what is
   available, and any rail that is overloaded or mixes voltages, are in
   **Power & checks** and among the Overview's gaps.
-- A regulator is both: a load on its input rail and a source on its output
-  rail. Enter its input draw by hand (output load ÷ efficiency, scaled by
-  voltage).
+- Enter a regulator's input draw by hand (output load ÷ efficiency, scaled by voltage).
 
 A typical chain: `battery.out → buck.vin`, `buck.vout → mcu.vin`,
 `buck.vout → radio.vcc`. Use your own port types (Electrical › **+ Port type**, e.g.
@@ -472,17 +504,16 @@ A typical chain: `battery.out → buck.vin`, `buck.vout → mcu.vin`,
 
 ![Software view](images/software.png)
 
-- **A computer** (an MCU or a computer part) is a box with the nodes that run
-  on it. Nodes have a band: violet for micro-ROS, grey otherwise.
-- **A node** shows its name and the file it was found in. Click it for its
-  topics with line numbers and the launch file that starts it.
-- **A topic** is a brown block with its message type. Arrows go publisher →
-  topic → subscriber, and end only on nodes and topics.
-- **Dashed** means planned, not in the code yet: a planned node, topic or
-  arrow. A topic with only one side (published but never subscribed) is dashed too.
-- **The ROS link** (cyan, labelled *micro-ROS agent*) is the wire that
-  carries ROS between two computers.
-- *Not allocated to hardware* (a dashed box) holds nodes no computer runs yet.
+1. **+ Topic** and **+ Node** (planned, below).
+2. **A computer**: an MCU or a computer part, with the nodes that run on it.
+3. **A node**: its name and the file it was found in; violet band for
+   micro-ROS. Click it for its topics with line numbers and its launch file.
+4. **A topic** with its message type. Arrows go publisher → topic → subscriber.
+5. **A planned node** (dashed): not in the code yet.
+6. **The ROS link**: the wire that carries ROS between two computers.
+7. **A planned topic** (dashed), or one with only one side.
+
+Nodes no computer runs yet sit in *Not allocated to hardware* (a dashed box).
 
 Everything solid is read from the code in the ROS2 code folders, so the robot
 can be off. A topic name built at runtime (`'debug/' + name`) cannot be read
@@ -549,10 +580,12 @@ something are red.
 
 ![Interfaces](images/interfaces.png)
 
-One block per pair of subsystems (`COMM ↔ CTRL`) with how many links cross
-between them. Each row is one link: its kind, both ends (click to open the
-part), the pins on the MCU side and the bus settings that matter at the
-interface (speed, role, SPI mode). **+ Connection** opens the connect form.
+1. **+ Connection** opens the connect form.
+2. **A pair of subsystems** and how many links cross between them.
+3. **One link** and its kind.
+4. **Both ends**. Click to open the part.
+5. **Pins** on the MCU side.
+6. **Bus settings** that matter at the interface: speed, role, SPI mode.
 
 Nobody types this table. It is generated from the wiring, so it cannot drift
 from it.
@@ -561,31 +594,41 @@ from it.
 
 ![Requirements](images/requirements.png)
 
-Requirements are grouped by subsystem, each group with its progress. A card
-shows the ID and **status** (Draft, Approved, Verified, Failed, Deleted), how it
-is **verified** (Test, Inspection, Analysis, Demonstration), the *shall*
-sentence and rationale, the **evidence** (one dated line per test), any
-**media** in `docs/media/` whose name appears in the evidence, its **links**
-(the part it is pinned to, the faults it covers, decisions, open issues) and
-**Record test** / **Edit**. The search box covers IDs, text and rationale;
-the chips filter by status, for example everything that failed.
+1. **+ Requirement** and **+ Test result**.
+2. **Search** across IDs, text and rationale.
+3. **Filter by status**, e.g. everything that failed.
+4. **A subsystem group** with its progress.
+5. **Status**: Draft, Approved, Verified, Failed or Deleted.
+6. **How it is verified**: Test, Inspection, Analysis or Demonstration.
+7. **Evidence**: one dated line per test, with any file in `docs/media/` whose name it mentions.
+8. **Links**: the part it is pinned to, faults it covers, decisions, open issues.
+   Then **Record test** and **Edit**.
 
 ### Faults (FDIR)
 
 ![Faults](images/faults.png)
 
-Worst severity first. Each fault shows its severity, the requirement that
-covers it (with that requirement's status), what it does, and **detect →
-respond → recover**. A warning appears when the covering requirement failed
-its last test, or when nothing covers the fault at all. **Edit** changes any column.
+Worst severity first.
+
+1. **Severity.**
+2. **The requirement that covers it**, with that requirement's status.
+3. **What fails** and its effect.
+4. **Detect → respond → recover.**
+5. **A warning** when the covering requirement failed its last test, or when
+   nothing covers the fault at all.
+6. **Edit** any column.
 
 ### Decisions
 
 ![Decisions](images/decisions.png)
 
-Each decision shows its number, status and date, the decision and why, and
-links to the parts and requirements on its Related line. Decisions are never
-rewritten: **Change status**, or supersede with a new one.
+1. **+ Decision.**
+2. **Number, status and date.**
+3. **The decision.**
+4. **Why.**
+5. **Links** to the parts and requirements on its Related line, and
+   **Change status**. Decisions are never rewritten: change the status, or
+   supersede with a new one.
 
 ### Architecture checks and coverage
 
@@ -624,13 +667,18 @@ load and efficiency).
 
 ![BOM](images/bom.png)
 
+1. **+ Item** for things that are not parts in the diagram (screws,
+   heat-shrink, zip ties); **+ Column** adds your own column, filled from the
+   part detail of the same name.
+2. **Export** as Excel (`.xlsx`), PNG or PDF. Without a server, Excel becomes a CSV.
+3. **Category**, from the part's kind; rows are ordered by group.
+4. **Where** each part is in the model.
+5. **Wires**, totalled by gauge from their lengths; connectors counted from the wires.
+6. **An extra item** (+ Item).
+
 The bill of materials is built from the model: parts grouped by part number
-(or description), wires totalled by gauge from their lengths, connectors
-counted from the wires, plus **+ Item** for things that are not parts in the
-diagram (screws, heat-shrink, zip ties). Columns: quantity, item, part number,
-manufacturer, supplier, link, unit cost, total, where. **+ Column** adds your own;
-a part fills a column from its detail of the same name. Export as **Excel**
-(`.xlsx`), **PNG** or **PDF**. Without a server, Excel becomes a CSV.
+(or description), with quantity, item, part number, manufacturer, supplier,
+link, unit cost and total.
 
 ### Design review pack
 
@@ -653,11 +701,14 @@ print window opens instead: choose **Save as PDF** there.
 
 ![Issues](images/issues.png)
 
-**+ Idea** and **+ Bug** create a GitHub issue from a form. Below: search, the
-status tabs, and **Type** and **Subsystem** to narrow the list. Each card is
-one line: its status, number, title, labels (coloured as on GitHub), the
-subsystem it is placed in, who opened it and when, **GitHub ↗** and
-**Delete**. **Details** unfolds the body.
+1. **+ Idea / + Bug** create a GitHub issue from a form.
+2. **Search** by title, text or `#number`.
+3. **Status tabs**: Open, Active, Closed, All, each with its count.
+4. **Type** and **Subsystem** narrow the list.
+5. **Status pill**: click to change it; GitHub follows.
+6. **Title and labels**, coloured as on GitHub. Click the title for its panel.
+7. **Placement**: its subsystem and the requirements it names.
+8. **GitHub ↗** and **Delete** (asks first; needs admin rights).
 
 The issue's subsystem label (the prefix in lowercase, e.g. `comm`) places it
 in a subsystem; requirement IDs in its text link it to those requirements.
@@ -676,14 +727,14 @@ every 30 seconds.
 
 ![Issue panel](images/issue-panel.png)
 
-**An issue's panel** (click its title) shows the description, its activity
-(comments, labels added, closed as…, reopened), and a comment box like
-GitHub's: **Write / Preview**, a formatting bar (heading, bold, italic, quote,
-code, link, lists, task list; ⌘B, ⌘I, ⌘Enter to send), and files by paste,
-drop or click (they go to `docs/media/` and are linked in the comment). Then
-**Comment**, **Mark as Done** (▾ for not planned or duplicate), or **Reopen**
-for a closed one. **Delete issue…** deletes it on GitHub for good, after a confirm; it needs
-admin rights on the repo. Closing as *Not planned* keeps the history instead.
+1. **Status**, the same dropdown as on GitHub.
+2. **The description**, then its activity (comments, labels, closed as…, reopened).
+3. **A comment box** like GitHub's: **Write / Preview**, a formatting bar
+   (⌘B, ⌘I, ⌘Enter to send).
+4. **Files** by paste, drop or click: they go to `docs/media/` and are linked in the comment.
+
+Below: **Comment**, **Mark as Done** (▾ for not planned or duplicate) or
+**Reopen**, and **Delete issue…**. Closing as *Not planned* keeps the history.
 
 Issues need the GitHub CLI (`gh auth login`) on the machine running `doc serve`.
 
@@ -691,10 +742,10 @@ Issues need the GitHub CLI (`gh auth login`) on the machine running `doc serve`.
 
 ![Docs](images/docs.png)
 
-The list on the left holds your docs (project notes, requirements, faults,
-devlog, procedures, checklist, interface notes) and, under *How to use
-doc-kit*, the README and these guides. Requirement and fault IDs in the text
-are links.
+1. **Your docs**: project notes, requirements, faults, devlog, procedures,
+   checklist, interface notes.
+2. **How to use doc-kit**: the README and these guides, inside the page.
+3. **The doc.** Requirement and fault IDs in the text are links.
 
 Links between docs open inside the page; links to anything else open in a new tab.
 Mermaid flowcharts (a ```` ```mermaid ```` block with `flowchart LR` or `TD`, as
@@ -704,10 +755,10 @@ GitHub draws them) are drawn as diagrams here too.
 
 ![Media](images/media.png)
 
-Every file in `docs/media/`, filtered by kind (image, video, data, PDF), each
-with the requirement whose evidence names it. Click one for full size: photos
-and videos play, logs and CSVs show their text. **Upload** adds files and
-commits them.
+1. **Filter by kind**: image, video, data, PDF.
+2. **A file.** Click for full size: photos and videos play, logs and CSVs show their text.
+3. **The requirement** whose evidence names this file.
+4. **Upload** adds files to `docs/media/` and commits them.
 
 ---
 
@@ -715,19 +766,23 @@ commits them.
 
 ![+ New](images/new-menu.png)
 
-**+ New** (top right, on every page) lists what you can record: idea, bug,
-requirement, test result, fault, decision, procedure, checklist line, devlog
-and part. Cards also have their own buttons: *Record test* and *Edit* on
-requirements, *Edit* on faults, *Change status* on decisions, *Mark deleted* in
-a requirement's panel.
+1. **+ New**, top right on every page.
+2. **What just happened?** Pick the record that fits.
+3. **Part** opens the part form.
+
+Cards also have their own buttons: *Record test* and *Edit* on requirements,
+*Edit* on faults, *Change status* on decisions, *Mark deleted* in a
+requirement's panel.
 
 ![A form](images/form.png)
 
-Every form works the same way. Choices are menus, never free text, so IDs and
-statuses are always valid. Free-text fields carry a hint of what a good
-answer looks like. **Upload** puts the file in `docs/media/` with today's date
-in its name, and its name in the field. **Save** writes, commits and pushes;
-removing something asks *Yes, do it* first. Every window has **✕** to close it.
+1. **Pick the record**: here, which requirement you tested.
+2. **Choices are menus**, never free text, so IDs and statuses are always valid.
+3. **Free text**, with a hint of what a good answer looks like.
+4. **Upload**: the file goes to `docs/media/` with today's date in its name,
+   and its name goes into the field.
+5. **Save** writes, commits and pushes. Removing something asks *Yes, do it*
+   first. Every window has **✕** to close it.
 
 Hints appear in the form without blocking you, e.g. a requirement with no
 *shall* or no number to measure. If a change breaks the model (a wire to a
@@ -758,14 +813,16 @@ and pushes again.
 
 ![History](images/history.png)
 
-**↶** (top right) undoes the newest change made by the page, **↷** redoes the
-newest one you undid; hover either to see which change it is. **▾** lists the
-history: click a line to go back to just before it, or forward to just after
-it, several steps at once. Each step is a new commit (`doc: undo …` /
-`doc: redo …`), so git history keeps everything and teammates' pages follow.
-Making a new change after undoing clears what could be redone, as in any editor.
-A step that conflicts with a later hand-made commit stops with a message
-instead of guessing.
+1. **↶ / ↷**: undo the newest change made by the page, redo the newest one
+   you undid. Hover either to see which change it is.
+2. **▾** lists the history.
+3. **A step**: click it to go back to just before it, or forward to just
+   after it, several steps at once.
+
+Each step is a new commit (`doc: undo …` / `doc: redo …`), so git history
+keeps everything and teammates' pages follow. Making a new change after
+undoing clears what could be redone, as in any editor. A step that conflicts
+with a later hand-made commit stops with a message instead of guessing.
 
 ### Who made a change
 
