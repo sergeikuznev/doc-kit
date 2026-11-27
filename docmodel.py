@@ -1190,6 +1190,7 @@ def _inline(t):
 
 def md_html(text):
     """Small Markdown renderer for the docs pages: headings, lists, tables, code, quotes, links, images."""
+    text = re.sub(r"<!--.*?-->[ \t]*\n?", "", text, flags=re.S)  # HTML comments (e.g. doc-kit markers) are not shown
     lines, out, i = text.splitlines(), [], 0
     heads = []
     while i < len(lines):
