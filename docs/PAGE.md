@@ -6,6 +6,12 @@ where you change it: subsystems and boards, parts and wires, test results with
 a photo, ideas, decisions, procedures. **Save** writes the change to plain
 files in your repo, commits and pushes it; **↶ / ↷** undo and redo, any number of steps.
 
+The page follows your system's light or dark setting. Dark is a strict,
+square "operations" look: black canvas, hairlines, monospace for IDs and
+values, and colour only where it means something (amber: selected and
+primary actions, green: OK and add, red: problems and delete, blue: signal,
+orange: power, violet: ROS and your parts, cyan: boards).
+
 Concepts (what a requirement is, what makes a good fault row) are in the
 [handbook](HANDBOOK.md). The few terminal commands (install, hooks, CI) are in
 [TERMINAL.md](TERMINAL.md).
