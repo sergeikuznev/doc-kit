@@ -1061,7 +1061,12 @@ def load_settings():
         s = {}
     s.setdefault("libraries", [])
     s.setdefault("default", None)
+    s.setdefault("recent", [])
     return s
+
+
+def _recent(s, p):
+    s["recent"] = [p] + [x for x in s.get("recent", []) if x != p][:9]
 
 
 def lib_abs(root, p):
@@ -1090,7 +1095,7 @@ def library_info(root):
                         pass
         folders.append({"path": p, "full": full, "exists": os.path.isdir(full), "in_repo": _in_repo(root, full),
                         "default": p == s["default"], "templates": temps})
-    return {"folders": folders, "default": s["default"], "settings": settings_path(), "suggest": _folder_suggestions(root)}
+    return {"folders": folders, "default": s["default"], "settings": settings_path(), "recent": s.get("recent", [])}
 
 
 def _folder_suggestions(root):
@@ -1121,6 +1126,8 @@ def run_library(op, root, f):
     writes, notes = [], []
 
     def save_settings():
+        for w in [w for w in writes if w[0] == settings_path()]:
+            writes.remove(w)
         writes.append((settings_path(), json.dumps(s, indent=2) + "\n"))
     if op == "lib_folder":
         p = str(f.get("path") or "").strip()
@@ -1131,6 +1138,7 @@ def run_library(op, root, f):
             writes.append((os.path.join(full, ".keep"), ""))
         if p not in s["libraries"]:
             s["libraries"].append(p)
+        _recent(s, p)
         if f.get("default") or not s["default"]:
             s["default"] = p
         save_settings()
@@ -1160,8 +1168,10 @@ def run_library(op, root, f):
             s["libraries"].append(folder)
             if not s["default"]:
                 s["default"] = folder
-            save_settings()
             notes.append(f"new parts folder {folder}")
+        if s.get("recent", [None])[:1] != [folder]:
+            _recent(s, folder)
+            save_settings()
         name = str(f.get("name") or "").strip()
         if not name:
             raise EditError("Template name is required, e.g. ICM-42688-P")

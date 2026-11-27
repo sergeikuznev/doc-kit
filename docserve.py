@@ -726,6 +726,8 @@ def make_handler(S):
                     self.send_header("Content-Length", str(len(data)))
                     self.end_headers()
                     return self.wfile.write(data)
+                if path == "/api/pick_folder":
+                    return self.send(200, {"path": pick_folder()})
                 if path == "/api/upload":
                     return self.send(200, S.upload(urllib.parse.unquote(self.headers.get("X-Filename", "upload")), raw))
                 m = re.match(r"^/api/(preview|apply)/(\w+)$", path)
@@ -743,6 +745,28 @@ BROWSERS = ["google-chrome", "google-chrome-stable", "chromium", "chromium-brows
             "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/Applications/Chromium.app/Contents/MacOS/Chromium",
             "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge", "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
             r"C:\Program Files\Google\Chrome\Application\chrome.exe", r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"]
+
+
+def pick_folder():
+    """The system's own folder dialog (Finder, Explorer, zenity), on the computer running doc serve."""
+    if sys.platform == "darwin":
+        cmd = ["osascript", "-e", 'POSIX path of (choose folder with prompt "Folder for library parts")']
+    elif os.name == "nt":
+        cmd = ["powershell", "-NoProfile", "-Command", "Add-Type -AssemblyName System.Windows.Forms; $d = New-Object System.Windows.Forms.FolderBrowserDialog; "
+               "$d.Description = 'Folder for library parts'; if ($d.ShowDialog() -eq 'OK') { $d.SelectedPath }"]
+    elif shutil.which("zenity"):
+        cmd = ["zenity", "--file-selection", "--directory", "--title=Folder for library parts"]
+    elif shutil.which("kdialog"):
+        cmd = ["kdialog", "--getexistingdirectory", os.path.expanduser("~")]
+    else:
+        raise doc.OpError("No folder dialog on this computer: type the folder instead")
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        raise doc.OpError(f"folder dialog failed: {e}")
+    p = r.stdout.strip().rstrip("/\\") if r.returncode == 0 else ""
+    home = os.path.expanduser("~")
+    return ("~" + p[len(home):]) if p.startswith(home + os.sep) else p
 
 
 def pdf_browser():

@@ -1466,17 +1466,17 @@ def collect_extras(root, m, with_issues=True):
 
 def collect_extras_link_issues(m):
     """Place each issue in the subsystems its labels name, and link the requirement IDs it mentions."""
-    names = {s.lower(): s for s in m["subsystems"]}
+    allp = list(dict.fromkeys(list(m["subsystems"]) + list(m.get("prefix_names", {}))))
+    names = {s.lower(): s for s in allp}
     for pfx, full in m.get("prefix_names", {}).items():
-        if pfx in m["subsystems"]:
-            names[full.lower()] = pfx
-            names[full.lower()[:4]] = pfx
+        names[full.lower()] = pfx
+        names[full.lower()[:4]] = pfx
     ids = {r["id"] for r in m["requirements"]}
     for iss in m["issues"]:
         iss["subsystems"] = []
         for lab in iss["labels"]:
             l = lab.lower()
-            hit = names.get(l) or names.get(l[:4]) or next((s for s in m["subsystems"] if l.startswith(s.lower())), None)
+            hit = names.get(l) or names.get(l[:4]) or next((s for s in allp if l.startswith(s.lower())), None)
             if hit and hit not in iss["subsystems"]:
                 iss["subsystems"].append(hit)
         iss["reqs"] = sorted(set(re.findall(r"\b[A-Z]{2,6}-\d{3}\b", iss["title"] + " " + iss["body"])) & ids)

@@ -113,7 +113,8 @@ say where your ROS2 code is.
 
 1. **ROS2 code folders**: scanned for nodes, publishers and subscribers. The
    robot does not need to be on.
-2. **Port types**: a port connects only to a port of the same type. The common
+2. **Port types** live in the **Electrical** view (**+ Port type**, next to
+   **+ Part**): a port connects only to a port of the same type. The common
    ones are built in (SPI, I²C, UART, USB, CAN, GPIO, PWM, encoder, analog,
    Ethernet, WiFi, radio link, power, mechanical). Add your own when you want a
    check to be stricter, e.g. `Power5V` so a 12 V output cannot be wired to a 5 V input.
@@ -123,9 +124,10 @@ say where your ROS2 code is.
 Reusable parts (an IMU, an encoder, a motor driver, a radio) with their
 details and ports, so you describe each module once and use it in every project.
 
-- **+ Folder** adds a parts folder: type a path or pick one from the list
-  (folders of this project and of your home folder). It is created if it
-  does not exist. A folder **inside the project** (e.g. `docs/model/parts`)
+- **+ Folder** adds a parts folder: type a path, pick one of your recent
+  folders from the list, or **Browse…** to choose it in Finder (Explorer on
+  Windows). The dialog opens on the computer running `doc serve`. The folder
+  is created if it does not exist. A folder **inside the project** (e.g. `docs/model/parts`)
   is committed and shared with the team. A folder **outside** (e.g.
   `~/robotics/parts`, or its own git repo) serves all your projects on this
   computer; it is written but never committed. The folder list and the
@@ -295,8 +297,9 @@ layout (and drops `//` comments) on its next change.
 
 1. **A subsystem** with its name and the parts inside it. Click it for its panel.
 2. **What crosses between subsystems**: one line per kind, labelled with each
-   connection as `part.port → part.port` (`mcu.spi1 → radio.spi`), up to four,
-   then *+N more*. **+ Part** in a subsystem adds a part to it.
+   connection as `pin — pin`, the pin names as CubeMX writes them
+   (`SPI1 — spi`, `USB_OTG_FS — usb`), up to four, then *+N more*. The bar has
+   no arrow: a wire carries data both ways.
 3. **Open issues** placed in this subsystem.
 4. **Requirement progress**: verified out of total, and how many failed.
 5. **Legend.** Blue is signal, amber is power, dashed purple is mechanical.
@@ -369,13 +372,16 @@ inputs and outputs, supply pins of boards and modules. Amber lines are power.
    voltage).
 
 A typical chain: `battery.out → buck.vin`, `buck.vout → mcu.vin`,
-`buck.vout → radio.vcc`. Use your own port types (Setup › Port types, e.g.
+`buck.vout → radio.vcc`. Use your own port types (Electrical › **+ Port type**, e.g.
 `Power5V`) to make the check stricter, so a 12 V output cannot be wired to a
 5 V input.
 
 ### Software (ROS2)
 
 ![Software view](images/page-07-software.png)
+
+Nodes carry a colour band for their language: purple micro-ROS, blue C++,
+green Python, grey planned. Topics are amber pills.
 
 1. **A computer** with the nodes that run on it. Boards, parts that already
    run nodes, and parts that look like computers (Pi, Jetson, MCU…) are shown,
