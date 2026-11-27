@@ -1024,6 +1024,7 @@ def build(root, overrides=None):
     power, i2c = electrical(parts, connections, gap)
     bom = build_bom(cfg, parts, connections)
     return {"name": name, "top": top["name"], "subsystems": subsystems, "parts": parts, "connections": connections, "ros_links": ros_links,
+            "kinds": [{"key": str(k.get("key", "")), "label": str(k.get("label", "")), "color": str(k.get("color", ""))} for k in cfg.get("kind", [])],
             "power": power, "i2c": i2c, "bom": bom, "launches": launches,
             "boards": boards, "nodes": nodes, "topics": sorted(topics.values(), key=lambda t: t["topic"]),
             "requirements": reqs, "faults": faults, "decisions": decisions, "icd": icd, "gaps": gaps,

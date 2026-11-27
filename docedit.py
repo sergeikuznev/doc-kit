@@ -68,6 +68,8 @@ def cfg_text(cfg):
         out += ["", "[bom]", "columns = [" + ", ".join(_tq(x) for x in cfg["bom"]["columns"]) + "]"]
     for e in cfg.get("bom_item", []):
         out += ["", "[[bom_item]]"] + [f"{k} = {_tq(v)}" for k, v in e.items()]
+    for k in cfg.get("kind", []):
+        out += ["", "[[kind]]", f"key = {_tq(k['key'])}", f"label = {_tq(k.get('label', k['key']))}", f"color = {_tq(k.get('color', 'light grey'))}"]
     return "\n".join(out) + "\n"
 
 
@@ -1194,7 +1196,63 @@ def op_kicad_import(cfg, A, f, ctx):
     return f"KiCad import: {len(path)} part(s), {wires} wire(s) from {f.get('file')}", notes
 
 
-OPS = {"kicad_import": op_kicad_import, "layout": op_layout, "ros_topic_edit": op_ros_topic_edit, "ros_topic_delete": op_ros_topic_delete, "ros_node": op_ros_node, "ros_node_delete": op_ros_node_delete, "ros_topic": op_ros_topic, "ros_unplan": op_ros_unplan, "ros_link": op_ros_link,
+DEFAULT_KINDS = [("mcu", "Microcontroller (MCU)", "cyan"), ("computer", "Computer (Pi, Jetson…)", "blue"), ("sensor", "Sensor", "green"),
+                 ("actuator", "Motor / actuator", "orange"), ("driver", "Driver / controller", "amber"), ("power", "Power (battery, regulator)", "red"),
+                 ("radio", "Radio / comms", "violet"), ("mechanical", "Mechanical", "grey"), ("other", "Other", "light grey")]
+
+
+def _kinds(cfg):
+    if not cfg.get("kind"):  # the first change makes the built-in list the project's own
+        cfg["kind"] = [{"key": k, "label": l, "color": c} for k, l, c in DEFAULT_KINDS]
+    return cfg["kind"]
+
+
+def op_kind(cfg, A, f, ctx):
+    ks = _kinds(cfg)
+    key = re.sub(r"[^a-z0-9_-]+", "_", str(f.get("key") or "").strip().lower()).strip("_")
+    orig = str(f.get("orig") or "")
+    if orig == "other":
+        key = "other"
+    if not key:
+        raise EditError("Key is required, e.g. camera")
+    label = str(f.get("label") or "").strip() or key
+    color = str(f.get("color") or "light grey")
+    cur = next((k for k in ks if k["key"] == orig), None) if orig else None
+    if (not cur or key != orig) and any(k["key"] == key for k in ks):
+        raise EditError(f"there is already a kind {key}")
+    if cur:
+        if key != orig:  # parts keep their kind under the new key
+            def walk(p):
+                if (p.get("attrs") or {}).get("kind") == orig:
+                    p["attrs"]["kind"] = key
+                for ch in p.get("parts", []):
+                    walk(ch)
+            walk(A["top"])
+        cur.update(key=key, label=label, color=color)
+        return f"part kind {orig}" + (f" → {key}" if key != orig else ""), []
+    ks.insert(len(ks) - 1 if ks and ks[-1]["key"] == "other" else len(ks), {"key": key, "label": label, "color": color})
+    return f"part kind {key}", []
+
+
+def op_kind_delete(cfg, A, f, ctx):
+    ks = _kinds(cfg)
+    key = str(f.get("key") or "")
+    if key == "other":
+        raise EditError("“other” is the fallback kind and stays")
+    if not any(k["key"] == key for k in ks):
+        raise EditError(f"no kind {key}")
+    cfg["kind"] = [k for k in ks if k["key"] != key]
+
+    def walk(p):
+        if (p.get("attrs") or {}).get("kind") == key:
+            p["attrs"].pop("kind")
+        for ch in p.get("parts", []):
+            walk(ch)
+    walk(A["top"])
+    return f"remove part kind {key}", []
+
+
+OPS = {"kind": op_kind, "kind_delete": op_kind_delete, "kicad_import": op_kicad_import, "layout": op_layout, "ros_topic_edit": op_ros_topic_edit, "ros_topic_delete": op_ros_topic_delete, "ros_node": op_ros_node, "ros_node_delete": op_ros_node_delete, "ros_topic": op_ros_topic, "ros_unplan": op_ros_unplan, "ros_link": op_ros_link,
        "subsystem": op_subsystem, "subsystem_delete": op_subsystem_delete, "subsystem_restore": op_subsystem_restore,
        "subsystem_move": op_subsystem_move, "board": op_board, "board_remove": op_board_remove, "ros_paths": op_ros_paths,
        "port_type": op_port_type, "port_type_delete": op_port_type_delete, "part": op_part, "part_delete": op_part_delete,

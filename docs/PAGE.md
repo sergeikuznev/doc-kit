@@ -238,7 +238,9 @@ connect the same MCU port to each.
 1. **Subsystem**, then **Name** under it, then **Kind** (MCU, computer,
    sensor, motor / actuator, driver, power, radio / comms, mechanical, other).
    The kind colours the part's band in the diagrams and the legend; a board
-   from an `.ioc` is an MCU. Moving a part to another subsystem
+   from an `.ioc` is an MCU. The list is yours: **Setup › Part kinds** adds,
+   renames (parts follow), recolours or deletes kinds; it is saved in
+   `model.toml` as `[[kind]]` rows. *other* is the fallback and stays. Moving a part to another subsystem
    keeps its wires. Parts sit directly in a subsystem, never inside another part.
 2. **What it is**: part number or one line. **Start from the parts library**
    (above, when the library has parts) fills in everything below.

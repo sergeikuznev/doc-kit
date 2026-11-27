@@ -246,6 +246,7 @@ tr.row:hover td,.rcard:hover,.icard:hover,.dcard:hover,.fcard:hover{background:c
 .ss{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.shint{padding:8px 16px;border-top:1px solid var(--hair)}
 .ktab td{vertical-align:middle;padding:4px 6px}.ktab input[data-k="name"]{font:inherit;font-size:13px;color:var(--ink);background:var(--sunk);border:1px solid var(--hair);border-radius:6px;padding:6px 9px;width:150px!important;outline:none}
 .ktab input[data-k="name"]:focus{border-color:var(--accent)}.ktab input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px}.ktab .csel{min-width:110px}.modal .box:has(.ktab){width:min(980px,96vw)}
+.kdot{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:middle}
 .udg{display:inline-flex;gap:0}.udg .btn{border-radius:0;margin-left:-1px;padding-left:11px;padding-right:11px}.udg .btn:first-child{border-radius:8px 0 0 8px}.udg .btn:last-child{border-radius:0 8px 8px 0}.udg .btn:disabled{opacity:.4;cursor:default}
 .hmenu{max-height:70vh;overflow:auto;min-width:320px;max-width:460px}.hmenu .mh{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:8px 10px 4px}.hmenu .mh.now{color:var(--accent)}.hmenu button{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .menu button{display:block;width:100%;text-align:left;border:0;background:none;font:inherit;color:var(--ink);padding:7px 10px;border-radius:6px;cursor:pointer}.menu button:hover{background:var(--sunk)}
@@ -389,9 +390,15 @@ function faultList(fs) {
   if (!fs.length) return `<div class="dsub">None analysed yet.</div>`;
   return `<div class="mini">${fs.map(f => `<div class="mitem" data-fault="${H(f.id)}" style="border-left:4px solid var(--sev${f.sev})"><div class="h"><span class="id">${H(f.id)}</span><span class="sev" style="--sevc:var(--sev${f.sev})">S${H(f.sev)}</span></div>${H(f.failure)}</div>`).join("")}</div>`;
 }
-const PKINDS = [["mcu", "Microcontroller (MCU)", "var(--facts)"], ["computer", "Computer (Pi, Jetson…)", "var(--sig)"], ["sensor", "Sensor", "var(--good)"],
-  ["actuator", "Motor / actuator", "var(--pwr)"], ["driver", "Driver / controller", "var(--warn)"], ["power", "Power (battery, regulator)", "var(--crit)"],
-  ["radio", "Radio / comms", "var(--arch)"], ["mechanical", "Mechanical", "var(--muted)"], ["other", "Other", "var(--faint)"]];
+const KNDCOL = {cyan: "var(--accent)", teal: "#2dd4bf", blue: "#6ea8fe", green: "var(--good)", amber: "var(--warn)", orange: "var(--pwr)", red: "var(--crit)",
+  violet: "var(--arch)", pink: "#f472b6", grey: "var(--muted)", "light grey": "var(--faint)"};
+const DEFAULT_KINDS = [["mcu", "Microcontroller (MCU)", "cyan"], ["computer", "Computer (Pi, Jetson…)", "blue"], ["sensor", "Sensor", "green"],
+  ["actuator", "Motor / actuator", "orange"], ["driver", "Driver / controller", "amber"], ["power", "Power (battery, regulator)", "red"],
+  ["radio", "Radio / comms", "violet"], ["mechanical", "Mechanical", "grey"], ["other", "Other", "light grey"]];
+let PKINDS = [];
+const setKinds = () => { const own = (M.kinds || []).filter(k => k.key); PKINDS = (own.length ? own.map(k => [k.key, k.label || k.key, k.color || "light grey"]) : DEFAULT_KINDS)
+  .map(([k, l, c]) => [k, l, KNDCOL[c] || c, c]); if (!PKINDS.some(k => k[0] === "other")) PKINDS.push(["other", "Other", "var(--faint)", "light grey"]); };
+setKinds();
 const partKind = p => (p.attrs || {}).kind || (p.board || p.source === "facts" ? "mcu" : "other");
 const kindCol = k => (PKINDS.find(x => x[0] === k) || PKINDS[PKINDS.length - 1])[2];
 const WIREV = () => SERVED && (view === "electrical" || view === "power");
@@ -1232,7 +1239,7 @@ function closeOnBackdrop(o) { let down = false;
   o.addEventListener("mousedown", ev => { down = ev.target === o; });
   o.addEventListener("click", ev => { if (ev.target === o && down) o.remove(); down = false; }); }
 function toast(msg, err) { const t = document.createElement("div"); t.className = "toast" + (err ? " err" : ""); t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), err ? 7000 : 3500); }
-function derive() { reqById = Object.fromEntries(M.requirements.map(r => [r.id, r])); conns = M.connections.filter(c => c.ok);
+function derive() { setKinds(); reqById = Object.fromEntries(M.requirements.map(r => [r.id, r])); conns = M.connections.filter(c => c.ok);
   mediaByFile = Object.fromEntries((M.media || []).map(x => [x.file, x])); S_ = M.served || {}; }
 // new data replaces the old in place: same view, same scroll, same panel; nothing reloads
 async function refreshModel() {
@@ -1429,6 +1436,13 @@ function formSpec(kind, d) {
       return {title: "New topic", sub: "Pick who publishes and who subscribes now, or leave both as nobody and connect it later from its ● handle. Dashed until it is in the code.", html: rosLists() +
       `<div class="two">${fld("from", "Published by", "", sel("from", nodes, d.from || "", "nobody yet"))}${fld("to", "Subscribed by", "", sel("to", nodes, d.to || "", "nobody yet"))}</div>` +
       fld("topic", "Topic", "An existing topic keeps its message type.", `<input name="topic" list="dltopics" placeholder="/cmd_vel" autocomplete="off" oninput="const t = M.topics.find(x => x.topic === this.value.trim()); if (t && t.types[0] !== '?') { this.form.type.value = t.types[0]; }">`) + fld("type", "Message type", "", `<input name="type" list="dltypes" placeholder="geometry_msgs/msg/Twist" autocomplete="off">`)}; }
+    case "kind": { const k = d.key ? PKINDS.find(x => x[0] === d.key) : null;
+      return {title: k ? `Kind ${k[0]}` : "New part kind", sub: "Parts of this kind get its colour in the diagrams.", narrow: true, html:
+      fld("key", "Key", k && k[0] === "other" ? "The fallback kind; its key stays." : "Short, lower case, e.g. camera. Parts store it as their kind.", inp("key", k ? k[0] : "", "camera")) +
+      fld("label", "Name", "", inp("label", k ? k[1] : "", "Camera")) +
+      fld("color", "Colour", "", sel("color", Object.keys(KNDCOL).map(c => [c, c]), k ? k[3] : "teal")), extra: k ? {orig: k[0]} : {}}; }
+    case "kind_delete": { const n = Object.values(M.parts).filter(p => p.depth >= 2 && partKind(p) === d.key).length;
+      return {title: `Delete kind ${d.key}?`, sub: n ? `${n} part(s) of this kind become “other”.` : "No part uses it.", html: "", extra: {key: d.key}}; }
     case "kicad": return {title: "Import from KiCad", sub: "Components and nets of a KiCad schematic become parts, ports and wires. Pick the netlist (KiCad: Schematic Editor › File › Export › Netlist…, KiCad format), or a .kicad_sch when kicad-cli is installed. Importing again updates what the last import made.", html:
       fld("file", "Netlist or schematic", "", `<select name="file" id="kfile"><option value="">loading…</option></select>`) +
       `<div id="kprev" class="dsub">Pick a file to see its components.</div>` +
@@ -1810,6 +1824,10 @@ function setupPage() {
     <div class="dsub" style="margin-bottom:8px">Scanned for nodes, publishers and subscribers (C++, Python, micro-ROS C). The robot does not need to be on. Which computer runs each node is set on the node (Software view).</div>
     ${st.ros_paths.map(x => `<div class="mono" style="padding:3px 0">${H(x)}</div>`).join("") || `<div class="dsub">None yet.</div>`}
     <div class="dsub" style="margin-top:6px">${M.nodes.length} node(s), ${M.topics.length} topic(s) found.</div></div>
+  <div class="panel"><h3>Part kinds<span style="flex:1"></span><button class="act" data-form="kind">+ Kind</button></h3>
+    <div class="dsub" style="margin-bottom:8px">The Kind of a part (New part, KiCad import) colours its band in the diagrams and the legend. ${(M.kinds || []).length ? "" : "These are the built-in ones; change any to make the list your own."}</div>
+    <table class="stab">${PKINDS.map(k => `<tr><td><span class="kdot" style="background:${k[2]}"></span></td><td class="mono">${H(k[0])}</td><td>${H(k[1])}</td><td class="dsub">${H(k[3])}</td><td class="dsub">${Object.values(M.parts).filter(p => p.depth >= 2 && partKind(p) === k[0]).length} part(s)</td>
+      <td class="acts"><button class="act" data-form="kind" data-key="${H(k[0])}">Edit</button>${k[0] === "other" ? "" : ` <button class="act dz" data-form="kind_delete" data-key="${H(k[0])}">Delete</button>`}</td></tr>`).join("")}</table></div>
   <div class="panel"><h3>Parts library<span style="flex:1"></span><button class="act" data-form="lib_folder">+ Folder</button><button class="act" data-form="template">+ Part</button></h3>
     <div class="dsub" style="margin-bottom:8px">Reusable parts (IMU, encoder, motor driver, radio…) with their details and ports. Folders are remembered on this computer (${H(st.library?.settings || "")}), so every project can use them. A folder inside the project is committed and shared with the team. In a part's panel, <i>Save to parts library</i> adds it here; a new part can start from one.</div>
     ${(st.library?.folders || []).map(f => `<div style="margin:10px 0 4px"><b class="mono">${H(f.path)}</b> ${f.default ? `<span class="chip">default</span>` : `<button class="act" data-op="lib_default" data-path="${H(f.path)}">Make default</button>`} <span class="dsub">${f.in_repo ? "in this project (committed)" : "on this computer"}${f.exists ? "" : " · missing"}</span> <button class="act dz" data-op="lib_folder_remove" data-path="${H(f.path)}">Forget</button></div>
