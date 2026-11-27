@@ -144,7 +144,7 @@ def arch_text(A, cfg):
     name = cfg["project"]["name"]
     top = A["top"]
     path = lambda segs: ".".join(q(x) for x in segs)
-    o = [f"// {name} architecture. Edited from the doc-kit page (System views > Edit). Hand edits are fine,",
+    o = [f"// {name} architecture. Edited from the doc-kit page (System, Electrical and Power views). Hand edits are fine,",
          f"// but the page rewrites this file in this layout. Boards and their ports come from {name}_facts.sysml.",
          f"package {q(name + '_arch')} {{", f"    private import {q(name + '_facts')}::*;"]
     if A["port_defs"]:
