@@ -1,7 +1,7 @@
 """
 docserve.py - serve the system map and accept edits from it.
 
-    python3 tools/doc.py serve [--port 8765] [--no-push] [--interval 60]
+    python3 tools/doc.py serve [--port 8765] [--no-push] [--interval 60] [--no-open]
 
 Binds to 127.0.0.1 only. Share it with your own devices through Tailscale:
     tailscale serve --bg 8765
@@ -527,12 +527,15 @@ def make_handler(S):
     return H
 
 
-def serve(root, port=8765, push=True, interval=60):
+def serve(root, port=8765, push=True, interval=60, open_browser=True):
     S = Server(root, push=push, interval=interval)
     print(f"doc serve: building the model for {root}", flush=True)
     S.rebuild(force=True)
     threading.Thread(target=S.loop, daemon=True).start()
     httpd = ThreadingHTTPServer(("127.0.0.1", port), make_handler(S))
+    if open_browser:
+        import webbrowser
+        threading.Timer(0.5, lambda: webbrowser.open(f"http://127.0.0.1:{port}/")).start()
     print(f"\n  open       http://127.0.0.1:{port}/")
     print(f"  share      tailscale serve --bg {port}   (your devices only)")
     print(f"  pushes     {'on' if push else 'off (--no-push)'} · checks GitHub every {interval} s · Ctrl+C stops\n", flush=True)

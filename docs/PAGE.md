@@ -40,9 +40,9 @@ In your project (after `doc init`, see the [README](../README.md#quick-start)):
 doc serve
 ```
 
-Open `http://127.0.0.1:8765`. Leave that terminal window open; Ctrl+C stops
+It opens `http://127.0.0.1:8765` in your browser. Leave that terminal window open; Ctrl+C stops
 the server. Options: `--port 8765`, `--interval 60` (seconds between GitHub
-checks), `--no-push` (commit locally only).
+checks), `--no-push` (commit locally only), `--no-open` (don't open the browser).
 
 **Why `127.0.0.1`?** It means only this computer can connect. The page can
 commit and push to your repo and has no login, so it must not be open to

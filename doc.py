@@ -9,7 +9,7 @@ These commands set a project up and run the checks:
 
     python3 doc.py init /path/to/project    install doc-kit into a project (run from the doc-kit folder)
     doc install-hook                         commit check + reminder hook for this clone
-    doc serve [--port 8765] [--no-push]      the page: http://127.0.0.1:8765
+    doc serve [--port 8765] [--no-push]      the page: opens http://127.0.0.1:8765 in your browser
     doc model [--check] [--no-open]          rebuild the facts, check the architecture, write docs/system.html
     doc report [--no-open]                   static status page docs/report.html
 
@@ -952,7 +952,7 @@ def cmd_serve(args):
     docserve.doc = sys.modules[__name__]
     port = int(args[args.index("--port") + 1]) if "--port" in args else 8765
     interval = int(args[args.index("--interval") + 1]) if "--interval" in args else 60
-    docserve.serve(ROOT, port=port, push="--no-push" not in args, interval=interval)
+    docserve.serve(ROOT, port=port, push="--no-push" not in args, interval=interval, open_browser="--no-open" not in args)
 
 
 # ----------------------------------------------------------------- init
