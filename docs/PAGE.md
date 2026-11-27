@@ -300,9 +300,10 @@ layout (and drops `//` comments) on its next change.
 
 ## 5. The views
 
-**Moving blocks.** In every view (System, Electrical, Power, Software) you
-can drag any block to where you want it, and its wires follow. Moving a
-subsystem box moves everything in it. The layout is remembered per view in
+**Moving blocks.** In every view you can drag the outer boxes where you
+want them (subsystem boxes in System, Electrical and Power; computers and
+topics in Software) and the wires follow. Parts inside a subsystem box move
+with it, not on their own. The layout is remembered per view in
 this browser; **Auto layout** (toolbar) forgets it and lets the page arrange
 the view again.
 
@@ -418,8 +419,9 @@ for certain, so it is listed as a gap instead of guessed.
 
 #### Moving, connecting and deleting
 
-- **Drag a block** (node, topic, computer) to move it. Drop a node inside
-  another computer to run it there.
+- **Drag a computer or a topic** to move it. A node stays inside its
+  computer: drag it into another computer to run it there (dropped anywhere
+  else, it goes back).
 - **Connect from the ● handle** on a block's right edge (it shows on hover):
 
 | Drag the ● of | onto | does |
@@ -427,13 +429,15 @@ for certain, so it is listed as a gap instead of guessed.
 | a node | a topic | the node publishes that topic |
 | a topic | a node | the node subscribes to it |
 | a node | another node | **New topic** form: the first publishes, the second subscribes |
-| a computer | another computer | **ROS link**: pick the wire between them and what it carries |
 
 - **+ Topic** adds a topic on its own; connect it afterwards from its ●.
 - **Click an arrow, a topic or a node, then press Delete** to remove it.
   Only planned things can be deleted here; something that is in the code
   says where it is (file and line), so you remove it there.
 - A planned topic's panel has **Rename / change type** and **Delete**.
+- The **ROS link** (thick cyan line between two computers) is a wire
+  detail, set where wires live: in **Electrical**, click the wire (USB, UART,
+  Ethernet…) and add the detail `ros` = `micro-ROS agent` (or `Ethernet`…).
 
 #### Planning nodes and topics before the code
 

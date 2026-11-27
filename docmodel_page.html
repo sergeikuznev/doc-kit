@@ -210,6 +210,8 @@ aside .in{position:relative}aside .dsub:first-of-type{padding-right:40px}.lightb
 .rhit{fill:none;stroke:transparent;stroke-width:14;cursor:pointer}.rhit:hover{stroke:var(--accent);stroke-opacity:.18}.rsel>rect,.rsel>rect.b{stroke:var(--accent)!important;stroke-width:2}path.rosedge.rsel{stroke:var(--accent);stroke-width:2.4;opacity:1}
 .dtool .btn,.dtool .act,.dtool h2{white-space:nowrap}.dtool{flex-wrap:wrap;row-gap:8px}.dtool>div:first-child{flex:1 1 220px;min-width:180px;overflow:hidden}.dtool h2{overflow:hidden;text-overflow:ellipsis}
 nav button .lbl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}nav button .n{flex:none;width:24px;text-align:right;margin-left:6px;font-variant-numeric:tabular-nums;font-size:11px}
+.dtool{flex-direction:column;align-items:stretch!important;gap:8px!important}.dtool>div:first-child{flex:none!important;width:100%}
+.dbtns{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.dleg{padding:6px 18px;border-bottom:1px solid var(--hair);background:var(--surface)}.dleg .legend{flex-wrap:wrap;gap:6px 16px}
 .udg{display:inline-flex;gap:0}.udg .btn{border-radius:0;margin-left:-1px;padding-left:11px;padding-right:11px}.udg .btn:first-child{border-radius:8px 0 0 8px}.udg .btn:last-child{border-radius:0 8px 8px 0}.udg .btn:disabled{opacity:.4;cursor:default}
 .hmenu{max-height:70vh;overflow:auto;min-width:320px;max-width:460px}.hmenu .mh{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:8px 10px 4px}.hmenu .mh.now{color:var(--accent)}.hmenu button{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .menu button{display:block;width:100%;text-align:left;border:0;background:none;font:inherit;color:var(--ink);padding:7px 10px;border-radius:6px;cursor:pointer}.menu button:hover{background:var(--sunk)}
@@ -544,8 +546,13 @@ function routePts(e, cont, abs, s) {  // ELK's route, or a fresh elbow when one 
   const ow = id => { let k = id; while (k && !abs[k]) k = k.includes(".") ? k.slice(0, k.lastIndexOf(".")) : ""; return abs[k] || base; };
   const a = ow(e.sources[0]), b = ow(e.targets[0]), P = p => ({x: p.x + base.x, y: p.y + base.y});
   if (a.cx === base.cx && a.cy === base.cy && b.cx === base.cx && b.cy === base.cy) return {pts: [s.startPoint, ...(s.bendPoints || []), s.endPoint].map(P), moved: false};
+  const raw = [s.startPoint, ...(s.bendPoints || []), s.endPoint];
+  const ds = Math.sign(raw[1].x - raw[0].x) || 1, de = Math.sign(raw[raw.length - 1].x - raw[raw.length - 2].x) || 1;
   const st = P(s.startPoint), en = P(s.endPoint); st.x += a.cx - base.cx; st.y += a.cy - base.cy; en.x += b.cx - base.cx; en.y += b.cy - base.cy;
-  const mx = (st.x + en.x) / 2; return {pts: [st, {x: mx, y: st.y}, {x: mx, y: en.y}, en], moved: true};
+  const G = 18, p1 = {x: st.x + ds * G, y: st.y}, p4 = {x: en.x - de * G, y: en.y};
+  if (ds === de && (p4.x - p1.x) * ds >= 0) { const mx = (p1.x + p4.x) / 2; return {pts: [st, {x: mx, y: st.y}, {x: mx, y: en.y}, en], moved: true}; }
+  const my = Math.abs(st.y - en.y) > 60 ? (st.y + en.y) / 2 : Math.max(st.y, en.y) + 60;
+  return {pts: [st, p1, {x: p1.x, y: my}, {x: p4.x, y: my}, p4, en], moved: true};
 }
 function tagMv(g, id, abs, move = true) { const ch = []; let k = id; while (k && k !== "root" && ch.length < 12) { ch.push(k); k = abs[k] && abs[k].p; } if (move) g.dataset.mv = id; g.dataset.chain = ch.join(" "); }
 let justMoved = false;
@@ -570,6 +577,10 @@ let zoom = null, keepVB = null;
 function canvasShell(title, lead, extra = "", edit = null) {
   const eb = SERVED && edit && view === "electrical" ? `<button class="act addbtn" data-form="port_type">+ Port type</button><button class="act addbtn" data-form="part">+ Part</button>` : "";
   $("#main").innerHTML = `<div class="diagram"><div class="dtool"><div><h2>${title}</h2><p class="lead">${lead}</p></div><span class="sp"></span>${extra}${eb}<button class="btn" id="zout" title="Zoom out">−</button><button class="btn" id="zin" title="Zoom in">+</button><button class="btn" id="fit">Fit</button>${Object.keys(curOff()).length ? `<button class="btn" onclick="resetLayout()" title="Forget where you moved blocks in this view">Auto layout</button>` : ""}</div>${SERVED && edit ? `<div class="dhint">${edit}</div><div class="hintbar" id="hint" style="display:none"></div>` : ""}<div class="canvas ${editing && edit ? "editing" : ""}" id="cv"></div></div>`;
+  const tb = $("#main .dtool");
+  if (tb) { const leg = tb.querySelector(".legend"), row = document.createElement("div"); row.className = "dbtns";
+    [...tb.children].slice(1).forEach(x => { if (x !== leg && !x.classList.contains("sp")) row.appendChild(x); else if (x.classList.contains("sp")) x.remove(); });
+    tb.appendChild(row); if (leg) { const lr = document.createElement("div"); lr.className = "dleg"; lr.appendChild(leg); tb.after(lr); } }
   wire($("#main"));
   return $("#cv");
 }
@@ -604,7 +615,7 @@ function panZoom(svg, W, H) {
     if (!drag) return;  // the press started elsewhere (e.g. selecting text in the panel): not a click on the canvas
     const moved = Math.hypot(ev.clientX - drag.x, ev.clientY - drag.y) > 4;
     drag = null;
-    if (!moved && !ev.target.closest(".leaf,.rosnode,.topic,.sysnode,.cont,.ehit,.addph")) { closeDrawer(); if (pend) cancelPend(); }
+    if (!moved && !ev.target.closest(".leaf,.rosnode,.topic,.sysnode,.cont,.ehit,.addph,.rhit")) { closeDrawer(); if (pend) cancelPend(); if (typeof rsel !== "undefined" && rsel) { rsel = null; markR(); } }
   });
 }
 function drawEdges(root, out, abs, cls) {
@@ -659,7 +670,7 @@ async function drawParts(kinds, title, lead) {
   });
   const missing = new Set(M.connections.filter(c => !c.ok).flatMap(c => [c.a_txt, c.b_txt]));
   Object.values(abs).forEach(({x, y, n}) => { if (!n.children || !n.children.length || !M.parts[n.id] || M.parts[n.id].depth < 2) return;
-    const g = el("g", {class: "cont asm", transform: `translate(${x},${y})`}, root); tagMv(g, n.id, abs); el("rect", {width: n.width, height: n.height, rx: 10}, g);
+    const g = el("g", {class: "cont asm", transform: `translate(${x},${y})`}, root); tagMv(g, n.id, abs, false); el("rect", {width: n.width, height: n.height, rx: 10}, g);
     el("text", {x: 12, y: 22, class: "t", style: "font-size:12px"}, g).textContent = M.parts[n.id].name;
     if (M.parts[n.id].doc) el("text", {x: 12 + M.parts[n.id].name.length * 8 + 8, y: 22, class: "s"}, g).textContent = M.parts[n.id].doc.slice(0, 40);
     g.style.cursor = "pointer"; g.addEventListener("click", ev => { if (ev.target.closest(".leaf,.addph")) return; ev.stopPropagation();
@@ -670,7 +681,7 @@ async function drawParts(kinds, title, lead) {
       el("rect", {width: n.width, height: n.height, rx: 8}, g); el("text", {x: n.width / 2, y: 27, "text-anchor": "middle"}, g).textContent = "+ Part";
       g.addEventListener("click", ev => { ev.stopPropagation(); openForm("part", {parent: n.id.slice(0, -5)}); }); return; }
     const a = abs[n.id], p = M.parts[n.id];
-    const g = el("g", {class: `leaf ${p.source}`, transform: `translate(${a.x},${a.y})`}, root); g.dataset.part = n.id; tagMv(g, n.id, abs);
+    const g = el("g", {class: `leaf ${p.source}`, transform: `translate(${a.x},${a.y})`}, root); g.dataset.part = n.id; tagMv(g, n.id, abs, false);
     el("rect", {class: "b", width: n.width, height: n.height, rx: 8}, g);
     el("rect", {class: "band", x: 0, y: 8, width: 4, height: n.height - 16, style: `fill:${kindCol(partKind(p))}`}, g);
     el("text", {x: 14, y: 20, class: "t"}, g).textContent = p.name;
@@ -740,7 +751,7 @@ async function drawSoftware() {
   const cv = canvasShell("Software (ROS2)", "Nodes and topics found in the code (the robot does not need to be on), grouped by the computer each node runs on, plus the ones you planned.",
     `<div class="legend"><span><i class="box" style="background:var(--sunk);border:1px solid var(--faint);border-radius:6px;width:16px"></i>topic</span><span><i class="box" style="background:var(--surface);border:1px solid var(--faint)"></i>node</span><span><i class="box" style="background:var(--arch)"></i>micro-ROS</span><span><i class="box" style="background:var(--sig)"></i>C++</span><span><i class="box" style="background:var(--good)"></i>Python</span><span><i style="border-color:var(--muted)"></i>publish → subscribe</span><span><i style="border-color:var(--muted);border-top-style:dashed"></i>planned, not in the code</span><span><i style="border-color:var(--facts);border-top-width:3px"></i>ROS link (wire)</span></div>` +
     (SERVED ? `<button class="act addbtn" data-form="ros_topic">+ Topic</button><button class="act addbtn" data-form="ros_node">+ Node</button>` : ""),
-    SERVED ? "Drag blocks to move them; drag a node into another computer to run it there. Connect from the ● on a block's right edge: node → topic publishes, topic → node subscribes, node → node makes a new topic, computer → computer marks the wire that carries ROS. Click a node, topic or arrow and press Delete to remove it." : null);
+    SERVED ? "Drag computers and topics to move them; drag a node into another computer to run it there. Connect from the ● on a block's right edge: node → topic publishes, topic → node subscribes, node → node makes a new topic. Click a node, topic or arrow and press Delete to remove it. The wire that carries ROS is marked in Electrical (wire details: ros)." : null);
   if (!M.nodes.length && !SERVED) { cv.innerHTML = `<div class="empty">No ROS2 code found. Add ROS2 code folders in Setup (doc serve).</div>`; return; }
   const {graph} = buildSoftware(); const out = await lay(graph); const abs = absMap(out);
   const svg = el("svg", {}, cv), root = el("g", {}, svg);
@@ -748,14 +759,12 @@ async function drawSoftware() {
     const g = el("g", {class: "cont roshost" + (src.none ? " none" : ""), transform: `translate(${abs[c.id].x},${abs[c.id].y})`}, root); g.dataset.host = src.none ? "" : src.host; tagMv(g, c.id, abs);
     el("rect", {width: c.width, height: c.height, rx: 12}, g);
     el("text", {x: 14, y: 24, class: "t", style: src.none ? "fill:var(--muted)" : ""}, g).textContent = src.label;
-    if (SERVED && !src.none) el("circle", {class: "hdl", cx: c.width, cy: 20, r: 5}, g);
     if (!src.none) g.addEventListener("click", ev => { if (!ev.target.closest(".rosnode") && !dragged) showPart(src.host); }); });
   const defs = el("defs", {}, svg); const mk = el("marker", {id: "arr", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse"}, defs);
   el("path", {d: "M0,0 L10,5 L0,10 z", fill: "var(--muted)"}, mk);
   allEdges(out).forEach(([e, cont]) => { const off = abs[e.container || cont.id] || {x: 0, y: 0};
     (e.sections || []).forEach(s => { const r = routePts(e, cont, abs, s); const d = "M" + r.pts.map(p => `${p.x},${p.y}`).join(" L");
-      if (e.link) { const p = el("path", {d, class: "roslink"}, root); el("title", {}, p).textContent = `${e.link.wire}\nclick to change`;
-        if (SERVED) p.addEventListener("click", ev => { ev.stopPropagation(); openForm("ros_link", {a: e.link.a, b: e.link.b}); }); return; }
+      if (e.link) { const p = el("path", {d, class: "roslink"}, root); el("title", {}, p).textContent = `${e.link.wire}: ${e.link.via} (set in the wire's details, Electrical view)`; return; }
       const pub = e.id.startsWith("p:"), nn = e.id.split(":")[1], tp = e.e.topic;
       const p = el("path", {d, class: "rosedge" + (e.e.planned ? " plan" : ""), "marker-end": "url(#arr)"}, root); p.dataset.redge = `${nn}|${tp}|${pub ? "out" : "in"}`;
       if (SERVED) { const hit = el("path", {d, class: "rhit"}, root); el("title", {}, hit).textContent = `${pub ? `${nn} publishes ${tp}` : `${nn} subscribes to ${tp}`}${e.e.planned ? " (planned)" : ` (in the code, ${M.nodes.find(x => x.name === nn)?.file || ""}:${e.e.line})`}. Click, then Delete to remove.`;
@@ -780,11 +789,12 @@ async function drawSoftware() {
       g.addEventListener("click", ev => { ev.stopPropagation(); if (!dragged) { rsel = {type: "topic", topic: t.topic}; markR(); showTopic(t.topic); } }); }
   });
   panZoom(svg, out.width, out.height); markR();
+  svg.addEventListener("click", ev => { if (!ev.target.closest(".rosnode,.topic,.rhit") && rsel) { rsel = null; markR(); } });
   movable(svg, root, (id, ev, st) => {  // a node dropped into another computer now runs there
     if (!id.startsWith("n:")) return false;
     const nm = id.slice(2), n = M.nodes.find(x => x.name === nm);
     const h = document.elementsFromPoint(ev.clientX, ev.clientY).map(e => e.closest && e.closest(".roshost")).find(g => g && g.dataset.mv !== "h:" + (n.host || "__none"));
-    if (!h || !SERVED) return false;
+    if (!h || !SERVED) { render(); return true; }
     const to = h.dataset.host || ""; delete curOff()[id]; saveLayout();
     n.host = to || null; n.host_from = to ? "node" : null; render(); quick("allocate", {node: nm, to}); return true; });
   if (SERVED) rosDrag(svg, root);
@@ -1232,7 +1242,7 @@ function typeOpts(v) {
   return Object.entries(groups).map(([k, ts]) => `<optgroup label="${H(k)}">${ts.map(t => `<option value="${H(t.name)}" ${t.name === v ? "selected" : ""}>${H(t.meaning)} (${H(t.name)})</option>`).join("")}</optgroup>`).join("");
 }
 const SUGGEST = {part: ["part_number", "manufacturer", "supplier", "link", "unit_cost", "quantity", "i2c_address", "notes"],
-  Power: ["voltage", "max_current", "current"], I2cBus: ["address"], wire: ["gauge", "length", "connector", "cable", "color", "notes"], port: ["notes"]};
+  Power: ["voltage", "max_current", "current"], I2cBus: ["address"], wire: ["gauge", "length", "connector", "cable", "color", "ros", "notes"], port: ["notes"]};
 const kvRow = (k = "", v = "", list = "", ph = "") => `<div class="kvr"><input data-k placeholder="${H(ph || "field")}" value="${H(k)}" ${list && !list.startsWith("nolist") ? `list="${list}"` : ""}><input data-v placeholder="value" value="${H(v)}"><button class="act dz" type="button" data-rmkv>✕</button></div>`;
 function kvBox(attrs, sugg, id, nolist) { const list = (nolist ? "nolist" : "dl") + Math.random().toString(36).slice(2, 8);
   const rows = Object.entries(attrs || {}); sugg.forEach(k => { if (!rows.some(r => r[0] === k)) rows.push(["", "", k]); });

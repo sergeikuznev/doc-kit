@@ -991,7 +991,7 @@ def build(root, overrides=None):
                     if key not in told and not linked(*key):
                         told.add(key)
                         gap("software", f"micro-ROS topics go between {key[0].split('.', 1)[-1]} and {key[1].split('.', 1)[-1]}, "
-                                        f"but no wire is marked as their ROS link (Software view: drag one computer onto the other)", list(key))
+                                        f"but no wire is marked as their ROS link (Electrical view: click that wire, add the detail ros = micro-ROS agent)", list(key))
     for n in nodes:
         if not n["host"]:
             gap("software", f"ROS node {n['name']} runs on no computer yet (Software view: drag it onto a computer)")
