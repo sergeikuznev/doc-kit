@@ -469,7 +469,7 @@ Gaps (Overview) keep the plan and the code honest:
 
 ## 6. The records
 
-Each record page has its own green **+** button at the top right (**+ Requirement**
+Each record page has its own green **+** buttons under its title (**+ Requirement**
 and **+ Test result**, **+ Fault**, **+ Decision**, **+ Connection**), the same
 forms as **+ New**. Buttons that add something are green, buttons that remove
 something are red.

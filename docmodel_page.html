@@ -189,7 +189,11 @@ a,a:visited{color:var(--accent);text-decoration-color:color-mix(in srgb,var(--ac
 .banner button{font:inherit;border:0;border-radius:8px;padding:5px 12px;background:var(--accent);color:#fff;cursor:pointer}
 .toast{position:fixed;right:18px;bottom:18px;background:var(--surface);border:1px solid var(--ring);padding:10px 14px;border-radius:10px;box-shadow:var(--shadow);z-index:60;font-size:13px}
 .toast.err{border-color:var(--crit);color:var(--crit-ink)}
-.h2acts{float:right;display:inline-flex;gap:6px}.h2acts .act{font-size:12.5px;padding:4px 11px}
+.h2acts{float:right;display:inline-flex;gap:6px}.isearch{width:100%;max-width:520px;margin-bottom:10px;font:inherit;padding:8px 10px;border:1px solid var(--hair);border-radius:8px;background:var(--surface);color:var(--ink)}.ifbar{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;border:1px solid var(--hair);background:var(--surface);padding:6px 10px;margin-bottom:14px;border-radius:8px}
+.itabs{display:flex;gap:2px}.itab{border:0;background:none;color:var(--muted);font:inherit;padding:5px 10px;cursor:pointer;border-radius:6px}.itab:hover{color:var(--ink)}.itab.on{color:var(--ink);font-weight:600}
+.itab .cnt{display:inline-block;min-width:20px;padding:0 6px;margin-left:4px;border-radius:9px;background:var(--sunk);border:1px solid var(--hair);font-size:11px;text-align:center}.itab.on .cnt{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.dd{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:12.5px}.dd select{font:inherit;color:var(--ink);background:var(--sunk);border:1px solid var(--hair);border-radius:6px;padding:4px 8px}
+.h2acts.prow2{float:none;display:flex;flex-wrap:wrap;margin:-6px 0 16px}.h2acts .act{font-size:12.5px;padding:4px 11px}
 .act.addb,.act.addbtn,.ebtn.addb{color:var(--good-ink);border-color:color-mix(in srgb,var(--good) 55%,transparent);background:color-mix(in srgb,var(--good) 8%,var(--surface));font-weight:600}
 .act.addb:hover,.act.addbtn:hover{border-color:var(--good);color:var(--good-ink)}
 .newbtn.addb{background:var(--good);border-color:var(--good)}
@@ -821,7 +825,7 @@ function rosDrag(svg, root) {  // drag node → computer / node / topic, topic �
   const at = ev => { const p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY; return p.matrixTransform(root.getScreenCTM().inverse()); };
   const target = ev => { const s = st.src;
     for (const e of document.elementsFromPoint(ev.clientX, ev.clientY)) { const g = e.closest && e.closest(".rosnode,.topic,.roshost"); if (!g || g === s) continue;
-      if (s.matches(".rosnode") && g.matches(".rosnode,.topic,.roshost")) return g;
+      if (s.matches(".rosnode") && g.matches(".rosnode,.topic")) return g;
       if (s.matches(".topic") && g.matches(".rosnode")) return g;
       if (s.matches(".roshost") && g.matches(".roshost:not(.none)")) return g;
       if (s.matches(".roshost") && g.matches(".rosnode,.topic")) continue; }
@@ -855,7 +859,9 @@ function hostWires(a, b) { const on = (p, h) => p === h || p.startsWith(h + ".")
 
 // ------------------------------------------------------------------ pages
 const addB = list => SERVED ? `<span class="h2acts">${list.map(([f, t]) => `<button class="act" data-form="${f}">+ ${t}</button>`).join("")}</span>` : "";
-function page(html) { refit = null; $("#main").innerHTML = `<div class="page">${html}</div>`; wire($("#main")); }
+function page(html) { refit = null; $("#main").innerHTML = `<div class="page">${html}</div>`;
+  const a = $("#main .page h2 .h2acts"), l = $("#main .page > .lead"); if (a) { (l || a.closest("h2")).after(a); a.classList.add("prow2"); }
+  wire($("#main")); }
 function overview() {
   const rs = M.requirements, st = s => rs.filter(r => r.status === s).length;
   const sevs = ["4", "3", "2", "1"].map(s => [s, M.faults.filter(f => f.sev === s).length]);
@@ -980,17 +986,19 @@ const avatar = (who, url) => `<img class="av" alt="" src="${H(url || (who && who
 let ist = "active", ikind = "all", isub = "", iq = "";
 function issuesPage() {
   const all = M.issues || [];
+  const n = x => all.filter(i => (x === "all" || (x === "active" ? i.state === "open" || i.status === "done" : i.state === x)) && (ikind === "all" || i.kind === ikind) && (!isub || i.subsystems.includes(isub))).length;
   const inState = i => ist === "all" || (ist === "active" ? i.state === "open" || i.status === "done" : i.state === ist);
   const vis = all.filter(i => inState(i) && (ikind === "all" || i.kind === ikind) && (!isub || i.subsystems.includes(isub))
     && (!iq || (i.title + " " + i.body + " #" + i.number).toLowerCase().includes(iq)))
     // open first (newest change first); then closed ones, the most recently closed first
     .sort((a, b) => (a.state === "closed") - (b.state === "closed") || String(a.state === "closed" ? b.closed || b.updated : b.updated).localeCompare(String(a.state === "closed" ? a.closed || a.updated : a.updated)));
-  page(`<div class="ibar"><h2 style="margin:0">Issues</h2><span class="sp" style="flex:1"></span>${SERVED ? `<button class="act" data-form="idea">+ Idea</button><button class="act" data-form="bug">+ Bug</button>` : ""}</div>
+  page(`<h2>Issues${addB([["idea", "Idea"], ["bug", "Bug"]])}</h2>
     <p class="lead">From GitHub${M.issue_error && M.issue_error !== "skipped" ? ` — <span style="color:var(--warn-ink)">not loaded: ${H(M.issue_error)}</span>` : M.issue_error === "skipped" ? " (skipped this build)" : ""}. ${SERVED ? "" : `Snapshot from ${H((M.built || "").replace("T", " "))}.`} Labels place each issue in a subsystem; requirement IDs in the text link it to requirements.</p>
-    <div class="filters"><input id="iq" placeholder="Search issues…" value="${H(iq)}">
-      ${[["active", "open + done"], ["open", "open"], ["closed", "closed"], ["all", "all"]].map(([x, l]) => `<button class="fchip ${x === ist ? "on" : ""}" data-ist="${x}">${l}</button>`).join("")}
-      <span style="width:8px"></span>${["all", "idea", "bug"].map(x => `<button class="fchip ${x === ikind ? "on" : ""}" data-ik="${x}">${x}</button>`).join("")}
-      <select id="isub" class="fchip"><option value="">all subsystems</option>${LABELS().map(([v]) => v.toUpperCase()).map(x => `<option value="${x}" ${x === isub ? "selected" : ""}>${x}${(M.prefix_names || {})[x] ? ` · ${H(M.prefix_names[x])}` : ""}</option>`).join("")}</select></div>
+    <input id="iq" class="isearch" placeholder="Search issues by title, text or #number…" value="${H(iq)}">
+    <div class="ifbar"><div class="itabs">${[["active", "Active", "open, plus done ones"], ["open", "Open", "not done yet"], ["closed", "Closed", "done, not planned or duplicate"], ["all", "All", ""]].map(([x, l, t]) => `<button class="itab ${x === ist ? "on" : ""}" data-ist="${x}" title="${t}">${l} <span class="cnt">${n(x)}</span></button>`).join("")}</div>
+      <span style="flex:1"></span>
+      <label class="dd">Type<select id="ik"><option value="all">all</option><option value="idea" ${ikind === "idea" ? "selected" : ""}>idea</option><option value="bug" ${ikind === "bug" ? "selected" : ""}>bug</option></select></label>
+      <label class="dd">Subsystem<select id="isub"><option value="">all</option>${LABELS().map(([v]) => v.toUpperCase()).map(x => `<option value="${x}" ${x === isub ? "selected" : ""}>${x}${(M.prefix_names || {})[x] ? ` · ${H(M.prefix_names[x])}` : ""}</option>`).join("")}</select></label></div>
     ${vis.map((i, k) => `${i.state === "closed" && (k === 0 || vis[k - 1].state !== "closed") ? `<div class="sgroup"><h3>Closed</h3><span class="c">most recently closed first</span></div>` : ""}<div class="icard ${i.state === "closed" ? "isdone" : ""}" id="i${i.number}"><div class="top">${stPill(i)}<span class="num">${i.number ? "#" + i.number : "#…"}</span><span class="t ilink" data-iss="${i.number}">${H(i.title)}</span>
       ${i.labels.filter(l => !l.startsWith("status: ")).map(l => labChip(l, (i.colors || {})[l])).join("")}<span class="meta">${H(i.author)} · ${i.state === "closed" && i.closed ? "closed " + tm(i.closed) : tm(i.updated)} · <a href="${H(i.url)}" target="_blank">GitHub ↗</a></span></div>
       <div class="links" style="margin-top:6px">${i.subsystems.map(s => `<span class="chip" data-part="${M.top}.${s}">${H(s)}</span>`).join("")}${i.reqs.map(r => reqChip(reqById[r])).join("")}</div>
@@ -999,7 +1007,7 @@ function issuesPage() {
   document.querySelectorAll("[data-stmenu]").forEach(e => e.onclick = ev => { ev.stopPropagation(); statusMenu(e, +e.dataset.stmenu); });
   $("#iq").oninput = e => { iq = e.target.value.toLowerCase(); const p = e.target.selectionStart; issuesPage(); $("#iq").focus(); $("#iq").setSelectionRange(p, p); };
   document.querySelectorAll("[data-ist]").forEach(b => b.onclick = () => { ist = b.dataset.ist; issuesPage(); });
-  document.querySelectorAll("[data-ik]").forEach(b => b.onclick = () => { ikind = b.dataset.ik; issuesPage(); });
+  $("#ik").onchange = e => { ikind = e.target.value; issuesPage(); };
   $("#isub").onchange = e => { isub = e.target.value; issuesPage(); };
 }
 
