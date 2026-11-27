@@ -406,7 +406,25 @@ class Server:
         if dry:
             return {"preview": f"#{n} {iss['title']}", "warnings": [], "target": "GitHub"}
 
+        def set_project_status(st):
+            """Also move the issue in its GitHub Project(s), when it is in one (needs the 'project' scope)."""
+            q = ('query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){issue(number:$n){projectItems(first:5){nodes{id project{id '
+                 'field(name:"Status"){... on ProjectV2SingleSelectField{id options{id name}}}}}}}}}')
+            try:
+                owner, repo = ((self.repo or {}).get("slug") or "/").split("/", 1)
+                out = json.loads(self.gh("api", "graphql", "-f", f"query={q}", "-f", f"o={owner}", "-f", f"r={repo}", "-F", f"n={n}"))
+                for it in out["data"]["repository"]["issue"]["projectItems"]["nodes"]:
+                    fld = (it["project"] or {}).get("field") or {}
+                    opt = next((o for o in fld.get("options", []) if o["name"].strip().lower() == st), None)
+                    if opt:
+                        m = ('mutation($p:ID!,$i:ID!,$f:ID!,$v:String!){updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,'
+                             'value:{singleSelectOptionId:$v}}){projectV2Item{id}}}')
+                        self.gh("api", "graphql", "-f", f"query={m}", "-f", f"p={it['project']['id']}", "-f", f"i={it['id']}", "-f", f"f={fld['id']}", "-f", f"v={opt['id']}")
+            except Exception:
+                pass
+
         def set_status(st):
+            set_project_status(st)
             cur = next((i for i in self.issues if i["number"] == n), iss)
             labels = [l for l in cur["labels"] if l.startswith("status: ")]
             if st in docmodel.ISSUE_OPEN:

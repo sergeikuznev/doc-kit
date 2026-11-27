@@ -1269,6 +1269,10 @@ def issue_status(i):
         if any(l["name"] == "duplicate" for l in i.get("labels", [])) and (i.get("stateReason") or "").upper() != "COMPLETED":
             return "duplicate"
         return ISSUE_CLOSED.get((i.get("stateReason") or "COMPLETED").upper(), "done")
+    for p in i.get("projectItems") or []:  # the Status column of a GitHub Project wins (what github.com shows)
+        name = str(((p or {}).get("status") or {}).get("name") or "").strip().lower()
+        if name in ISSUE_OPEN:
+            return name
     for l in i.get("labels", []):
         if l["name"].startswith("status: ") and l["name"][8:] in ISSUE_OPEN:
             return l["name"][8:]
@@ -1319,10 +1323,13 @@ def fetch_issues(root):
     if not shutil.which("gh"):
         return [], "GitHub CLI (gh) not installed"
     out = []
+    fields = "number,title,labels,url,updatedAt,createdAt,closedAt,author,body,state,stateReason"
     for state, limit in (("open", 200), ("closed", 30)):
-        r = subprocess.run(["gh", "issue", "list", "--state", state, "--limit", str(limit), "--json",
-                            "number,title,labels,url,updatedAt,createdAt,closedAt,author,body,state,stateReason"],
+        r = subprocess.run(["gh", "issue", "list", "--state", state, "--limit", str(limit), "--json", fields + ",projectItems"],
                            cwd=root, capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:  # older gh, or no project scope: without the GitHub Project status
+            r = subprocess.run(["gh", "issue", "list", "--state", state, "--limit", str(limit), "--json", fields],
+                               cwd=root, capture_output=True, text=True, timeout=30)
         if r.returncode != 0:
             return [], (r.stderr.strip().splitlines() or ["gh failed"])[-1]
         for i in json.loads(r.stdout or "[]"):

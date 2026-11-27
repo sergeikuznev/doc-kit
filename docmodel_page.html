@@ -132,10 +132,10 @@ aside h4{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:va
 .legend i{display:inline-block;width:16px;height:0;border-top:2px solid}.legend i.box{width:10px;height:10px;border:0;border-radius:2px}
 
 .ibar{display:flex;gap:8px;align-items:center}
-.icard{background:var(--surface);border:1px solid var(--ring);border-radius:12px;padding:12px 16px;box-shadow:var(--shadow);margin-bottom:10px}
+.icard{background:var(--surface);border:1px solid var(--ring);border-radius:12px;padding:8px 14px;box-shadow:var(--shadow);margin-bottom:6px}.icard .links{display:inline-flex;margin:0!important;gap:4px}.icard .links:empty{display:none}
 .icard .top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.icard .num{font-family:ui-monospace,Menlo,monospace;color:var(--muted);font-size:12.5px}
-.icard .t{font-weight:600;font-size:14.5px}.icard .meta{color:var(--faint);font-size:12px;margin-left:auto}
-.icard details summary{cursor:pointer;color:var(--muted);font-size:12.5px;margin-top:6px}.icard .body{font-size:13px;margin-top:6px}
+.icard .t{font-weight:600;font-size:15.5px}.icard .meta{color:var(--faint);font-size:12px;margin-left:auto}
+.icard details summary{cursor:pointer;color:var(--muted);font-size:12.5px;margin-top:2px}.icard .body{font-size:14px;margin-top:4px}.icard .body h3{margin:6px 0 1px!important}.icard .body p{margin:0 0 4px}
 .icard .body h3{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);margin:10px 0 2px}
 .lab{font-size:11px;padding:1px 8px;border-radius:999px;border:1px solid var(--hair);color:var(--muted)}
 .lab.bug{border-color:var(--crit);color:var(--crit-ink)}
@@ -1003,11 +1003,13 @@ setInterval(() => document.querySelectorAll("time[data-t]").forEach(e => { e.tex
 const labChip = (l, col) => { const c = col && /^[0-9a-f]{6}$/i.test(col) ? "#" + col : null;
   return `<span class="lab ${l === "bug" ? "bug" : l === "idea" ? "idea" : ""}" ${c ? `style="border-color:color-mix(in srgb,${c} 60%,transparent);background:color-mix(in srgb,${c} 18%,transparent);color:color-mix(in srgb,${c} 55%,var(--ink))"` : ""}>${H(l)}</span>`; };
 const avatar = (who, url) => `<img class="av" alt="" src="${H(url || (who && who !== "you" ? `https://github.com/${encodeURIComponent(who)}.png?size=48` : ""))}" onerror="this.style.visibility='hidden'">`;
-let ist = "active", ikind = "all", isub = "", iq = "";
+let ist = "open", ikind = "all", isub = "", iq = "";
+const istOf = (i, x) => x === "all" || (x === "open" ? i.state === "open" && ["backlog", "todo"].includes(i.status || "backlog")
+  : x === "active" ? i.state === "open" && ["in progress", "in review"].includes(i.status) : i.state === "closed");
 function issuesPage() {
   const all = M.issues || [];
-  const n = x => all.filter(i => (x === "all" || (x === "active" ? i.state === "open" || i.status === "done" : i.state === x)) && (ikind === "all" || i.kind === ikind) && (!isub || i.subsystems.includes(isub))).length;
-  const inState = i => ist === "all" || (ist === "active" ? i.state === "open" || i.status === "done" : i.state === ist);
+  const n = x => all.filter(i => istOf(i, x) && (ikind === "all" || i.kind === ikind) && (!isub || i.subsystems.includes(isub))).length;
+  const inState = i => istOf(i, ist);
   const vis = all.filter(i => inState(i) && (ikind === "all" || i.kind === ikind) && (!isub || i.subsystems.includes(isub))
     && (!iq || (i.title + " " + i.body + " #" + i.number).toLowerCase().includes(iq)))
     // open first (newest change first); then closed ones, the most recently closed first
@@ -1015,7 +1017,7 @@ function issuesPage() {
   page(`<h2>Issues${addB([["idea", "Idea"], ["bug", "Bug"]])}</h2>
     <p class="lead">From GitHub${M.issue_error && M.issue_error !== "skipped" ? ` — <span style="color:var(--warn-ink)">not loaded: ${H(M.issue_error)}</span>` : M.issue_error === "skipped" ? " (skipped this build)" : ""}. ${SERVED ? "" : `Snapshot from ${H((M.built || "").replace("T", " "))}.`} Labels place each issue in a subsystem; requirement IDs in the text link it to requirements.</p>
     <input id="iq" class="isearch" placeholder="Search issues by title, text or #number…" value="${H(iq)}">
-    <div class="ifbar"><div class="itabs">${[["active", "Active", "open, plus done ones"], ["open", "Open", "not done yet"], ["closed", "Closed", "done, not planned or duplicate"], ["all", "All", ""]].map(([x, l, t]) => `<button class="itab ${x === ist ? "on" : ""}" data-ist="${x}" title="${t}">${l} <span class="cnt">${n(x)}</span></button>`).join("")}</div>
+    <div class="ifbar"><div class="itabs">${[["open", "Open", "Backlog and Todo"], ["active", "Active", "In progress and In review"], ["closed", "Closed", "Done, Not planned, Duplicate"], ["all", "All", ""]].map(([x, l, t]) => `<button class="itab ${x === ist ? "on" : ""}" data-ist="${x}" title="${t}">${l} <span class="cnt">${n(x)}</span></button>`).join("")}</div>
       <span style="flex:1"></span>
       <label class="dd">Type<select id="ik"><option value="all">all</option><option value="idea" ${ikind === "idea" ? "selected" : ""}>idea</option><option value="bug" ${ikind === "bug" ? "selected" : ""}>bug</option></select></label>
       <label class="dd">Subsystem<select id="isub"><option value="">all</option>${LABELS().map(([v]) => v.toUpperCase()).map(x => `<option value="${x}" ${x === isub ? "selected" : ""}>${x}${(M.prefix_names || {})[x] ? ` · ${H(M.prefix_names[x])}` : ""}</option>`).join("")}</select></label></div>
