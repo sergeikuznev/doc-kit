@@ -49,7 +49,7 @@ svg text{fill:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI"
 .elab rect{fill:var(--surface);stroke:var(--hair)}.elab text{font-size:10.5px;fill:var(--muted)}
 .topic>rect{fill:var(--sunk);stroke:var(--hair)}.topic text{font-size:11.5px}.topic text.ty{fill:var(--muted);font-size:10px}.topic{cursor:pointer}
 .rosnode>rect.b{fill:var(--surface);stroke:var(--ring)}.rosnode{cursor:pointer}
-.rosedge{fill:none;stroke:var(--muted);stroke-width:1.4;opacity:.8}
+.rosedge{fill:none;stroke:var(--muted);stroke-width:1.4;opacity:.8}.rosedge.plan{stroke-dasharray:5 4}.roslink{fill:none;stroke:var(--accent);stroke-width:3;opacity:.55;cursor:pointer}.roslink:hover{opacity:.9}.rosghost{fill:none;stroke:var(--accent);stroke-width:2;stroke-dasharray:6 4;pointer-events:none}.roshost:not(.none)>rect{stroke:var(--ring);stroke-dasharray:none}.roshost.none>rect{stroke-dasharray:5 4}.roshost:not(.none){cursor:grab}.rosnode.plan>rect.b{stroke-dasharray:5 4;fill:var(--sunk)}.rosnode{cursor:grab}.topic{cursor:grab}.dragsrc{opacity:.55}.droptgt>rect,.droptgt>rect.b{stroke:var(--accent)!important;stroke-width:2.2;stroke-dasharray:none!important}.rosdragging{cursor:grabbing}
 /* drawer */
 aside{width:0;overflow:hidden;border-left:1px solid var(--hair);background:var(--surface);transition:width .18s}
 aside.open{width:440px;overflow:auto}aside .in{padding:18px 20px 40px;width:440px}
@@ -166,6 +166,7 @@ a,a:visited{color:var(--accent);text-decoration-color:color-mix(in srgb,var(--ac
 .banner button{font:inherit;border:0;border-radius:8px;padding:5px 12px;background:var(--accent);color:#fff;cursor:pointer}
 .toast{position:fixed;right:18px;bottom:18px;background:var(--surface);border:1px solid var(--ring);padding:10px 14px;border-radius:10px;box-shadow:var(--shadow);z-index:60;font-size:13px}
 .toast.err{border-color:var(--crit);color:var(--crit-ink)}
+.dhint{padding:6px 18px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--hair);background:var(--surface)}
 .gapsp{border-color:color-mix(in srgb,var(--warn) 55%,transparent);background:color-mix(in srgb,var(--warn) 9%,var(--surface));box-shadow:inset 4px 0 0 color-mix(in srgb,var(--warn) 80%,transparent)}
 .gapsp h3{color:var(--warn-ink)}.gapsp .issue{border-top-color:color-mix(in srgb,var(--warn) 22%,transparent)}.gapsp .issue .k{color:var(--warn-ink)}
 .xbtn{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:8px;border:1px solid transparent;background:none;color:var(--muted);font-size:18px;line-height:1;cursor:pointer;display:grid;place-items:center}
@@ -278,6 +279,7 @@ function wire(root) {
   root.querySelectorAll("[data-part]").forEach(e => e.onclick = ev => { ev.stopPropagation(); showPart(e.dataset.part); });
   root.querySelectorAll("[data-req]").forEach(e => e.onclick = ev => { ev.stopPropagation(); showReq(e.dataset.req); });
   root.querySelectorAll("[data-fault]").forEach(e => e.onclick = ev => { ev.stopPropagation(); showFault(e.dataset.fault); });
+  root.querySelectorAll("[data-unplan]").forEach(e => e.onclick = ev => { ev.stopPropagation(); const [node, topic] = e.dataset.unplan.split("|"); quick("ros_unplan", {node, topic}); });
   root.querySelectorAll("[data-node]").forEach(e => e.onclick = ev => { ev.stopPropagation(); showNode(e.dataset.node); });
   root.querySelectorAll("[data-topic]").forEach(e => e.onclick = ev => { ev.stopPropagation(); showTopic(e.dataset.topic); });
   root.querySelectorAll("[data-dec]").forEach(e => e.onclick = ev => { ev.stopPropagation(); go("decisions"); setTimeout(() => document.getElementById("d" + e.dataset.dec)?.scrollIntoView({behavior: "smooth"}), 50); });
@@ -370,9 +372,11 @@ function showFault(id) { setTimeout(() => reopen = () => showFault(id), 0);
 }
 function showNode(name) { setTimeout(() => reopen = () => showNode(name), 0);
   const n = M.nodes.find(x => x.name === name);
-  const row = (e, role) => `<tr class="row" data-topic="${H(e.topic)}"><td>${role}</td><td class="mono lnk">${H(e.topic)}</td><td class="mono">${H(e.type)}</td><td class="mono">:${e.line}</td></tr>`;
-  openDrawer(`<div class="dsub">ROS2 node · ${H(n.lang === "c" ? "micro-ROS (C)" : n.lang === "py" ? "Python" : "C++")}</div><div class="dh">${H(n.name)}</div>
-    <div class="kv" style="margin-top:8px"><div>Source</div><div class="mono">${H(n.file)}</div><div>Runs on</div><div>${n.host ? `<span class="lnk" data-part="${n.host}">${H(short(n.host))}</span>` : `<span class="warnline">not allocated</span>`}${SERVED ? ` <button class="act" data-form="allocate" data-node="${H(n.name)}">Change</button>` : ""}</div></div>
+  const row = (e, role) => `<tr class="row" data-topic="${H(e.topic)}"><td>${role}</td><td class="mono lnk">${H(e.topic)}</td><td class="mono">${H(e.type)}</td><td class="mono" style="white-space:nowrap">${e.planned ? `<span class="dsub">planned</span>${SERVED ? ` <button class="act dz" data-unplan="${H(n.name)}|${H(e.topic)}" title="Drop from the plan">✕</button>` : ""}` : e.unplanned ? `:${e.line} <span class="dsub">not in plan</span>` : `:${e.line}`}</td></tr>`;
+  openDrawer(`<div class="dsub">ROS2 node · ${H(n.lang === "plan" ? "planned" : n.lang === "c" ? "micro-ROS (C)" : n.lang === "py" ? "Python" : "C++")}</div><div class="dh">${H(n.name)}</div>
+    ${n.doc ? `<div class="dsub">${H(n.doc)}</div>` : ""}
+    ${SERVED ? `<div class="links" style="margin:8px 0"><button class="act" data-form="ros_node" data-orig="${H(n.name)}">${n.planned ? "Edit plan" : "Plan topics"}</button>${n.planned ? `<button class="act dz" data-form="ros_node_delete" data-name="${H(n.name)}">${n.lang === "plan" ? "Delete" : "Drop plan"}</button>` : ""}</div>` : ""}
+    <div class="kv" style="margin-top:8px"><div>Source</div><div class="mono">${n.file ? H(n.file) : `<span class="dsub">not in the code yet</span>`}</div><div>Runs on</div><div>${n.host ? `<span class="lnk" data-part="${n.host}">${H(short(n.host))}</span>` : `<span class="warnline">not allocated</span>`}${SERVED ? ` <button class="act" data-form="allocate" data-node="${H(n.name)}">Change</button>` : ""}</div></div>
     ${n.host_from === "launch" ? `<div class="dsub" style="margin-top:4px">placed by its launch file</div>` : n.host_from === "board" ? `<div class="dsub" style="margin-top:4px">placed by its folder: the firmware of this board</div>` : ""}
     <h4>Topics</h4><table class="ptab"><tr><th></th><th>Topic</th><th>Type</th><th>Line</th></tr>${n.pub.map(e => row(e, "pub")).join("")}${n.sub.map(e => row(e, "sub")).join("")}</table>
     ${(n.launch || []).map(l => `<h4>Started by ${H(l.file.split("/").pop())}</h4><div class="kv"><div>File</div><div class="mono">${H(l.file)}</div>${l.package ? `<div>Package</div><div class="mono">${H(l.package)}</div>` : ""}${l.executable ? `<div>Executable</div><div class="mono">${H(l.executable)}</div>` : ""}${l.namespace ? `<div>Namespace</div><div class="mono">${H(l.namespace)}</div>` : ""}
@@ -464,27 +468,13 @@ function buildSystem() {
   return {graph: {id: "root", layoutOptions: {"elk.algorithm": "layered", "elk.direction": "RIGHT", "elk.edgeRouting": "ORTHOGONAL", "elk.layered.spacing.nodeNodeBetweenLayers": "120",
     "elk.spacing.nodeNode": "40", "elk.spacing.edgeLabel": "4", "elk.edgeLabels.inline": "true", "elk.layered.spacing.edgeEdgeBetweenLayers": "16"}, children: nodes, edges}};
 }
-function buildSoftware() {
-  const hosts = {};
-  M.nodes.forEach(n => (hosts[n.host || "__none"] ||= []).push(n));
-  const children = Object.entries(hosts).map(([h, ns]) => ({id: "h:" + h, label: h === "__none" ? "Not allocated to hardware" : short(h), none: h === "__none",
-    layoutOptions: {"elk.padding": "[top=38,left=14,bottom=14,right=14]", "elk.nodeSize.constraints": "[MINIMUM_SIZE]", "elk.nodeSize.minimum": `(${((h === "__none" ? "Not allocated to hardware" : short(h)).length) * 8.6 + 30},60)`},
-    children: ns.map(n => ({id: "n:" + n.name, width: Math.max(150, n.name.length * 7.4 + 30, (n.file.split("/").pop().length + (n.lang === "c" ? 12 : 0)) * 6 + 28), height: 48, n})), edges: []}));
-  M.topics.forEach(t => children.push({id: "t:" + t.topic, width: Math.max(t.topic.length * 6.8 + 24, t.types[0].split("/").pop().length * 6 + 24), height: 38, t}));
-  const edges = [];
-  M.nodes.forEach(n => { n.pub.forEach((e, i) => edges.push({id: `p:${n.name}:${i}`, sources: ["n:" + n.name], targets: ["t:" + e.topic]}));
-                         n.sub.forEach((e, i) => edges.push({id: `q:${n.name}:${i}`, sources: ["t:" + e.topic], targets: ["n:" + n.name]})); });
-  return {graph: {id: "root", layoutOptions: {"elk.algorithm": "layered", "elk.direction": "RIGHT", "elk.hierarchyHandling": "INCLUDE_CHILDREN", "elk.edgeRouting": "ORTHOGONAL",
-    "elk.layered.spacing.nodeNodeBetweenLayers": "60", "elk.spacing.nodeNode": "22"}, children, edges}};
-}
-
 function absMap(n, ox = 0, oy = 0, out = {}) { out[n.id] = {x: ox + (n.x || 0), y: oy + (n.y || 0), n}; (n.children || []).forEach(c => absMap(c, out[n.id].x, out[n.id].y, out)); return out; }
 function allEdges(n, out = []) { (n.edges || []).forEach(e => out.push([e, n])); (n.children || []).forEach(c => allEdges(c, out)); return out; }
 
 let zoom = null, keepVB = null;
 function canvasShell(title, lead, extra = "", edit = null) {
   const eb = SERVED && edit ? `<button class="act addbtn" data-form="part">+ Part</button>` : "";
-  $("#main").innerHTML = `<div class="diagram"><div class="dtool"><div><h2>${title}</h2><p class="lead">${lead}${SERVED && edit ? `<br><span class="dsub">${edit}</span>` : ""}</p></div><span class="sp"></span>${extra}${eb}<button class="btn" id="zout" title="Zoom out">−</button><button class="btn" id="zin" title="Zoom in">+</button><button class="btn" id="fit">Fit</button></div>${SERVED && edit ? `<div class="hintbar" id="hint" style="display:none"></div>` : ""}<div class="canvas ${editing && edit ? "editing" : ""}" id="cv"></div></div>`;
+  $("#main").innerHTML = `<div class="diagram"><div class="dtool"><div><h2>${title}</h2><p class="lead">${lead}</p></div><span class="sp"></span>${extra}${eb}<button class="btn" id="zout" title="Zoom out">−</button><button class="btn" id="zin" title="Zoom in">+</button><button class="btn" id="fit">Fit</button></div>${SERVED && edit ? `<div class="dhint">${edit}</div><div class="hintbar" id="hint" style="display:none"></div>` : ""}<div class="canvas ${editing && edit ? "editing" : ""}" id="cv"></div></div>`;
   wire($("#main"));
   return $("#cv");
 }
@@ -628,35 +618,106 @@ async function drawSystem() {
   });
   panZoom(svg, out.width, out.height); markSel();
 }
+const COMPUTER_RE = /\b(pi|rpi\d*|raspberry|jetson|nuc|computer|laptop|pc|odroid|esp32|teensy|arduino|stm32|mcu|board|nano|orin)\b|pi\d/i;
+function rosHosts() {  // computers a node can run on: boards, parts that already run nodes, and parts that look like computers
+  const hs = new Set(M.nodes.map(n => n.host).filter(Boolean));
+  Object.values(M.parts).forEach(p => { if (p.depth >= 2 && !p.children.length && (p.board || COMPUTER_RE.test(`${p.name} ${p.doc || ""} ${p.type || ""}`))) hs.add(p.path); });
+  (M.ros_links || []).forEach(l => { hs.add(l.a); hs.add(l.b); });
+  return [...hs].filter(h => M.parts[h]);
+}
+function buildSoftware() {
+  const hosts = {}; rosHosts().forEach(h => hosts[h] = []);
+  M.nodes.forEach(n => (hosts[n.host && hosts[n.host] ? n.host : "__none"] ||= []).push(n));
+  const children = Object.entries(hosts).map(([h, ns]) => { const label = h === "__none" ? "Not allocated to hardware" : short(h);
+    return {id: "h:" + h, label, none: h === "__none", host: h,
+    layoutOptions: {"elk.padding": "[top=38,left=14,bottom=14,right=14]", "elk.nodeSize.constraints": "[MINIMUM_SIZE]", "elk.nodeSize.minimum": `(${Math.max(label.length * 8.6 + 30, ns.length ? 0 : 190)},${ns.length ? 60 : 84})`},
+    children: ns.map(n => ({id: "n:" + n.name, width: Math.max(150, n.name.length * 7.4 + 30, ((n.file || "planned").split("/").pop().length + (n.lang === "c" ? 12 : 0)) * 6 + 28), height: 48, n})), edges: []}; });
+  M.topics.forEach(t => children.push({id: "t:" + t.topic, width: Math.max(t.topic.length * 6.8 + 24, t.types[0].split("/").pop().length * 6 + 24), height: 38, t}));
+  const edges = [];
+  M.nodes.forEach(n => { n.pub.forEach((e, i) => edges.push({id: `p:${n.name}:${i}`, sources: ["n:" + n.name], targets: ["t:" + e.topic], e}));
+                         n.sub.forEach((e, i) => edges.push({id: `q:${n.name}:${i}`, sources: ["t:" + e.topic], targets: ["n:" + n.name], e})); });
+  (M.ros_links || []).forEach((l, i) => { const a = Object.keys(hosts).find(h => h !== "__none" && (l.a === h || l.a.startsWith(h + "."))), b = Object.keys(hosts).find(h => h !== "__none" && (l.b === h || l.b.startsWith(h + ".")));
+    if (a && b && a !== b) edges.push({id: "l" + i, sources: ["h:" + a], targets: ["h:" + b], link: l, labels: [{text: l.via, width: l.via.length * 6.4 + 14, height: 18}]}); });
+  return {graph: {id: "root", layoutOptions: {"elk.algorithm": "layered", "elk.direction": "RIGHT", "elk.hierarchyHandling": "INCLUDE_CHILDREN", "elk.edgeRouting": "ORTHOGONAL",
+    "elk.layered.spacing.nodeNodeBetweenLayers": "60", "elk.spacing.nodeNode": "22", "elk.edgeLabels.inline": "true"}, children, edges}};
+}
 async function drawSoftware() {
-  const cv = canvasShell("Software (ROS2)", "Nodes and topics found in the code (robot does not need to be on), grouped by the computer each node runs on.",
-    `<div class="legend"><span><i class="box" style="background:var(--sunk);border:1px solid var(--faint);border-radius:6px;width:16px"></i>topic</span><span><i class="box" style="background:var(--surface);border:1px solid var(--faint)"></i>node</span><span><i style="border-color:var(--muted)"></i>publish → subscribe</span><span><i class="box" style="border:1px dashed var(--faint);border-radius:6px;width:16px"></i>only one side found</span></div>`);
-  if (!M.nodes.length) { cv.innerHTML = `<div class="empty">No ROS2 code found.${SERVED ? ` Add the folders with your ROS2 / micro-ROS code in <span class="xref" onclick="go('setup')">Setup</span>.` : " Add ROS2 code folders in Setup (doc serve)."}</div>`; return; }
+  const cv = canvasShell("Software (ROS2)", "Nodes and topics found in the code (the robot does not need to be on), grouped by the computer each node runs on, plus the ones you planned.",
+    `<div class="legend"><span><i class="box" style="background:var(--sunk);border:1px solid var(--faint);border-radius:6px;width:16px"></i>topic</span><span><i class="box" style="background:var(--surface);border:1px solid var(--faint)"></i>node</span><span><i style="border-color:var(--muted)"></i>publish → subscribe</span><span><i style="border-color:var(--muted);border-top-style:dashed"></i>planned, not in the code</span><span><i style="border-color:var(--accent);border-top-width:3px"></i>ROS link (wire)</span></div>` +
+    (SERVED ? `<button class="act addbtn" data-form="ros_node">+ Node</button>` : ""),
+    SERVED ? "Drag a node onto a computer to run it there. Drag a node onto another node for a new topic, a node onto a topic to publish it, a topic onto a node to subscribe. Drag one computer onto another to mark the wire that carries ROS between them." : null);
+  if (!M.nodes.length && !SERVED) { cv.innerHTML = `<div class="empty">No ROS2 code found. Add ROS2 code folders in Setup (doc serve).</div>`; return; }
   const {graph} = buildSoftware(); const out = await elk.layout(graph); const abs = absMap(out);
   const svg = el("svg", {}, cv), root = el("g", {}, svg);
   out.children.filter(c => c.id.startsWith("h:")).forEach(c => { const src = graph.children.find(x => x.id === c.id);
-    const g = el("g", {class: "cont", transform: `translate(${c.x},${c.y})`}, root); el("rect", {width: c.width, height: c.height, rx: 12, style: src.none ? "stroke-dasharray:5 4" : ""}, g);
+    const g = el("g", {class: "cont roshost" + (src.none ? " none" : ""), transform: `translate(${c.x},${c.y})`}, root); g.dataset.host = src.none ? "" : src.host;
+    el("rect", {width: c.width, height: c.height, rx: 12}, g);
     el("text", {x: 14, y: 24, class: "t", style: src.none ? "fill:var(--muted)" : ""}, g).textContent = src.label;
-    if (!src.none) { g.style.cursor = "pointer"; g.addEventListener("click", ev => { if (!ev.target.closest(".rosnode")) showPart(c.id.slice(2)); }); } });
-  allEdges(out).forEach(([e, cont]) => { const off = abs[e.container || cont.id] || {x: 0, y: 0};
-    (e.sections || []).forEach(s => { const pts = [s.startPoint, ...(s.bendPoints || []), s.endPoint]; const d = "M" + pts.map(p => `${p.x + off.x},${p.y + off.y}`).join(" L");
-      el("path", {d, class: "rosedge", "marker-end": "url(#arr)"}, root); }); });
+    if (!src.children.length) el("text", {x: 14, y: 52, class: "ty"}, g).textContent = src.none ? "every node has a computer" : "drop a node here";
+    if (!src.none) g.addEventListener("click", ev => { if (!ev.target.closest(".rosnode") && !dragged) showPart(src.host); }); });
   const defs = el("defs", {}, svg); const mk = el("marker", {id: "arr", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse"}, defs);
   el("path", {d: "M0,0 L10,5 L0,10 z", fill: "var(--muted)"}, mk);
+  allEdges(out).forEach(([e, cont]) => { const off = abs[e.container || cont.id] || {x: 0, y: 0};
+    (e.sections || []).forEach(s => { const pts = [s.startPoint, ...(s.bendPoints || []), s.endPoint]; const d = "M" + pts.map(p => `${p.x + off.x},${p.y + off.y}`).join(" L");
+      if (e.link) { const p = el("path", {d, class: "roslink"}, root); el("title", {}, p).textContent = `${e.link.wire}\nclick to change`;
+        if (SERVED) p.addEventListener("click", ev => { ev.stopPropagation(); openForm("ros_link", {a: e.link.a, b: e.link.b}); }); return; }
+      el("path", {d, class: "rosedge" + (e.e && e.e.planned ? " plan" : ""), "marker-end": "url(#arr)"}, root); });
+    (e.labels || []).forEach(l => { const g = el("g", {class: "elab", transform: `translate(${l.x + off.x},${l.y + off.y})`}, root);
+      el("rect", {width: l.width, height: l.height, rx: 5}, g); el("text", {x: 7, y: 12.5}, g).textContent = l.text; }); });
   Object.values(abs).forEach(({x, y, n}) => {
     if (n.id.startsWith("n:")) { const nd = graph.children.flatMap(c => c.children || []).find(z => z.id === n.id).n;
-      const g = el("g", {class: "rosnode", transform: `translate(${x},${y})`}, root); el("rect", {class: "b", width: n.width, height: n.height, rx: 8}, g);
+      const g = el("g", {class: "rosnode" + (nd.lang === "plan" ? " plan" : ""), transform: `translate(${x},${y})`}, root); g.dataset.node = nd.name;
+      el("rect", {class: "b", width: n.width, height: n.height, rx: 8}, g);
       el("text", {x: 12, y: 20, style: "font-size:12.5px;font-weight:650"}, g).textContent = nd.name;
-      el("text", {x: 12, y: 36, style: "font-size:10.5px;fill:var(--muted)"}, g).textContent = nd.file.split("/").pop() + (nd.lang === "c" ? " · micro-ROS" : "");
-      g.addEventListener("click", ev => { ev.stopPropagation(); showNode(nd.name); }); }
+      el("text", {x: 12, y: 36, style: "font-size:10.5px;fill:var(--muted)"}, g).textContent = nd.lang === "plan" ? "planned · not in the code yet" : nd.file.split("/").pop() + (nd.lang === "c" ? " · micro-ROS" : "");
+      g.addEventListener("click", ev => { ev.stopPropagation(); if (!dragged) showNode(nd.name); }); }
     if (n.id.startsWith("t:")) { const t = graph.children.find(z => z.id === n.id).t; const lonely = !t.pub.length || !t.sub.length;
-      const g = el("g", {class: "topic", transform: `translate(${x},${y})`}, root); el("rect", {width: n.width, height: n.height, rx: 19, style: lonely ? "stroke-dasharray:4 3" : ""}, g);
+      const g = el("g", {class: "topic" + (t.planned ? " plan" : ""), transform: `translate(${x},${y})`}, root); g.dataset.topic = t.topic;
+      el("rect", {width: n.width, height: n.height, rx: 19, style: lonely || t.planned ? "stroke-dasharray:4 3" : ""}, g);
       el("text", {x: 12, y: 16, class: "mono", style: "font-size:11.5px"}, g).textContent = t.topic;
       el("text", {x: 12, y: 30, class: "ty"}, g).textContent = t.types.join(", ").split("/").pop();
-      g.addEventListener("click", ev => { ev.stopPropagation(); showTopic(t.topic); }); }
+      g.addEventListener("click", ev => { ev.stopPropagation(); if (!dragged) showTopic(t.topic); }); }
   });
   panZoom(svg, out.width, out.height);
+  if (SERVED) rosDrag(svg, root);
 }
+let dragged = false;
+function rosDrag(svg, root) {  // drag node → computer / node / topic, topic → node, computer → computer
+  let st = null;
+  const at = ev => { const p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY; return p.matrixTransform(root.getScreenCTM().inverse()); };
+  const target = ev => { const s = st.src;
+    for (const e of document.elementsFromPoint(ev.clientX, ev.clientY)) { const g = e.closest && e.closest(".rosnode,.topic,.roshost"); if (!g || g === s) continue;
+      if (s.matches(".rosnode") && g.matches(".rosnode,.topic,.roshost")) return g;
+      if (s.matches(".topic") && g.matches(".rosnode")) return g;
+      if (s.matches(".roshost") && g.matches(".roshost:not(.none)")) return g;
+      if (s.matches(".roshost") && g.matches(".rosnode,.topic")) continue; }
+    return null; };
+  const move = ev => { if (!dragged && Math.hypot(ev.clientX - st.x0, ev.clientY - st.y0) < 6) return;
+    dragged = true; const p = at(ev);
+    if (!st.line) { st.line = el("path", {class: "rosghost"}, root); st.src.classList.add("dragsrc"); svg.classList.add("rosdragging"); }
+    st.line.setAttribute("d", `M${st.p.x},${st.p.y} L${p.x},${p.y}`);
+    document.querySelectorAll(".droptgt").forEach(x => x.classList.remove("droptgt")); const t = target(ev); if (t) t.classList.add("droptgt"); };
+  const up = ev => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up);
+    const s = st.src, t = dragged ? target(ev) : null;
+    if (st.line) st.line.remove(); s.classList.remove("dragsrc"); svg.classList.remove("rosdragging"); document.querySelectorAll(".droptgt").forEach(x => x.classList.remove("droptgt")); st = null;
+    setTimeout(() => dragged = false, 0);
+    if (!t) return;
+    if (s.matches(".rosnode")) { const nm = s.dataset.node, n = M.nodes.find(x => x.name === nm);
+      if (t.matches(".roshost")) { const to = t.dataset.host || ""; if ((n.host || "") === to) return;
+        n.host = to || null; n.host_from = to ? "node" : null; render(); return quick("allocate", {node: nm, to}); }
+      if (t.matches(".rosnode")) return openForm("ros_topic", {from: nm, to: t.dataset.node});
+      const tp = M.topics.find(x => x.topic === t.dataset.topic); return quick("ros_topic", {from: nm, topic: tp.topic, type: tp.types[0] === "?" ? "" : tp.types[0]}); }
+    if (s.matches(".topic")) { const tp = M.topics.find(x => x.topic === s.dataset.topic); return quick("ros_topic", {to: t.dataset.node, topic: tp.topic, type: tp.types[0] === "?" ? "" : tp.types[0]}); }
+    openForm("ros_link", {a: s.dataset.host, b: t.dataset.host}); };
+  svg.addEventListener("pointerdown", ev => { const src = ev.target.closest(".rosnode,.topic,.roshost:not(.none)"); if (!src || ev.button) return;
+    ev.stopPropagation(); ev.preventDefault(); dragged = false; st = {src, x0: ev.clientX, y0: ev.clientY, p: at(ev), line: null};
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up); }, true);
+}
+const rosRow = (io, t = {}) => `<div class="prow" style="grid-template-columns:1fr 1.2fr auto"><input name="${io}_topic[]" value="${H(t.topic || "")}" placeholder="topic, e.g. /cmd_vel" list="dltopics"><input name="${io}_type[]" value="${H(t.type && t.type !== "?" ? t.type : "")}" placeholder="type, e.g. geometry_msgs/msg/Twist" list="dltypes"><button class="act dz" type="button" data-rm>✕</button></div>`;
+const rosLists = () => `<datalist id="dltopics">${M.topics.map(t => `<option value="${H(t.topic)}">`).join("")}</datalist><datalist id="dltypes">${[...new Set([...M.topics.flatMap(t => t.types).filter(t => t !== "?"),
+  "geometry_msgs/msg/Twist", "geometry_msgs/msg/PoseStamped", "nav_msgs/msg/Odometry", "sensor_msgs/msg/Imu", "sensor_msgs/msg/LaserScan", "sensor_msgs/msg/Image", "sensor_msgs/msg/Joy", "sensor_msgs/msg/BatteryState", "sensor_msgs/msg/NavSatFix", "std_msgs/msg/String", "std_msgs/msg/Float32", "std_msgs/msg/Float32MultiArray", "std_msgs/msg/Bool", "tf2_msgs/msg/TFMessage"])].map(t => `<option value="${H(t)}">`).join("")}</datalist>`;
+function hostWires(a, b) { const on = (p, h) => p === h || p.startsWith(h + ".");
+  return M.connections.filter(c => c.drawn && ((on(c.a[0], a) && on(c.b[0], b)) || (on(c.a[0], b) && on(c.b[0], a)))); }
 
 // ------------------------------------------------------------------ pages
 function page(html) { refit = null; $("#main").innerHTML = `<div class="page">${html}</div>`; wire($("#main")); }
@@ -1121,6 +1182,26 @@ function formSpec(kind, d) {
     case "bom_columns": return {title: "BOM columns", sub: "Extra columns after the standard ones (qty, item, part number, manufacturer, supplier, link, unit cost, total). A part fills a column from its detail of the same name.", html:
       `<div id="rplist">${(M.bom?.columns || []).map(c => `<div class="prow" style="grid-template-columns:1fr auto"><input name="columns[]" value="${H(c)}"><button class="act dz" type="button" data-rm>✕</button></div>`).join("")}</div><button class="act" type="button" id="addcol">+ Column</button>`};
     case "disconnect": return {title: "Remove connection", sub: "", html: `<div class="pv">${H(short(d.a))}  ↔  ${H(short(d.b))}</div>`, extra: {a: d.a, b: d.b}};
+    case "ros_node": { const n = d.orig ? M.nodes.find(x => x.name === d.orig) : null;
+      const outs = n ? n.pub.filter(e => !e.unplanned || !n.planned) : [], ins = n ? n.sub.filter(e => !e.unplanned || !n.planned) : [];
+      return {title: n ? `Plan for ${n.name}` : "New ROS node", sub: "A node you plan: what it publishes and subscribes to. Planned items are dashed until doc-kit finds them in the code.", html:
+      rosLists() + fld("name", "Name", n && n.lang !== "plan" ? "In the code: rename it there." : "As in the code, e.g. planner", inp("name", n ? n.name : "", "planner") ) +
+      fld("doc", "What it does", "", inp("doc", n ? n.doc || "" : "", "plans a path to the goal")) +
+      fld("to", "Runs on", "", sel("to", leafParts().map(p => [p.path, short(p.path)]), n ? n.host || "" : "", "not allocated yet")) +
+      `<div class="fld"><label>Publishes</label><div>${outs.map(e => rosRow("out", e)).join("")}</div><button class="act" type="button" onclick="this.previousElementSibling.insertAdjacentHTML('beforeend', rosRow('out'))">+ Topic</button></div>` +
+      `<div class="fld"><label>Subscribes to</label><div>${ins.map(e => rosRow("in", e)).join("")}</div><button class="act" type="button" onclick="this.previousElementSibling.insertAdjacentHTML('beforeend', rosRow('in'))">+ Topic</button></div>`,
+      extra: n ? {orig: n.name} : {}}; }
+    case "ros_node_delete": { const n = M.nodes.find(x => x.name === d.name);
+      return {title: n.lang === "plan" ? `Delete ${n.name}?` : `Drop the plan for ${n.name}?`, sub: n.lang === "plan" ? "Removes the planned node and its planned topics." : "The node stays (it is in the code); only its planned topics go.", html: "", extra: {name: n.name}}; }
+    case "ros_topic": { const nodes = M.nodes.map(n => [n.name, n.name]);
+      return {title: "New topic", sub: "The first node publishes it, the second subscribes. Added to their plans; dashed until it is in the code.", html: rosLists() +
+      `<div class="two">${fld("from", "Published by", "", sel("from", nodes, d.from || "", "nobody yet"))}${fld("to", "Subscribed by", "", sel("to", nodes, d.to || "", "nobody yet"))}</div>` +
+      fld("topic", "Topic", "", `<input name="topic" list="dltopics" placeholder="/cmd_vel" autocomplete="off">`) + fld("type", "Message type", "", `<input name="type" list="dltypes" placeholder="geometry_msgs/msg/Twist" autocomplete="off">`)}; }
+    case "ros_link": { const ws = hostWires(d.a, d.b), cur = ws.find(c => (c.attrs || {}).ros);
+      return {title: `ROS between ${short(d.a)} and ${short(d.b)}`, sub: "Which wire carries ROS between these two (the micro-ROS agent link, Ethernet…). It is drawn in this view, and the wire's panel lists it.", html: ws.length ?
+      fld("wire", "Wire", "", sel("wire", ws.map(c => [`${c.a.join(".")}|${c.b.join(".")}`, `${short(c.a.join("."))} ↔ ${short(c.b.join("."))} (${c.type})`]), cur ? `${cur.a.join(".")}|${cur.b.join(".")}` : "")) +
+      fld("via", "Carries", "Empty removes the link.", `<input name="via" list="dlvia" value="${H(cur ? cur.attrs.ros : "micro-ROS agent")}"><datalist id="dlvia">${["micro-ROS agent (serial)", "micro-ROS agent (USB)", "micro-ROS agent (UDP)", "Ethernet", "Wi-Fi", "CAN"].map(v => `<option value="${v}">`).join("")}</datalist>`)
+      : `<div class="warnline">No wire joins these two yet. Connect them in the Electrical view (e.g. USB or UART between the MCU and the computer), then come back.</div>`}; }
     case "allocate": { const n = M.nodes.find(x => x.name === d.node); const lf = [...new Set((n.launch || []).map(l => l.file))];
       return {title: `Where does ${n.name} run?`, sub: "The computer or board that runs this ROS node. Shown in the Software view and the part's panel.", html:
       fld("to", "Runs on", "", sel("to", leafParts().map(p => [p.path, short(p.path)]), n.host || "", "not allocated")) +
@@ -1259,6 +1340,8 @@ function openForm(kind, data = {}) {
     if (kind === "ros_paths" && !o.paths) o.paths = [];
     if (kind === "bom_columns" && !o.columns) o.columns = [];
     if (kind === "satisfy" && !o.parts) o.parts = [];
+    if (kind === "ros_node") ["out", "in"].forEach(io => { o[io] = (o[io + "_topic"] || []).map((t, i) => ({topic: t, type: (o[io + "_type"] || [])[i] || ""})); delete o[io + "_topic"]; delete o[io + "_type"]; });
+    if (kind === "ros_link") { const [a, b] = (o.wire || "|").split("|"); o.a = a; o.b = b; delete o.wire; }
     if (kind === "decision") { o.options = []; document.querySelectorAll("#opts .opts").forEach((x, i) => o.options.push({name: frm[`o${i + 1}_name`].value, pros: frm[`o${i + 1}_pros`].value, cons: frm[`o${i + 1}_cons`].value})); }
     return o; };
   // no preview step: Save writes and commits right away (↶ Undo reverses the last change)

@@ -18,6 +18,9 @@ on it. Every change becomes a git commit.
 - **Build it by clicking.** Add your subsystems and point each board at its
   `.ioc` in Setup; add parts and wire them in the diagrams: click a pin, click
   the module. No modelling language to learn, no boxes to arrange.
+- **Design the software too.** Drag ROS nodes onto the computers they run on,
+  drag between nodes to plan topics before the code exists (dashed until it
+  does), and mark the wire that carries micro-ROS between MCU and computer.
 - **Engineering numbers from the same model.** Power budget per rail, voltage
   and I²C address checks, a bill of materials (Excel, PNG, PDF) with wire
   lengths per gauge, and a design review pack as a PDF.

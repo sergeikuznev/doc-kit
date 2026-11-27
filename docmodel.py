@@ -508,7 +508,7 @@ class Parser:
 
     # ---- grammar
     def parse(self):
-        model = {"port_defs": {}, "part_defs": {}, "parts": [], "allocations": [], "satisfies": [], "doc": ""}
+        model = {"port_defs": {}, "part_defs": {}, "parts": [], "allocations": [], "satisfies": [], "actions": [], "doc": ""}
         while self.peek()[0] != "eof":
             if self.peek()[1] == "package":
                 self.take()
@@ -637,6 +637,27 @@ class Parser:
         if v == "attribute":
             self.attribute(owner)
             return
+        if v == "action" and owner is None and self.peek(1)[0] == "id":
+            self.take()
+            act = {"name": self.take(kind="id")[1], "doc": "", "out": [], "in": [], "line": line}
+            if self.accept("{"):
+                while not self.accept("}"):
+                    k2, v2, _ = self.peek()
+                    if v2 in ("in", "out"):
+                        self.take()
+                        self.accept("item")
+                        topic = self.take(kind="id")[1]
+                        typ = ""
+                        if self.accept(":"):
+                            typ = ".".join(self.path())
+                        self.take(";")
+                        act[v2].append({"topic": topic, "type": typ})
+                    else:
+                        self.element(model, act, False)
+            else:
+                self.take(";")
+            model["actions"].append(act)
+            return
         if v in ("item", "requirement", "action", "state", "alias", "comment", "metadata"):
             self.skip_block()
             return
@@ -680,7 +701,7 @@ def build(root, overrides=None):
     if os.path.exists(arch_path) or (overrides and arch_path in overrides):
         arch = Parser(_read(arch_path, overrides), afile).parse()
     else:
-        arch = {"port_defs": {}, "part_defs": {}, "parts": [], "allocations": [], "satisfies": [], "doc": ""}
+        arch = {"port_defs": {}, "part_defs": {}, "parts": [], "allocations": [], "satisfies": [], "actions": [], "doc": ""}
     if not arch["parts"]:
         arch["parts"] = [{"name": name, "type": None, "parts": [], "ports": [], "connects": [], "doc": "", "line": 1}]
     table = subsystem_table(cfg, root)
@@ -803,6 +824,30 @@ def build(root, overrides=None):
             collect(ch, prefix + [p["name"]])
     collect(top, [])
 
+    # ---- ROS plan: nodes and topics drawn on the page (actions in the arch file)
+    by_name = {n["name"]: n for n in nodes}
+    plan_gaps = []
+    for act in arch.get("actions", []):
+        n = by_name.get(act["name"])
+        if n is None:
+            n = by_name[act["name"]] = {"name": act["name"], "file": "", "lang": "plan", "pub": [], "sub": [], "launch": []}
+            nodes.append(n)
+            plan_gaps.append(f"ROS node {act['name']} is planned; it is not in the code yet")
+        n["planned"] = True
+        n["doc"] = act["doc"]
+        for role, io in (("pub", "out"), ("sub", "in")):
+            have = {e["topic"] for e in n[role]}
+            want = {e["topic"] for e in act[io]}
+            for e in n[role]:
+                if e["topic"] not in want:
+                    e["unplanned"] = True
+                    plan_gaps.append(f"{act['name']} {'publishes' if role == 'pub' else 'subscribes to'} {e['topic']} in the code, but not in its plan")
+            for e in act[io]:
+                if e["topic"] not in have:
+                    n[role].append({"topic": e["topic"], "type": e["type"] or "?", "line": "", "planned": True})
+                    if n["lang"] != "plan":
+                        plan_gaps.append(f"{act['name']} should {'publish' if role == 'pub' else 'subscribe to'} {e['topic']} (planned); the code does not yet")
+
     # ---- ROS allocations
     node_names = {n["name"] for n in nodes}
     host, via_launch = {}, {}
@@ -893,9 +938,12 @@ def build(root, overrides=None):
     for n in nodes:
         for role in ("pub", "sub"):
             for e in n[role]:
-                t = topics.setdefault(e["topic"], {"topic": e["topic"], "types": set(), "pub": [], "sub": []})
-                t["types"].add(e["type"])
+                t = topics.setdefault(e["topic"], {"topic": e["topic"], "types": set(), "pub": [], "sub": [], "planned": True})
+                if e["type"] and e["type"] != "?":
+                    t["types"].add(e["type"])
                 t[role].append(n["name"])
+                if not e.get("planned"):
+                    t["planned"] = False
     for t in topics.values():
         if len(t["types"]) > 1:
             problems.append(f"ROS topic {t['topic']} is used with different types: {', '.join(sorted(t['types']))}")
@@ -903,10 +951,33 @@ def build(root, overrides=None):
             gap("software", f"{t['topic']} is published by {', '.join(t['pub'])} but nothing subscribes to it")
         if not t["pub"]:
             gap("software", f"{t['topic']} is subscribed by {', '.join(t['sub'])} but nothing publishes it")
-        t["types"] = sorted(t["types"])
+        t["types"] = sorted(t["types"]) or ["?"]
+    for g in plan_gaps:
+        gap("software", g)
+    ros_links = []
+    for c in connections:
+        if c["drawn"] and str((c.get("attrs") or {}).get("ros", "")).strip():
+            ros_links.append({"a": c["a"][0], "b": c["b"][0], "wire": f"{c['a_txt']} ↔ {c['b_txt']}", "via": c["attrs"]["ros"],
+                              "ends": [".".join(c["a"]), ".".join(c["b"])]})
+
+    def linked(h1, h2):
+        on = lambda part, host: part == host or part.startswith(host + ".") or host.startswith(part + ".")
+        return any((on(l["a"], h1) and on(l["b"], h2)) or (on(l["a"], h2) and on(l["b"], h1)) for l in ros_links)
+    nmap = {n["name"]: n for n in nodes}
+    told = set()
+    for t in topics.values():
+        for p in t["pub"]:
+            for s in t["sub"]:
+                a, b = nmap[p], nmap[s]
+                if a["host"] and b["host"] and a["host"] != b["host"] and "c" in (a["lang"], b["lang"]):
+                    key = tuple(sorted((a["host"], b["host"])))
+                    if key not in told and not linked(*key):
+                        told.add(key)
+                        gap("software", f"micro-ROS topics go between {key[0].split('.', 1)[-1]} and {key[1].split('.', 1)[-1]}, "
+                                        f"but no wire is marked as their ROS link (Software view: drag one computer onto the other)", list(key))
     for n in nodes:
         if not n["host"]:
-            gap("software", f"ROS node {n['name']} runs on no computer yet (Software view: click it, Runs on)")
+            gap("software", f"ROS node {n['name']} runs on no computer yet (Software view: drag it onto a computer)")
     for u in ros_unknown:
         gap("software", u)
     for b in boards:
@@ -935,7 +1006,7 @@ def build(root, overrides=None):
 
     power, i2c = electrical(parts, connections, gap)
     bom = build_bom(cfg, parts, connections)
-    return {"name": name, "top": top["name"], "subsystems": subsystems, "parts": parts, "connections": connections,
+    return {"name": name, "top": top["name"], "subsystems": subsystems, "parts": parts, "connections": connections, "ros_links": ros_links,
             "power": power, "i2c": i2c, "bom": bom, "launches": launches,
             "boards": boards, "nodes": nodes, "topics": sorted(topics.values(), key=lambda t: t["topic"]),
             "requirements": reqs, "faults": faults, "decisions": decisions, "icd": icd, "gaps": gaps,

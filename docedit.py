@@ -105,7 +105,7 @@ def load_arch(root, cfg):
     if os.path.exists(path):
         a = dm.Parser(open(path, encoding="utf-8").read(), os.path.relpath(path, root)).parse()
     else:
-        a = {"port_defs": {}, "part_defs": {}, "parts": [], "allocations": [], "satisfies": []}
+        a = {"port_defs": {}, "part_defs": {}, "parts": [], "allocations": [], "satisfies": [], "actions": []}
     if len(a["parts"]) > 1:
         raise EditError(f"{os.path.relpath(path, root)} has {len(a['parts'])} top-level parts; the page needs exactly one (the robot)")
     top = a["parts"][0] if a["parts"] else {"name": cfg["project"]["name"], "type": None, "parts": [], "ports": [],
@@ -125,11 +125,17 @@ def load_arch(root, cfg):
             "port_defs": {k: {"super": v.get("super"), "doc": v.get("doc", "")} for k, v in a["port_defs"].items()},
             "part_defs": {k: _clean(v) for k, v in a["part_defs"].items()},
             "allocs": [[x["what"], rel(x["to"])] for x in a["allocations"]],
-            "sats": [[x["req"], rel(x["by"])] for x in a["satisfies"]]}
+            "sats": [[x["req"], rel(x["by"])] for x in a["satisfies"]],
+            "acts": [{"name": x["name"], "doc": x.get("doc", ""), "out": x["out"], "in": x["in"]} for x in a.get("actions", [])]}
 
 
 def q(s):
     return s if IDENT.match(s) and s not in KEYWORDS else "'" + s.replace("'", "") + "'"
+
+
+def q_any(s):
+    """Topic and message type names always quoted: they hold / and ."""
+    return "'" + str(s).replace("'", "") + "'"
 
 
 def _val(v):
@@ -191,6 +197,13 @@ def arch_text(A, cfg):
     if A["sats"]:
         o.append("")
         o += [f"    satisfy {q(r)} by {path([top['name']] + b)};" for r, b in A["sats"]]
+    if A.get("acts"):
+        o += ["", "    // ROS2 plan: nodes and the topics they publish (out) and subscribe to (in), drawn on the page.",
+              "    // A node with the same name in the code is the same node; the page shows what is planned but not built."]
+        for a in A["acts"]:
+            body = ([f"        doc /* {_doc(a['doc'])} */"] if a.get("doc") else []) + \
+                [f"        {io} item {q_any(x['topic'])}" + (f" : {q_any(x['type'])}" if x.get("type") else "") + ";" for io in ("out", "in") for x in a[io]]
+            o += [f"    action {q(a['name'])} {{"] + body + ["    }"] if body else [f"    action {q(a['name'])};"]
     o.append("}")
     return "\n".join(o) + "\n"
 
@@ -883,7 +896,123 @@ def op_pages(cfg, A, f, ctx):
     return "publish the page to GitHub Pages", ["Then, once: repo Settings > Pages > Source: GitHub Actions."]
 
 
-OPS = {"subsystem": op_subsystem, "subsystem_delete": op_subsystem_delete, "subsystem_restore": op_subsystem_restore,
+# ---------------------------------------------------------------- ROS plan (Software view)
+
+def _act(A, name, create=True):
+    a = next((x for x in A.setdefault("acts", []) if x["name"] == name), None)
+    if a is None and create:
+        a = {"name": name, "doc": "", "out": [], "in": []}
+        A["acts"].append(a)
+    return a
+
+
+def _topic(t):
+    t = str(t or "").strip()
+    if not t:
+        raise EditError("Topic is required, e.g. /cmd_vel")
+    if not re.match(r"^~?/?[A-Za-z_][\w/{}~]*$", t):
+        raise EditError(f"{t} is not a ROS topic name (letters, digits, _ and /)")
+    return t if t.startswith(("/", "~")) else "/" + t
+
+
+def op_ros_node(cfg, A, f, ctx):
+    """Plan a node: name, what it does, topics out and in, and where it runs."""
+    name = check_name(f.get("name"), "Node")
+    orig = str(f.get("orig") or "")
+    code = {n["name"] for n in (ctx["model"] or {}).get("nodes", []) if n.get("lang") != "plan"}
+    if orig and orig != name:
+        if orig in code:
+            raise EditError(f"{orig} is in the code; rename it there")
+        a = _act(A, orig, False)
+        if a:
+            a["name"] = name
+        for x in A["allocs"]:
+            if x[0][-1] == orig:
+                x[0][-1] = name
+    elif not orig and (_act(A, name, False) or name in code):
+        raise EditError(f"there is already a node {name}; click it to edit its plan")
+    a = _act(A, name)
+    a["doc"] = str(f.get("doc") or "").strip()
+    for io in ("out", "in"):
+        rows = []
+        for r in f.get(io) or []:
+            if str(r.get("topic") or "").strip():
+                rows.append({"topic": _topic(r["topic"]), "type": str(r.get("type") or "").strip()})
+        a[io] = rows
+    if "to" in f and [x[1] for x in A["allocs"] if x[0][-1] == name] != ([split_path(A["top"]["name"], f.get("to"))] if f.get("to") else []):
+        to = split_path(A["top"]["name"], f.get("to"))
+        A["allocs"] = [x for x in A["allocs"] if x[0][-1] != name]
+        if to:
+            if node(A, to) is None:
+                raise EditError(f"no part {'.'.join(to)}")
+            A["allocs"].append([["ROS", name], to])
+    return f"ROS plan: node {name}", []
+
+
+def op_ros_node_delete(cfg, A, f, ctx):
+    name = str(f.get("name") or "")
+    if not _act(A, name, False):
+        raise EditError(f"{name} has no plan")
+    A["acts"] = [x for x in A["acts"] if x["name"] != name]
+    code = {n["name"] for n in (ctx["model"] or {}).get("nodes", []) if n.get("lang") != "plan"}
+    if name not in code:
+        A["allocs"] = [x for x in A["allocs"] if x[0][-1] != name]
+    return f"ROS plan: remove node {name}", []
+
+
+def op_ros_topic(cfg, A, f, ctx):
+    """A topic between nodes: from publishes it, to subscribes to it (either may be empty)."""
+    t = _topic(f.get("topic"))
+    typ = str(f.get("type") or "").strip()
+    nodes = {n["name"]: n for n in (ctx["model"] or {}).get("nodes", [])}
+    done = []
+    for who, io in ((f.get("from"), "out"), (f.get("to"), "in")):
+        if not who:
+            continue
+        if who not in nodes and not _act(A, who, False):
+            raise EditError(f"no ROS node {who}")
+        a = _act(A, who)
+        n = nodes.get(who)
+        if n and n.get("lang") != "plan" and not a["out"] and not a["in"]:  # first plan for a node in code: start from what the code does
+            a["out"] = [{"topic": e["topic"], "type": e["type"]} for e in n["pub"] if not e.get("planned")]
+            a["in"] = [{"topic": e["topic"], "type": e["type"]} for e in n["sub"] if not e.get("planned")]
+        if not any(x["topic"] == t for x in a[io]):
+            a[io].append({"topic": t, "type": typ})
+        done.append(f"{who} {'publishes' if io == 'out' else 'subscribes to'} {t}")
+    if not done:
+        raise EditError("Pick a publisher or a subscriber")
+    return "ROS plan: " + ", ".join(done), []
+
+
+def op_ros_unplan(cfg, A, f, ctx):
+    """Drop one planned topic from a node."""
+    a = _act(A, str(f.get("node") or ""), False)
+    if not a:
+        raise EditError("that node has no plan")
+    t = str(f.get("topic") or "")
+    for io in ("out", "in"):
+        a[io] = [x for x in a[io] if x["topic"] != t]
+    return f"ROS plan: {a['name']} without {t}", []
+
+
+def op_ros_link(cfg, A, f, ctx):
+    """Mark the wire that carries ROS (micro-ROS agent link, Ethernet...) between two computers."""
+    tn = A["top"]["name"]
+    ends = [split_path(tn, f.get("a")), split_path(tn, f.get("b"))]
+    via = str(f.get("via") or "").strip()
+    for c in A["connects"]:
+        if sorted([c[0], c[1]]) == sorted(ends):
+            if via:
+                c[2]["ros"] = via
+            else:
+                c[2].pop("ros", None)
+            return (f"ROS link {'.'.join(ends[0])} ↔ {'.'.join(ends[1])}: {via}" if via
+                    else f"ROS link removed from {'.'.join(ends[0])} ↔ {'.'.join(ends[1])}"), []
+    raise EditError("no such wire; connect the two in the Electrical view first")
+
+
+OPS = {"ros_node": op_ros_node, "ros_node_delete": op_ros_node_delete, "ros_topic": op_ros_topic, "ros_unplan": op_ros_unplan, "ros_link": op_ros_link,
+       "subsystem": op_subsystem, "subsystem_delete": op_subsystem_delete, "subsystem_restore": op_subsystem_restore,
        "subsystem_move": op_subsystem_move, "board": op_board, "board_remove": op_board_remove, "ros_paths": op_ros_paths,
        "port_type": op_port_type, "port_type_delete": op_port_type_delete, "part": op_part, "part_delete": op_part_delete,
        "connect": op_connect, "disconnect": op_disconnect, "allocate": op_allocate, "satisfy": op_satisfy,

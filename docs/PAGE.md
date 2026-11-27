@@ -260,10 +260,11 @@ show under the connection, in the Interfaces table and in the BOM.
 
 ![Allocate form](images/page-33-allocate.png)
 
-In the **Software** view, click a node, then **Change** next to *Runs on*.
-Nodes that run nowhere yet are grouped under *Not allocated to hardware*.
-A micro-ROS node whose source file sits inside a board's folder (the folder
-of its `.ioc`) is placed on that board's part by itself.
+In the **Software** view, **drag the node onto a computer** (or click it,
+then **Change** next to *Runs on*). Nodes that run nowhere yet are grouped
+under *Not allocated to hardware*. A micro-ROS node whose source file sits
+inside a board's folder (the folder of its `.ioc`) is placed on that board's
+part by itself.
 
 doc-kit also reads your **launch files** (`.launch.py`, `.launch.xml`) in the
 ROS2 code folders. A node's panel shows which launch file starts it, with its
@@ -376,16 +377,57 @@ A typical chain: `battery.out → buck.vin`, `buck.vout → mcu.vin`,
 
 ![Software view](images/page-07-software.png)
 
-1. **A computer** with the nodes that run on it.
+1. **A computer** with the nodes that run on it. Boards, parts that already
+   run nodes, and parts that look like computers (Pi, Jetson, MCU…) are shown,
+   empty ones as *drop a node here*.
 2. **A node**, with the file it was found in. Click for its topics and line numbers.
 3. **A topic** with its message type. Arrows go publisher → topic → subscriber.
-4. **Not allocated to hardware**: nodes no computer runs yet (dashed box). Click one and set *Runs on*.
-5. **A topic with only one side** (amber border): published but never
+4. **Not allocated to hardware**: nodes no computer runs yet (dashed box).
+5. **A topic with only one side** (dashed border): published but never
    subscribed, or the other way round.
+6. **A ROS link** (thick blue): the wire that carries ROS between two computers.
 
-Everything here is read from the code in the ROS2 code folders, so the robot
+Everything solid is read from the code in the ROS2 code folders, so the robot
 can be off. A topic name built at runtime (`'debug/' + name`) cannot be read
 for certain, so it is listed as a gap instead of guessed.
+
+#### Connecting by dragging
+
+| Drag | onto | does |
+|---|---|---|
+| a node | a computer | runs it there |
+| a node | another node | **New topic**: the first publishes it, the second subscribes (name and message type) |
+| a node | a topic | the node publishes that topic |
+| a topic | a node | the node subscribes to it |
+| a computer | another computer | **ROS link**: pick the wire between them and what it carries (micro-ROS agent over serial, USB or UDP, Ethernet…) |
+
+A plain click still opens the panel. Drag on empty space to pan.
+
+#### Planning nodes and topics before the code
+
+**+ Node** plans a node that does not exist yet: its name, what it does, where
+it runs, and the topics it publishes and subscribes to. Planned nodes, topics
+and arrows are **dashed** until doc-kit finds them in the code, then they turn
+solid by themselves. In a node's panel, **Plan topics** / **Edit plan** changes
+the plan and **✕** drops one planned topic.
+
+The plan is kept in the arch file as SysML actions, next to the hardware:
+
+```
+action planner {
+    doc /* plans a path to the goal */
+    out item '/cmd_vel' : 'geometry_msgs/msg/Twist';
+    in item '/odom' : 'nav_msgs/msg/Odometry';
+}
+```
+
+Gaps (Overview) keep the plan and the code honest:
+
+- a planned node that is not in the code yet;
+- a planned topic a node does not publish or subscribe to in its code yet;
+- a topic a node uses in its code that is not in its plan (only for nodes with a plan);
+- micro-ROS topics travelling between two computers with no wire marked as
+  their ROS link.
 
 ---
 
