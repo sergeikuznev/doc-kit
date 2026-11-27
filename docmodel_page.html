@@ -274,7 +274,7 @@ const NAVI = {  // [colour, 16px icon path]
   power: ["var(--pwr)", "M6 1.5v3.5M10 1.5v3.5M4 5h8v3a4 4 0 01-8 0zM8 12v2.5"], software: ["var(--arch)", "M5 4L1.5 8 5 12M11 4l3.5 4-3.5 4M9.5 2.5l-3 11"],
   interfaces: ["var(--sig)", "M2 5h8M7 2l3 3-3 3M14 11H6M9 8l-3 3 3 3"], requirements: ["var(--warn)", "M3 2h10v12H3zM5.5 6l1.5 1.5L10 4.5M5.5 10.5h5"],
   faults: ["var(--crit)", "M8 1.5L15 14H1zM8 6v4M8 11.5v.5"], decisions: ["var(--good)", "M8 1.5v13M8 3h5l1.5 1.75L13 6.5H8M8 8H3L1.5 9.75 3 11.5h5"],
-  budget: ["var(--pwr)", "M2 14V9M6 14V5M10 14V7M14 14V2"], bom: ["var(--muted)", "M2 3h12M2 6.5h12M2 10h12M2 13.5h8"],
+  budget: ["var(--pwr)", "M2 12a6 6 0 0112 0M8 12l3-4M4.5 8.5l.8.6M8 5.5v1M11.5 8.5l-.8.6"], bom: ["var(--muted)", "M2 3h12M2 6.5h12M2 10h12M2 13.5h8"],
   issues: ["var(--good)", "M8 1.5a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM8 5v3.5M8 10.5v.5"], docs: ["var(--accent)", "M3 1.5h6l4 4v9H3zM9 1.5v4h4M5.5 9h5M5.5 11.5h5"],
   media: ["var(--arch)", "M1.5 3h13v10h-13zM1.5 11l4-4 3 3 2-2 4 4M10.5 5.5a1 1 0 100 2 1 1 0 000-2z"]};
 const navIcon = id => { const [c, d] = NAVI[id] || ["var(--faint)", "M4 4h8v8H4z"]; return `<svg class="navi" viewBox="0 0 16 16" width="16" height="16"><path d="${d}" fill="none" stroke="${c}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`; };
