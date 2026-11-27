@@ -586,8 +586,8 @@ print window opens instead: choose **Save as PDF** there.
 (kept as a `status: …` label on GitHub), or Done, Not planned, Duplicate
 (GitHub's close reasons). Click it to change it.
 
-The tabs split issues by status: **Open** (Backlog, Todo), **Active** (In
-progress, In review), **Closed** (Done, Not planned, Duplicate) and **All**, each
+The tabs split issues by status: **Open** (everything not closed), **Active**
+(Todo, In progress, In review), **Closed** (Done, Not planned, Duplicate) and **All**, each
 with its count. **Type** and **Subsystem** narrow the list. Every card has
 **Delete** (asks first; deletes it on GitHub too, needs admin rights).
 
