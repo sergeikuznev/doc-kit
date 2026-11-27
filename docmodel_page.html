@@ -727,7 +727,8 @@ async function drawSystem() {
     if (false) { const ph = el("g", {class: "addph", transform: `translate(14,${54 + y0 + src.kids.length * 17})`}, g); el("rect", {x: -6, y: -14, width: 62, height: 20, rx: 6}, ph); el("text", {x: 0, y: 0}, ph).textContent = "+ Part";
       ph.addEventListener("click", ev => { ev.stopPropagation(); openForm("part", {parent: n.id}); }); }
     const oi = issuesFor(s.name, []).filter(i => i.state === "open").length;
-    if (oi) { const b = el("g", {transform: `translate(${n.width - 12},${n.height - 10})`}, g); el("text", {x: 0, y: 0, "text-anchor": "end", style: "font-size:11px;fill:var(--accent)"}, b).textContent = `${oi} open issue${oi > 1 ? "s" : ""}`; }
+    if (oi) { const b = el("g", {transform: `translate(${n.width - 12},${n.height - 10})`}, g); el("text", {x: 0, y: 0, "text-anchor": "end", style: "font-size:11px;fill:var(--accent);cursor:pointer;text-decoration:underline"}, b).textContent = `${oi} open issue${oi > 1 ? "s" : ""}`;
+      b.addEventListener("click", ev => { ev.stopPropagation(); isub = s.name; ist = "open"; ikind = "all"; iq = ""; go("issues"); }); }
     g.addEventListener("click", ev => { ev.stopPropagation(); showPart(n.id); });
     g.addEventListener("mouseenter", () => !selected && hot(n.id)); g.addEventListener("mouseleave", () => !selected && hot(null));
   });
@@ -756,7 +757,7 @@ function buildSoftware() {
 }
 async function drawSoftware() {
   const cv = canvasShell("Software (ROS2)", "Nodes and topics found in the code (the robot does not need to be on), grouped by the computer each node runs on, plus the ones you planned.",
-    `<div class="legend"><span><i class="box" style="background:var(--sunk);border:1px solid var(--faint);border-radius:6px;width:16px"></i>topic</span><span><i class="box" style="background:var(--surface);border:1px solid var(--faint)"></i>node</span><span><i class="box" style="background:var(--arch)"></i>micro-ROS</span><span><i class="box" style="background:var(--sig)"></i>C++</span><span><i class="box" style="background:var(--good)"></i>Python</span><span><i style="border-color:var(--muted)"></i>publish → subscribe</span><span><i style="border-color:var(--muted);border-top-style:dashed"></i>planned, not in the code</span><span><i style="border-color:var(--facts);border-top-width:3px"></i>ROS link (wire)</span></div>` +
+    `<div class="legend"><span><i class="box" style="background:var(--sunk);border:1px solid var(--faint);border-radius:6px;width:16px"></i>topic</span><span><i class="box" style="background:var(--surface);border:1px solid var(--faint)"></i>node</span><span><i class="box" style="background:var(--arch)"></i>micro-ROS</span><span><i style="border-color:var(--muted)"></i>publish → subscribe</span><span><i style="border-color:var(--muted);border-top-style:dashed"></i>planned, not in the code</span><span><i style="border-color:var(--facts);border-top-width:3px"></i>ROS link (wire)</span></div>` +
     (SERVED ? `<button class="act addbtn" data-form="ros_topic">+ Topic</button><button class="act addbtn" data-form="ros_node">+ Node</button>` : ""),
     SERVED ? "Drag computers and topics to move them; drag a node into another computer to run it there. Connect from the ● on a block's right edge: node → topic publishes, topic → node subscribes, node → node makes a new topic. Click a node, topic or arrow and press Delete to remove it. The wire that carries ROS is marked in Electrical (wire details: ros)." : null);
   if (!M.nodes.length && !SERVED) { cv.innerHTML = `<div class="empty">No ROS2 code found. Add ROS2 code folders in Setup (doc serve).</div>`; return; }
