@@ -167,6 +167,8 @@ def preview(root, rel, model):
         name = ident(c["value"].lower())[:28].strip("_") if c["value"] and not PASSIVE.match(c["ref"]) else ident(c["ref"].lower())
         name = name if name not in taken else f"{name}_{c['ref'].lower()}"
         taken.add(name)
-        out.append({**c, "include": not PASSIVE.match(c["ref"]) and used.get(c["ref"], 0) > 0, "target": target,
+        import docmodel as _dm
+        kind = _dm.guess_kind({"name": c["value"], "type": c["part"], "doc": c["lib"], "attrs": {"kicad_ref": c["ref"], "footprint": c["footprint"]}})
+        out.append({**c, "kind": kind, "include": not PASSIVE.match(c["ref"]) and used.get(c["ref"], 0) > 0, "target": target,
                     "subsystem": sub, "name": name, "pins": used.get(c["ref"], 0)})
     return {"file": rel, "components": out, "nets": len(nets), "power_nets": sum(1 for n in nets if is_power(n["name"]))}

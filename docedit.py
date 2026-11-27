@@ -69,7 +69,8 @@ def cfg_text(cfg):
     for e in cfg.get("bom_item", []):
         out += ["", "[[bom_item]]"] + [f"{k} = {_tq(v)}" for k, v in e.items()]
     for k in cfg.get("kind", []):
-        out += ["", "[[kind]]", f"key = {_tq(k['key'])}", f"label = {_tq(k.get('label', k['key']))}", f"color = {_tq(k.get('color', 'light grey'))}"]
+        out += ["", "[[kind]]", f"key = {_tq(k['key'])}", f"label = {_tq(k.get('label', k['key']))}", f"group = {_tq(k.get('group', 'structure'))}",
+                f"color = {_tq(k.get('color', 'grey'))}"]
     return "\n".join(out) + "\n"
 
 
@@ -1196,14 +1197,9 @@ def op_kicad_import(cfg, A, f, ctx):
     return f"KiCad import: {len(path)} part(s), {wires} wire(s) from {f.get('file')}", notes
 
 
-DEFAULT_KINDS = [("mcu", "Microcontroller (MCU)", "cyan"), ("computer", "Computer (Pi, Jetson…)", "blue"), ("sensor", "Sensor", "green"),
-                 ("actuator", "Motor / actuator", "orange"), ("driver", "Driver / controller", "amber"), ("power", "Power (battery, regulator)", "red"),
-                 ("radio", "Radio / comms", "violet"), ("mechanical", "Mechanical", "grey"), ("other", "Other", "light grey")]
-
-
 def _kinds(cfg):
-    if not cfg.get("kind"):  # the first change makes the built-in list the project's own
-        cfg["kind"] = [{"key": k, "label": l, "color": c} for k, l, c in DEFAULT_KINDS]
+    if not cfg.get("kind"):  # the first change makes the standard list the project's own
+        cfg["kind"] = [{"key": k, "label": l, "group": g, "color": c} for k, l, g, c in dm.DEFAULT_KINDS]
     return cfg["kind"]
 
 
@@ -1216,7 +1212,10 @@ def op_kind(cfg, A, f, ctx):
     if not key:
         raise EditError("Key is required, e.g. camera")
     label = str(f.get("label") or "").strip() or key
-    color = str(f.get("color") or "light grey")
+    color = str(f.get("color") or "grey")
+    group = str(f.get("group") or "structure")
+    if group not in dict(dm.KIND_GROUPS):
+        raise EditError(f"unknown group {group}")
     cur = next((k for k in ks if k["key"] == orig), None) if orig else None
     if (not cur or key != orig) and any(k["key"] == key for k in ks):
         raise EditError(f"there is already a kind {key}")
@@ -1228,9 +1227,9 @@ def op_kind(cfg, A, f, ctx):
                 for ch in p.get("parts", []):
                     walk(ch)
             walk(A["top"])
-        cur.update(key=key, label=label, color=color)
+        cur.update(key=key, label=label, color=color, group=group)
         return f"part kind {orig}" + (f" → {key}" if key != orig else ""), []
-    ks.insert(len(ks) - 1 if ks and ks[-1]["key"] == "other" else len(ks), {"key": key, "label": label, "color": color})
+    ks.insert(len(ks) - 1 if ks and ks[-1]["key"] == "other" else len(ks), {"key": key, "label": label, "group": group, "color": color})
     return f"part kind {key}", []
 
 
@@ -1252,7 +1251,30 @@ def op_kind_delete(cfg, A, f, ctx):
     return f"remove part kind {key}", []
 
 
-OPS = {"kind": op_kind, "kind_delete": op_kind_delete, "kicad_import": op_kicad_import, "layout": op_layout, "ros_topic_edit": op_ros_topic_edit, "ros_topic_delete": op_ros_topic_delete, "ros_node": op_ros_node, "ros_node_delete": op_ros_node_delete, "ros_topic": op_ros_topic, "ros_unplan": op_ros_unplan, "ros_link": op_ros_link,
+def op_kinds_standard(cfg, A, f, ctx):
+    """Use the systems-engineering list of kinds; parts whose stored kind is not in it are sorted by what they are."""
+    cfg["kind"] = [{"key": k, "label": l, "group": g, "color": c} for k, l, g, c in dm.DEFAULT_KINDS]
+    keys = {k for k, *_ in dm.DEFAULT_KINDS}
+    mparts, tn, moved = (ctx["model"] or {}).get("parts", {}), A["top"]["name"], []
+
+    def walk(p, segs):
+        a = p.get("attrs") or {}
+        if a.get("kind") and a["kind"] not in keys:
+            mp = mparts.get(".".join([tn] + segs)) or {"name": p["name"], "type": p.get("type"), "doc": p.get("doc"), "attrs": a}
+            g = dm.guess_kind(mp)
+            if a["kind"] == "sensor" and g == "other":
+                g = "perception"
+            if a["kind"] == "power" and g == "other":
+                g = "power_conversion"
+            moved.append(f"{'.'.join(segs)}: {a['kind']} → {g}")
+            a["kind"] = g
+        for ch in p.get("parts", []):
+            walk(ch, segs + [ch["name"]])
+    walk(A["top"], [])
+    return "part kinds: the standard list" + (f" ({len(moved)} part(s) re-sorted)" if moved else ""), moved[:12]
+
+
+OPS = {"kinds_standard": op_kinds_standard, "kind": op_kind, "kind_delete": op_kind_delete, "kicad_import": op_kicad_import, "layout": op_layout, "ros_topic_edit": op_ros_topic_edit, "ros_topic_delete": op_ros_topic_delete, "ros_node": op_ros_node, "ros_node_delete": op_ros_node_delete, "ros_topic": op_ros_topic, "ros_unplan": op_ros_unplan, "ros_link": op_ros_link,
        "subsystem": op_subsystem, "subsystem_delete": op_subsystem_delete, "subsystem_restore": op_subsystem_restore,
        "subsystem_move": op_subsystem_move, "board": op_board, "board_remove": op_board_remove, "ros_paths": op_ros_paths,
        "port_type": op_port_type, "port_type_delete": op_port_type_delete, "part": op_part, "part_delete": op_part_delete,

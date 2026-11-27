@@ -246,7 +246,7 @@ tr.row:hover td,.rcard:hover,.icard:hover,.dcard:hover,.fcard:hover{background:c
 .ss{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.shint{padding:8px 16px;border-top:1px solid var(--hair)}
 .ktab td{vertical-align:middle;padding:4px 6px}.ktab input[data-k="name"]{font:inherit;font-size:13px;color:var(--ink);background:var(--sunk);border:1px solid var(--hair);border-radius:6px;padding:6px 9px;width:150px!important;outline:none}
 .ktab input[data-k="name"]:focus{border-color:var(--accent)}.ktab input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px}.ktab .csel{min-width:110px}.modal .box:has(.ktab){width:min(980px,96vw)}
-.kdot{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:middle}
+.kdot{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:middle}.cov td,.cov th{text-align:center}.cov td:first-child,.cov th:first-child{text-align:left}.cov td.z{color:var(--faint)}
 .udg{display:inline-flex;gap:0}.udg .btn{border-radius:0;margin-left:-1px;padding-left:11px;padding-right:11px}.udg .btn:first-child{border-radius:8px 0 0 8px}.udg .btn:last-child{border-radius:0 8px 8px 0}.udg .btn:disabled{opacity:.4;cursor:default}
 .hmenu{max-height:70vh;overflow:auto;min-width:320px;max-width:460px}.hmenu .mh{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:8px 10px 4px}.hmenu .mh.now{color:var(--accent)}.hmenu button{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .menu button{display:block;width:100%;text-align:left;border:0;background:none;font:inherit;color:var(--ink);padding:7px 10px;border-radius:6px;cursor:pointer}.menu button:hover{background:var(--sunk)}
@@ -390,16 +390,15 @@ function faultList(fs) {
   if (!fs.length) return `<div class="dsub">None analysed yet.</div>`;
   return `<div class="mini">${fs.map(f => `<div class="mitem" data-fault="${H(f.id)}" style="border-left:4px solid var(--sev${f.sev})"><div class="h"><span class="id">${H(f.id)}</span><span class="sev" style="--sevc:var(--sev${f.sev})">S${H(f.sev)}</span></div>${H(f.failure)}</div>`).join("")}</div>`;
 }
-const KNDCOL = {cyan: "var(--accent)", teal: "#2dd4bf", blue: "#6ea8fe", green: "var(--good)", amber: "var(--warn)", orange: "var(--pwr)", red: "var(--crit)",
-  violet: "var(--arch)", pink: "#f472b6", grey: "var(--muted)", "light grey": "var(--faint)"};
-const DEFAULT_KINDS = [["mcu", "Microcontroller (MCU)", "cyan"], ["computer", "Computer (Pi, Jetson…)", "blue"], ["sensor", "Sensor", "green"],
-  ["actuator", "Motor / actuator", "orange"], ["driver", "Driver / controller", "amber"], ["power", "Power (battery, regulator)", "red"],
-  ["radio", "Radio / comms", "violet"], ["mechanical", "Mechanical", "grey"], ["other", "Other", "light grey"]];
-let PKINDS = [];
-const setKinds = () => { const own = (M.kinds || []).filter(k => k.key); PKINDS = (own.length ? own.map(k => [k.key, k.label || k.key, k.color || "light grey"]) : DEFAULT_KINDS)
-  .map(([k, l, c]) => [k, l, KNDCOL[c] || c, c]); if (!PKINDS.some(k => k[0] === "other")) PKINDS.push(["other", "Other", "var(--faint)", "light grey"]); };
+const KNDCOL = {cyan: "#5ac8f5", "cyan dark": "#3d8fd1", teal: "#2dd4bf", green: "#4ade80", lime: "#a3e635", "green dark": "#16a34a",
+  orange: "#fb923c", "orange light": "#fdba74", red: "#ef4444", "red light": "#fca5a5", violet: "#a78bfa", "violet light": "#c4b5fd", slate: "#94a3b8",
+  pink: "#f472b6", stone: "#a8a29e", grey: "#6b7280", amber: "#f5b81c", blue: "#6ea8fe", "light grey": "#9ca3af"};
+let PKINDS = [];  // [key, label, colour, colour name, group]
+const setKinds = () => { const ks = (M.kinds && M.kinds.length) ? M.kinds : [{key: "other", label: "Other", group: "structure", color: "grey"}];
+  PKINDS = ks.map(k => [k.key, k.label || k.key, KNDCOL[k.color] || k.color, k.color, k.group || "structure"]); };
+const KGROUPS = () => M.kind_groups || [["structure", "Structure & other"]];
 setKinds();
-const partKind = p => (p.attrs || {}).kind || (p.board || p.source === "facts" ? "mcu" : "other");
+const partKind = p => p.pkind || (p.attrs || {}).kind || "other";
 const kindCol = k => (PKINDS.find(x => x[0] === k) || PKINDS[PKINDS.length - 1])[2];
 const WIREV = () => SERVED && (view === "electrical" || view === "power");
 function showPart(path) { setTimeout(() => reopen = () => showPart(path), 0);
@@ -922,6 +921,7 @@ function overview() {
     <div class="tile"><div class="n">${st("Verified")}<span style="font-size:15px;color:var(--faint)">/${rs.length}</span></div><div class="l">requirements verified · ${st("Failed")} failed</div>${bar([["var(--good)", st("Verified")], ["var(--crit)", st("Failed")], ["var(--appr)", st("Approved")], ["var(--hair)", st("Draft")]])}</div>
     <div class="tile"><div class="n">${M.faults.length}</div><div class="l">faults analysed</div>${bar(sevs.map(([s, n]) => [`var(--sev${s})`, n]))}</div>
   </div>
+  ${coveragePanel()}
   ${M.problems.length ? `<div class="panel" style="border-color:var(--crit)"><h3 style="color:var(--crit-ink)">Model problems <span class="chip">${M.problems.length}</span></h3><div class="dsub" style="margin-bottom:6px">The commit check stops on these.</div>${M.problems.map(p => `<div class="issue p"><span class="k">problem</span><span class="mono">${H(p)}</span></div>`).join("")}</div>` : `<div class="panel"><h3>✓ Architecture matches the facts</h3><div class="dsub">Every connection points to a port that exists, and every type matches.</div></div>`}
   ${M.notes.length ? `<div class="panel"><h3>Notes</h3>${M.notes.map(p => `<div class="issue"><span class="k">note</span><span class="mono">${H(p)}</span></div>`).join("")}</div>` : ""}
   <div class="panel ${M.gaps.length ? "gapsp" : ""}"><h3>Gaps <span class="chip">${M.gaps.length}</span>${M.gaps.length ? `<span class="dsub" style="margin:0 0 0 6px;font-weight:400">questions a design review would ask: worth acting on</span>` : ""}</h3>${Object.entries(groups).map(([k, gs]) => gs.map(g => `<div class="issue"><span class="k">${H(k)}</span><span class="${g.refs.length ? "g" : ""}" ${g.refs.length ? `data-part="${g.refs[0]}"` : ""}>${H(g.text)}</span></div>`).join("")).join("") || `<div class="dsub">None.</div>`}</div>`);
@@ -1381,7 +1381,7 @@ function formSpec(kind, d) {
       return {title: part ? `Edit ${short(d.orig)}` : "New part", sub: "A module, sensor, driver, battery or computer. Its ports are the pins, buses, power and mounts it connects with.", html:
       (!part && templates().length ? fld("tpl", "Start from the parts library", "Fills in the fields below.", `<select id="tplsel"><option value="">none</option>${templates().map((t, i) => `<option value="${i}">${H(t.name)}${t.doc ? " · " + H(t.doc.slice(0, 40)) : ""}</option>`).join("")}</select>`) : "") +
       fld("parent", "Subsystem", "", (places.length ? sel("parent", places, parentPath) : sel("parent", [], "", "add subsystems in Setup first"))) + fld("name", "Name", "e.g. imu, lora, pi, battery", inp("name", part ? part.name : "", "imu")) +
-      fld("pkind", "Kind", "Colours the part in the diagrams.", sel("pkind", PKINDS.map(k => [k[0], k[1]]), part ? partKind(part) : "sensor")) +
+      fld("pkind", "Kind", "Colours the part in the diagrams.", sel("pkind", PKINDS.map(k => [k[0], `${(KGROUPS().find(g => g[0] === k[4]) || ["", ""])[1]} · ${k[1]}`]), part ? partKind(part) : "other")) +
       fld("doc", "What it is", "Part number or one line.", inp("doc", part ? part.doc : "", "ICM-42688-P IMU, SPI")) +
       `<div class="fld"><label>Details</label><div class="hint">For the BOM and the checks: part number, supplier, cost, I2C address… Add any field you like.</div>${kvBox(Object.fromEntries(Object.entries(part ? part.attrs : {}).filter(([k]) => k !== "kind")), SUGGEST.part, "pattr", true)}</div>` +
       `<div class="fld"><label>Ports</label><div class="hint">${inherited.length ? `${inherited.length} come from ${part.board ? "its .ioc" : `its type ${H(part.type)}`} (name and type fixed, details editable). ` : ""}You can also add ports while connecting: click a port, then this part.</div>
@@ -1440,7 +1440,9 @@ function formSpec(kind, d) {
       return {title: k ? `Kind ${k[0]}` : "New part kind", sub: "Parts of this kind get its colour in the diagrams.", narrow: true, html:
       fld("key", "Key", k && k[0] === "other" ? "The fallback kind; its key stays." : "Short, lower case, e.g. camera. Parts store it as their kind.", inp("key", k ? k[0] : "", "camera")) +
       fld("label", "Name", "", inp("label", k ? k[1] : "", "Camera")) +
+      fld("group", "Group", "Kinds of one group share a colour family.", sel("group", KGROUPS(), k ? k[4] : "sensing")) +
       fld("color", "Colour", "", sel("color", Object.keys(KNDCOL).map(c => [c, c]), k ? k[3] : "teal")), extra: k ? {orig: k[0]} : {}}; }
+    case "kinds_standard": return {title: "Use the standard list of kinds?", sub: "Replaces this project's kinds with the systems-engineering list. Parts whose kind is not in it are sorted by their name and part number (the message lists them); ↶ undoes it.", html: ""};
     case "kind_delete": { const n = Object.values(M.parts).filter(p => p.depth >= 2 && partKind(p) === d.key).length;
       return {title: `Delete kind ${d.key}?`, sub: n ? `${n} part(s) of this kind become “other”.` : "No part uses it.", html: "", extra: {key: d.key}}; }
     case "kicad": return {title: "Import from KiCad", sub: "Components and nets of a KiCad schematic become parts, ports and wires. Pick the netlist (KiCad: Schematic Editor › File › Export › Netlist…, KiCad format), or a .kicad_sch when kicad-cli is installed. Importing again updates what the last import made.", html:
@@ -1660,7 +1662,7 @@ function openForm(kind, data = {}) {
           <td><input type="checkbox" data-k="include" ${c.include ? "checked" : ""}></td><td class="mono">${H(c.ref)}</td><td>${H(c.value)}<div class="dsub">${H(c.sheet || "")}</div></td>
           <td>${sel("", [["", "a new part"], ...parts], c.target).replace("<select", '<select data-k="target"')}</td>
           <td><div style="display:flex;gap:6px">${sel("", subs, c.subsystem || "", "subsystem…").replace("<select", '<select data-k="subsystem"')}<input data-k="name" value="${H(c.name)}" style="width:130px"></div></td>
-          <td>${sel("", PKINDS.map(k => [k[0], k[0]]), c.ref.match(/^U/) ? "sensor" : c.ref.match(/^J|^P/) ? "other" : "other").replace("<select", '<select data-k="kind"')}</td></tr>`).join("")}</table>`;
+          <td>${sel("", PKINDS.map(k => [k[0], k[0]]), PKINDS.some(k => k[0] === c.kind) ? c.kind : "other").replace("<select", '<select data-k="kind"')}</td></tr>`).join("")}</table>`;
         const sync = tr => { const t = tr.querySelector('[data-k="target"]').value; tr.querySelectorAll('[data-k="subsystem"],[data-k="name"]').forEach(x => x.closest("div").style.opacity = t ? .35 : 1); };
         $("#kprev").querySelectorAll("tr[data-ref]").forEach(tr => { sync(tr); tr.querySelector('[data-k="target"]').addEventListener("change", () => sync(tr)); });
       } catch (e) { $("#kprev").innerHTML = `<span class="warnline">${H(e.message)}</span>`; } };
@@ -1742,11 +1744,11 @@ function budgetPage() {
 // ------------------------------------------------------------------ BOM
 const BOM_STD = [["qty", "Qty"], ["item", "Item"], ["part_number", "Part number"], ["manufacturer", "Manufacturer"], ["supplier", "Supplier"], ["link", "Link"], ["unit_cost", "Unit cost"], ["total", "Total"]];
 function bomTable() {
-  const cols = [...BOM_STD, ...(M.bom?.columns || []).map(c => [c, c.replace(/_/g, " ")]), ["where", "Where"]];
+  const cols = [...BOM_STD, ...(M.bom?.columns || []).map(c => [c, c.replace(/_/g, " ")]), ["category", "Category"], ["where", "Where"]];
   const rows = (M.bom?.rows || []).map(r => { const v = r.values || {}, cost = parseFloat(String(v.unit_cost || "").replace(/[^0-9.]/g, ""));
     const qty = r.kind === "wire" ? (r.length ? `${+r.length.toFixed(2)} m${r.unmeasured ? ` + ${r.unmeasured} unmeasured` : ""}` : `${r.qty} wire(s)`) : r.qty;
     return {r, cells: cols.map(([k]) => k === "qty" ? qty : k === "item" ? r.item : k === "total" ? (isFinite(cost) && typeof r.qty === "number" ? +(cost * r.qty).toFixed(2) : "")
-      : k === "where" ? (r.parts.length ? r.parts.map(short).join(", ") : r.kind === "extra" ? "extra item" : r.kind) : (v[k] ?? ""))}; });
+      : k === "category" ? (r.category || (r.kind === "wire" || r.kind === "connector" ? "Interconnect" : "")) : k === "where" ? (r.parts.length ? r.parts.map(short).join(", ") : r.kind === "extra" ? "extra item" : r.kind) : (v[k] ?? ""))}; });
   const total = rows.reduce((t, x) => t + (+x.cells[7] || 0), 0);
   return {cols, rows, total};
 }
@@ -1785,6 +1787,13 @@ async function printDoc(title, body) {
 }
 
 // ------------------------------------------------------------------ design review pack
+function coverage() {  // how many parts of each group every subsystem has
+  const gs = KGROUPS(), leaves = Object.values(M.parts).filter(p => p.depth >= 2 && !p.children.length);
+  return {head: ["Subsystem", ...gs.map(g => g[1])], rows: M.subsystems.map(sub => [sub, ...gs.map(([g]) => leaves.filter(p => p.subsystem === sub && p.pgroup === g).length)])};
+}
+function coveragePanel() { const c = coverage(); if (!c.rows.length) return "";
+  return `<div class="panel"><h3>Architecture coverage</h3><div class="dsub" style="margin-bottom:8px">Parts per subsystem and kind group. An empty cell is not wrong in itself, but it is a question: does DRIVE need feedback, does SENS have positioning?</div>
+    <table class="stab cov"><tr>${c.head.map(h => `<th>${H(h)}</th>`).join("")}</tr>${c.rows.map(r => `<tr><td><span class="lnk" data-part="${M.top}.${r[0]}">${H(r[0])}</span></td>${r.slice(1).map(n => `<td class="${n ? "" : "z"}">${n || "·"}</td>`).join("")}</tr>`).join("")}</table></div>`; }
 function reviewPack() {
   const rs = M.requirements.filter(r => r.status !== "Deleted"), st = s => rs.filter(r => r.status === s).length;
   const sec = (t, h) => `<h2>${H(t)}</h2>${h}`;
@@ -1792,6 +1801,7 @@ function reviewPack() {
   printDoc(`${M.name} design review`, `<div class="cover"><h1>${H(M.name)}: design review pack</h1><div class="m">${new Date().toISOString().slice(0, 10)} · commit ${H(S_.commit || M.version || "")} · generated by doc-kit from the project files</div>
     <p>${M.subsystems.length} subsystems, ${Object.values(M.parts).filter(p => p.depth >= 2).length} parts, ${conns.length} connections, ${M.nodes.length} ROS2 nodes. Requirements: ${st("Verified")} verified, ${st("Failed")} failed, ${st("Approved")} approved, ${st("Draft")} draft (${rs.length} live). ${M.faults.length} faults analysed. Model problems: ${M.problems.length}.</p></div>` +
     sec("Subsystems", printTable([["Subsystem", "Name", "Parts"], ...M.subsystems.map(s => [s, (M.prefix_names || {})[s] || "", M.parts[`${M.top}.${s}`].children.map(k => M.parts[k].name).join(", ")])])) +
+    sec("Architecture coverage", (c => printTable([c.head, ...c.rows.map(r => r.map(x => x === 0 ? "–" : x))]))(coverage())) +
     sec("Requirements and verification", printTable([["ID", "Requirement", "Method", "Status", "Evidence"], ...rs.map(r => [r.id, r.text, METHOD[r.method] || r.method, r.status, r.evidence.join(" | ")])])) +
     sec("Faults (FDIR)", printTable([["ID", "Failure", "Effect", "Detection", "Response", "Recovery", "Sev", "Covered by"], ...[...M.faults].sort((a, b) => b.sev - a.sev).map(f => [f.id, f.failure, f.effect, f.detection, f.response, f.recovery, f.sev, f.reqs.map(x => `${x} (${reqById[x]?.status || "?"})`).join(", ") || "NOT COVERED"])])) +
     sec("Interfaces between subsystems", printTable([["Between", "Via", "From", "To", "Pins", "Settings", "Wire"], ...M.icd.map(i => { const c = conns.find(x => x.a.join(".") === i.from || x.b.join(".") === i.from); return [i.pair.join(" ↔ "), i.meaning, short(i.from), short(i.to), i.pins.map(p => p.join(" ")).join(", "), i.settings.map(s => s.join(": ")).join(", "), Object.values(c?.attrs || {}).join(", ")]; })])) +
@@ -1824,10 +1834,10 @@ function setupPage() {
     <div class="dsub" style="margin-bottom:8px">Scanned for nodes, publishers and subscribers (C++, Python, micro-ROS C). The robot does not need to be on. Which computer runs each node is set on the node (Software view).</div>
     ${st.ros_paths.map(x => `<div class="mono" style="padding:3px 0">${H(x)}</div>`).join("") || `<div class="dsub">None yet.</div>`}
     <div class="dsub" style="margin-top:6px">${M.nodes.length} node(s), ${M.topics.length} topic(s) found.</div></div>
-  <div class="panel"><h3>Part kinds<span style="flex:1"></span><button class="act" data-form="kind">+ Kind</button></h3>
-    <div class="dsub" style="margin-bottom:8px">The Kind of a part (New part, KiCad import) colours its band in the diagrams and the legend. ${(M.kinds || []).length ? "" : "These are the built-in ones; change any to make the list your own."}</div>
-    <table class="stab">${PKINDS.map(k => `<tr><td><span class="kdot" style="background:${k[2]}"></span></td><td class="mono">${H(k[0])}</td><td>${H(k[1])}</td><td class="dsub">${H(k[3])}</td><td class="dsub">${Object.values(M.parts).filter(p => p.depth >= 2 && partKind(p) === k[0]).length} part(s)</td>
-      <td class="acts"><button class="act" data-form="kind" data-key="${H(k[0])}">Edit</button>${k[0] === "other" ? "" : ` <button class="act dz" data-form="kind_delete" data-key="${H(k[0])}">Delete</button>`}</td></tr>`).join("")}</table></div>
+  <div class="panel"><h3>Part kinds<span style="flex:1"></span>${M.kinds_own ? `<button class="act" data-form="kinds_standard">Use the standard list</button>` : ""}<button class="act" data-form="kind">+ Kind</button></h3>
+    <div class="dsub" style="margin-bottom:8px">What each part is in the architecture, grouped the systems-engineering way (compute, sensing, actuation, power, comms, interconnect, safety). The kind colours the part, sorts the BOM, fills the coverage table on the Overview and drives the architecture checks. A part without a kind is sorted by its name and part number. ${M.kinds_own ? "This project has its own list." : "This is the standard list; changing it makes it the project's own."}</div>
+    <table class="stab">${KGROUPS().map(([g, gl]) => PKINDS.filter(k => k[4] === g).map((k, n) => `<tr><td class="dsub">${n ? "" : H(gl)}</td><td><span class="kdot" style="background:${k[2]}"></span></td><td class="mono">${H(k[0])}</td><td>${H(k[1])}</td><td class="dsub">${Object.values(M.parts).filter(p => p.depth >= 2 && partKind(p) === k[0]).length} part(s)</td>
+      <td class="acts"><button class="act" data-form="kind" data-key="${H(k[0])}">Edit</button>${k[0] === "other" ? "" : ` <button class="act dz" data-form="kind_delete" data-key="${H(k[0])}">Delete</button>`}</td></tr>`).join("")).join("")}</table></div>
   <div class="panel"><h3>Parts library<span style="flex:1"></span><button class="act" data-form="lib_folder">+ Folder</button><button class="act" data-form="template">+ Part</button></h3>
     <div class="dsub" style="margin-bottom:8px">Reusable parts (IMU, encoder, motor driver, radio…) with their details and ports. Folders are remembered on this computer (${H(st.library?.settings || "")}), so every project can use them. A folder inside the project is committed and shared with the team. In a part's panel, <i>Save to parts library</i> adds it here; a new part can start from one.</div>
     ${(st.library?.folders || []).map(f => `<div style="margin:10px 0 4px"><b class="mono">${H(f.path)}</b> ${f.default ? `<span class="chip">default</span>` : `<button class="act" data-op="lib_default" data-path="${H(f.path)}">Make default</button>`} <span class="dsub">${f.in_repo ? "in this project (committed)" : "on this computer"}${f.exists ? "" : " · missing"}</span> <button class="act dz" data-op="lib_folder_remove" data-path="${H(f.path)}">Forget</button></div>

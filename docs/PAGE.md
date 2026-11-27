@@ -235,13 +235,28 @@ connect the same MCU port to each.
 
 ![Part form](images/page-32-part-form.png)
 
-1. **Subsystem**, then **Name** under it, then **Kind** (MCU, computer,
-   sensor, motor / actuator, driver, power, radio / comms, mechanical, other).
-   The kind colours the part's band in the diagrams and the legend; a board
-   from an `.ioc` is an MCU. The list is yours: **Setup › Part kinds** adds,
-   renames (parts follow), recolours or deletes kinds; it is saved in
-   `model.toml` as `[[kind]]` rows. *other* is the fallback and stays. Moving a part to another subsystem
-   keeps its wires. Parts sit directly in a subsystem, never inside another part.
+1. **Subsystem**, then **Name** under it, then **Kind**: what the part is in
+   the architecture, in the systems-engineering groups below. The kind colours
+   the part's band (one colour family per group), sorts the BOM, fills the
+   coverage table on the Overview and drives the architecture checks. A part
+   without a kind is sorted by its name, type and part number (an encoder
+   becomes *feedback*, a buck *power conversion*, a board from an `.ioc` an
+   *MCU*).
+
+   | Group | Kinds |
+   |---|---|
+   | Compute | MCU, computer |
+   | Sensing | feedback (encoder, current sense), inertial (IMU), perception (ToF, lidar, camera), positioning (GNSS, RTK) |
+   | Actuation | actuator (motor, servo), driver (motor driver, ESC) |
+   | Power | power source (battery), power conversion (regulator, BMS, fuse) |
+   | Comms | radio / comms |
+   | Interconnect | connector / harness |
+   | Safety | safety (e-stop, kill switch) |
+   | Structure & other | mechanical, other |
+
+   **Setup › Part kinds** adds, renames (parts follow), regroups, recolours or
+   deletes kinds; the list is saved in `model.toml` as `[[kind]]` rows.
+   **Use the standard list** goes back to the one above. *other* stays.
 2. **What it is**: part number or one line. **Start from the parts library**
    (above, when the library has parts) fills in everything below.
 3. **Ports**: a name and a type each. Renaming a port keeps its wires;
@@ -564,6 +579,23 @@ from it.
    supersede with a new one.
 2. **Decision and why.**
 3. **Links** to the parts and requirements named on its Related line, and *Change status*.
+
+### Architecture checks and coverage
+
+The **Overview** has an **Architecture coverage** table: parts per subsystem
+and kind group, so an empty cell (DRIVE without feedback, SENS without
+positioning) shows at a glance; the review pack has it too. Among the gaps:
+
+- a sensing part with no data link to an MCU or computer (through connectors
+  counts);
+- a feedback part (encoder, current sense) in a subsystem with no actuator or
+  driver it could be measuring;
+- a power source with no `max_current`, which the power budget then cannot
+  check;
+- actuators or drivers but no safety element (e-stop, kill switch) anywhere.
+
+The **BOM** has a **Category** column and is ordered by group: compute,
+sensing, actuation, power, comms, interconnect, safety, structure.
 
 ### Power and checks
 

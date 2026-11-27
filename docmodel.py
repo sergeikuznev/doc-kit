@@ -672,6 +672,118 @@ class Parser:
         self.err(f"unexpected {v!r} (doc model reads: part, part def, port, port def, connect, allocate, satisfy)")
 
 
+
+# ================================================================ part kinds: what a part is in the architecture
+KIND_GROUPS = [("compute", "Compute"), ("sensing", "Sensing"), ("actuation", "Actuation"), ("power", "Power"), ("comms", "Comms"),
+               ("interconnect", "Interconnect"), ("safety", "Safety"), ("structure", "Structure & other")]
+DEFAULT_KINDS = [  # key, label, group, colour (one colour family per group, shades inside it)
+    ("mcu", "Microcontroller (MCU)", "compute", "cyan"), ("computer", "Computer (Pi, Jetson…)", "compute", "cyan dark"),
+    ("feedback", "Feedback (encoder, current sense)", "sensing", "teal"), ("inertial", "Inertial (IMU)", "sensing", "green"),
+    ("perception", "Perception (ToF, lidar, camera)", "sensing", "lime"), ("positioning", "Positioning (GNSS, RTK)", "sensing", "green dark"),
+    ("actuator", "Actuator (motor, servo)", "actuation", "orange"), ("driver", "Driver (motor driver, ESC)", "actuation", "orange light"),
+    ("power_source", "Power source (battery)", "power", "red"), ("power_conversion", "Power conversion (regulator, BMS, fuse)", "power", "red light"),
+    ("radio", "Radio / comms", "comms", "violet"), ("connector", "Connector / harness", "interconnect", "slate"),
+    ("safety", "Safety (e-stop, kill switch)", "safety", "pink"), ("mechanical", "Mechanical", "structure", "stone"),
+    ("other", "Other", "structure", "grey")]
+GUESS = [  # first match wins: drivers before motors, encoders before motors, connectors before what they plug into
+    ("connector", r"^(j|p|cn|x)\d+$|\bconn(ector)?\b|conn_|header|\bjst\b|xt[36]0|molex|terminal|harness"),
+    ("feedback", r"encoder|mt6701|as5600|as504\d|amt1\d|quadrature|ina\d{3}|acs7\d\d|current.?sens|hall"),
+    ("inertial", r"\bimu\b|icm-?\d|mpu-?\d|bno0|lsm\d|bmi\d|bmx\d|gyro|acceleromet"),
+    ("positioning", r"\bgps\b|gnss|neo-?[m\d]|zed-?f9|\brtk\b|u-?blox"),
+    ("perception", r"\btof\b|vl53|lidar|rplidar|camera|realsense|oak-?d|ultrason|hc-?sr04|depth|bme\d|bmp\d|sensor"),
+    ("mcu", r"stm32|esp32|atmega|rp2040|teensy|arduino|\bmcu\b|nucleo"),
+    ("computer", r"raspberry|\brpi\d?\b|\bpi\s?[45]\b|raspberrypi|jetson|\bnuc\b|orin|computer|odroid"),
+    ("safety", r"e-?stop|estop|kill.?switch|emergency|watchdog"),
+    ("driver", r"tb6612|drv8\d+|l298|vesc|\besc\b|motor.?driver|bts7960|odrive|h-?bridge"),
+    ("actuator", r"motor|servo|stepper|actuator|linear.?act"),
+    ("power_source", r"lipo|li-?ion|li-?po|battery|\bcell\b|18650|\bbatt"),
+    ("power_conversion", r"buck|boost|\bldo\b|regulator|\bbms\b|fuse|ams1117|lm2596|power.?module|\bpdb\b|dc-?dc"),
+    ("radio", r"nrf24|lora|sx12|rfm9|radio|xbee|wi-?fi|bluetooth|\bble\b"),
+    ("mechanical", r"chassis|mount|bracket|frame|wheel|track|gearbox")]
+
+
+def kinds_of(cfg):
+    own = [k for k in cfg.get("kind", []) if k.get("key")]
+    old = {"mcu", "computer", "sensor", "actuator", "driver", "power", "radio", "mechanical", "other"}
+    if own and not any(k.get("group") for k in own) and {k["key"] for k in own} <= old:
+        own = []  # the list of doc-kit 0.8.2 written out unchanged: the standard list replaces it
+    dg = {k: g for k, _, g, _ in DEFAULT_KINDS} | {"sensor": "sensing", "power": "power"}
+    for k in own:
+        k.setdefault("group", dg.get(k["key"], "structure"))
+    if own:
+        return [{"key": str(k["key"]), "label": str(k.get("label") or k["key"]), "group": str(k.get("group") or "structure"),
+                 "color": str(k.get("color") or "grey")} for k in own]
+    return [{"key": k, "label": l, "group": g, "color": c} for k, l, g, c in DEFAULT_KINDS]
+
+
+def guess_kind(p):
+    """A kind from what a part is called, its type, description and part number (the board of an .ioc is an MCU)."""
+    if p.get("board"):
+        return "mcu"
+    a = p.get("attrs") or {}
+    ref = str(a.get("kicad_ref", "")).lower()
+    if re.match(r"^(j|p|cn|x)\d+$", ref):
+        return "connector"
+    text = " ".join(str(x) for x in (p.get("name"), p.get("type"), p.get("doc"), a.get("part_number"), a.get("footprint")) if x).lower()
+    return next((k for k, rx in GUESS if re.search(rx, text)), "other")
+
+
+def assign_kinds(parts, kinds):
+    """p['pkind'] and p['pgroup'] for every part: its own kind, or a guess (old kinds 'sensor' / 'power' are re-sorted)."""
+    keys = {k["key"]: k["group"] for k in kinds}
+    for p in parts.values():
+        if p["depth"] < 2:
+            continue
+        k = (p.get("attrs") or {}).get("kind", "")
+        if k not in keys:
+            g = guess_kind(p)
+            if k == "sensor" and g == "other":
+                g = "perception"
+            if k == "power" and g == "other":
+                g = "power_conversion"
+            k = g if g in keys else ("other" if "other" in keys else next(iter(keys), "other"))
+        p["pkind"], p["pgroup"] = k, keys.get(k, "structure")
+
+
+def architecture_checks(parts, connections, gap):
+    """Questions a design review asks of the parts' roles."""
+    leaves = {k: p for k, p in parts.items() if p["depth"] >= 2 and not p["children"]}
+    nb = {}
+    for c in connections:
+        if c.get("drawn") and c["kind"] == "Signal":
+            a, b = c["a"][0], c["b"][0]
+            nb.setdefault(a, set()).add(b)
+            nb.setdefault(b, set()).add(a)
+    grp = lambda k: (parts.get(k) or {}).get("pgroup")
+
+    def reaches_compute(start):
+        seen, todo = {start}, [start]
+        while todo:
+            cur = todo.pop()
+            for n in nb.get(cur, ()):
+                if n in seen:
+                    continue
+                if grp(n) == "compute":
+                    return True
+                seen.add(n)
+                if grp(n) == "interconnect":  # through a connector or harness
+                    todo.append(n)
+        return False
+    short = lambda k: k.split(".", 1)[-1]
+    for k, p in leaves.items():
+        if p.get("pgroup") == "sensing" and not reaches_compute(k):
+            gap("architecture", f"{short(k)} ({p['pkind']}) has no data link to an MCU or computer", [k])
+        if p.get("pkind") == "feedback":
+            near = any(grp(n) == "actuation" for n in nb.get(k, ())) or \
+                any(q.get("pgroup") == "actuation" and q["subsystem"] == p["subsystem"] for q in leaves.values())
+            if not near:
+                gap("architecture", f"{short(k)} is feedback (an encoder or current sense) but {p['subsystem']} has no actuator or driver it measures", [k])
+        if p.get("pkind") == "power_source" and not any((q.get("attrs") or {}).get("max_current") for q in p["ports"]):
+            gap("architecture", f"{short(k)} is a power source with no max_current on its ports, so the power budget cannot check it", [k])
+    acts = [k for k, p in leaves.items() if p.get("pgroup") == "actuation"]
+    if acts and not any(p.get("pgroup") == "safety" for p in leaves.values()):
+        gap("architecture", f"{len(acts)} actuator/driver part(s) but no safety element (e-stop, kill switch): add one, or a part of kind safety", [])
+
 # ================================================================ build + check
 
 def _kind_of(ptype, port_defs, seen=None):
@@ -1021,10 +1133,13 @@ def build(root, overrides=None):
                         "pins": fact.get("pins", []), "settings": [s for s in fact.get("settings", [])
                                                                     if s[0] in ("Speed", "SPI mode", "Role", "Baud rate", "Clock speed", "Timing")]})
 
+    kinds = kinds_of(cfg)
+    assign_kinds(parts, kinds)
+    architecture_checks(parts, connections, gap)
     power, i2c = electrical(parts, connections, gap)
     bom = build_bom(cfg, parts, connections)
     return {"name": name, "top": top["name"], "subsystems": subsystems, "parts": parts, "connections": connections, "ros_links": ros_links,
-            "kinds": [{"key": str(k.get("key", "")), "label": str(k.get("label", "")), "color": str(k.get("color", ""))} for k in cfg.get("kind", [])],
+            "kinds": kinds, "kind_groups": KIND_GROUPS, "kinds_own": bool(cfg.get("kind")),
             "power": power, "i2c": i2c, "bom": bom, "launches": launches,
             "boards": boards, "nodes": nodes, "topics": sorted(topics.values(), key=lambda t: t["topic"]),
             "requirements": reqs, "faults": faults, "decisions": decisions, "icd": icd, "gaps": gaps,
@@ -1132,14 +1247,16 @@ def build_bom(cfg, parts, connections):
         a = p["attrs"]
         key = a.get("part_number") or p["doc"] or p["type"] or p["name"]
         g = groups.setdefault(key, {"kind": "part", "item": p["doc"] or p["type"] or p["name"], "qty": 0, "parts": [],
-                                    "subsystems": [], "values": {}})
+                                    "subsystems": [], "values": {}, "category": dict(KIND_GROUPS).get(p.get("pgroup"), "")})
         g["qty"] += num(a.get("quantity")) or 1
         g["parts"].append(k)
         if p["subsystem"] not in g["subsystems"]:
             g["subsystems"].append(p["subsystem"])
         for kk, vv in a.items():
             g["values"].setdefault(kk, vv)
-    rows = sorted(groups.values(), key=lambda g: (g["subsystems"][0] or "", g["item"]))
+    order = [g for g, _ in KIND_GROUPS]
+    labels = {v: i for i, (_, v) in enumerate(KIND_GROUPS)}
+    rows = sorted(groups.values(), key=lambda g: (labels.get(g["category"], len(order)), g["subsystems"][0] or "", g["item"]))
     wires, conns = {}, {}
     for c in connections:
         a = c.get("attrs") or {}
