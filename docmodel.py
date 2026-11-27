@@ -1191,13 +1191,14 @@ def issue_timeline(root, number):
         who = (e.get("actor") or e.get("user") or {}).get("login", "")
         at = e.get("created_at") or e.get("submitted_at") or ""
         if kind == "commented":
-            out.append({"type": "comment", "who": who, "at": at, "body": e.get("body", "")})
+            out.append({"type": "comment", "who": who, "at": at, "body": e.get("body", ""), "avatar": (e.get("actor") or e.get("user") or {}).get("avatar_url", "")})
         elif kind in ("labeled", "unlabeled"):
-            name = (e.get("label") or {}).get("name", "")
-            if out and out[-1]["type"] == kind and out[-1]["who"] == who:
+            name, color = (e.get("label") or {}).get("name", ""), (e.get("label") or {}).get("color", "")
+            if out and out[-1]["type"] == kind and out[-1]["who"] == who and out[-1]["at"][:16] == at[:16]:
                 out[-1]["labels"].append(name)
+                out[-1]["colors"][name] = color
             else:
-                out.append({"type": kind, "who": who, "at": at, "labels": [name]})
+                out.append({"type": kind, "who": who, "at": at, "labels": [name], "colors": {name: color}})
         elif kind == "closed":
             out.append({"type": "closed", "who": who, "at": at, "reason": (e.get("state_reason") or "completed").replace("_", " ")})
         elif kind == "reopened":
@@ -1217,7 +1218,7 @@ def fetch_issues(root):
     out = []
     for state, limit in (("open", 200), ("closed", 30)):
         r = subprocess.run(["gh", "issue", "list", "--state", state, "--limit", str(limit), "--json",
-                            "number,title,labels,url,updatedAt,createdAt,author,body,state,stateReason"],
+                            "number,title,labels,url,updatedAt,createdAt,closedAt,author,body,state,stateReason"],
                            cwd=root, capture_output=True, text=True, timeout=30)
         if r.returncode != 0:
             return [], (r.stderr.strip().splitlines() or ["gh failed"])[-1]
@@ -1225,7 +1226,8 @@ def fetch_issues(root):
             out.append({"number": i["number"], "title": i["title"], "url": i["url"], "state": i["state"].lower(),
                         "labels": [l["name"] for l in i.get("labels", [])], "updated": i.get("updatedAt", ""),
                         "created": i.get("createdAt", ""), "author": (i.get("author") or {}).get("login", ""),
-                        "body": i.get("body", ""), "status": issue_status(i)})
+                        "body": i.get("body", ""), "status": issue_status(i), "closed": i.get("closedAt") or "",
+                        "colors": {l["name"]: l.get("color", "") for l in i.get("labels", [])}})
     return out, None
 
 

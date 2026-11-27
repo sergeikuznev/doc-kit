@@ -116,6 +116,19 @@ aside h4{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:va
 .icard .body h3{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);margin:10px 0 2px}
 .lab{font-size:11px;padding:1px 8px;border-radius:999px;border:1px solid var(--hair);color:var(--muted)}
 .lab.bug{border-color:var(--crit);color:var(--crit-ink)}
+.links{align-items:center}.lab{display:inline-flex;align-items:center;line-height:1.5}.icard.isdone{opacity:.72}.icard.isdone .t{text-decoration:none}
+.tl2{position:relative;margin:18px 0 8px}.tl2:before{content:"";position:absolute;left:15px;top:0;bottom:0;width:2px;background:var(--hair)}
+.ti{position:relative;display:flex;gap:10px;align-items:center;margin:0 0 14px;font-size:12.5px;color:var(--muted)}.ti .ic{flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--sunk);border:2px solid var(--surface);z-index:1;color:var(--muted)}
+.ti .ic.done{background:#8b5cf6;color:#fff}.ti .ic.reopen{background:var(--good);color:#fff}.ti .ic.np{background:var(--appr);color:#fff}.ti b{color:var(--ink)}.ti .lab{margin:0 2px}
+.tc{position:relative;display:flex;gap:10px;margin:0 0 14px}.tc .av,.ti .av{width:22px;height:22px;border-radius:50%;background:var(--sunk);flex:none}.tc>.av{width:32px;height:32px;z-index:1;border:2px solid var(--surface)}
+.tc .box{flex:1;min-width:0;border:1px solid var(--hair);border-radius:10px;overflow:hidden}.tc .hd{background:var(--sunk);padding:6px 10px;font-size:12.5px;color:var(--muted)}.tc .bd{padding:8px 12px;font-size:13px;overflow-wrap:anywhere}
+.tc .bd p{margin:0 0 6px}.tc .bd ul,.tc .bd ol{margin:4px 0 6px;padding-left:20px}.tc .bd pre{background:var(--sunk);padding:8px;border-radius:6px;overflow:auto}.tc .bd blockquote{border-left:3px solid var(--hair);margin:4px 0;padding:0 10px;color:var(--muted)}
+.ed{border:1px solid var(--hair);border-radius:10px;overflow:hidden;background:var(--surface)}.ed .bar{display:flex;align-items:center;border-bottom:1px solid var(--hair);background:var(--sunk);flex-wrap:wrap}
+.ed .tab{font:inherit;font-size:13px;padding:7px 12px;border:0;background:none;color:var(--muted);cursor:pointer;border-right:1px solid transparent}.ed .tab.on{background:var(--surface);color:var(--ink);border-right-color:var(--hair);border-left:1px solid var(--hair)}
+.ed .tools{margin-left:auto;display:flex;gap:1px;padding:0 4px}.ed .tools button{font:inherit;font-size:13px;min-width:26px;height:26px;border:0;border-radius:5px;background:none;color:var(--muted);cursor:pointer}.ed .tools button:hover{background:var(--surface);color:var(--ink)}
+.ed textarea{display:block;width:100%;min-height:110px;border:0;padding:10px 12px;font:inherit;font-size:13px;background:var(--bg);color:var(--ink);resize:vertical;outline:none}
+.ed .pv2{min-height:110px;padding:10px 12px;font-size:13px}.ed .foot{border-top:1px dashed var(--hair);padding:6px 12px;font-size:12px;color:var(--muted);cursor:pointer}.ed .foot:hover{color:var(--accent)}
+.ed.drag{border-color:var(--accent)}.cbtns{display:flex;justify-content:flex-end;gap:8px;margin-top:10px;align-items:center}.cbtns .split .btn{display:inline-flex;align-items:center;gap:6px}
 .stpill{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;border:1px solid color-mix(in srgb,var(--stc) 55%,transparent);background:color-mix(in srgb,var(--stc) 14%,transparent);color:var(--ink);cursor:pointer}
 .stpill i{font-style:normal;color:var(--muted);font-size:10px}.stpill:disabled{cursor:default}.ilink{cursor:pointer}.ilink:hover{color:var(--accent)}
 .stmenu button{display:flex;align-items:center;gap:8px}.tl{border-left:2px solid var(--hair);margin:16px 0 6px 6px;padding-left:14px}
@@ -732,26 +745,50 @@ function lightbox(f) {
 }
 document.addEventListener("keydown", e => { if (e.key === "Escape") { document.querySelector(".lightbox")?.remove(); document.querySelector(".modal")?.remove(); } });
 
-function mdLite(t) {
-  return t.split(/\n/).map(l => { const e = H(l);
-    if (/^###\s/.test(l)) return `<h3>${e.replace(/^###\s/, "")}</h3>`;
-    if (/^\s*[-*]\s/.test(l)) return `<div>• ${e.replace(/^\s*[-*]\s/, "")}</div>`;
-    return e.trim() ? `<div>${e}</div>` : ""; }).join("");
+function mdInline(t) { return H(t).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, '<img alt="$1" src="$2" style="max-width:100%;border-radius:6px">')
+  .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2" target="_blank">$1</a>').replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<i>$2</i>")
+  .replace(/(^|\s)_([^_\n]+)_(?=\s|$)/g, "$1<i>$2</i>").replace(/(^|\s)#(\d+)\b/g, '$1<span class="xref" data-issue="$2">#$2</span>'); }
+function mdLite(t) {  // small Markdown for issue text and comments
+  const out = [], lines = String(t || "").split(/\r?\n/); let code = null, list = null;
+  const close = () => { if (list) { out.push(`</${list}>`); list = null; } };
+  for (const l of lines) {
+    if (/^```/.test(l)) { if (code === null) { close(); code = []; } else { out.push(`<pre><code>${H(code.join("\n"))}</code></pre>`); code = null; } continue; }
+    if (code !== null) { code.push(l); continue; }
+    let m;
+    if ((m = l.match(/^(#{1,4})\s+(.*)$/))) { close(); out.push(`<h${Math.min(6, m[1].length + 2)}>${mdInline(m[2])}</h${Math.min(6, m[1].length + 2)}>`); continue; }
+    if ((m = l.match(/^\s*[-*]\s+\[( |x|X)\]\s+(.*)$/))) { if (list !== "ul") { close(); out.push('<ul class="tasks">'); list = "ul"; } out.push(`<li>${m[1].trim() ? "☑" : "☐"} ${mdInline(m[2])}</li>`); continue; }
+    if ((m = l.match(/^\s*[-*]\s+(.*)$/))) { if (list !== "ul") { close(); out.push("<ul>"); list = "ul"; } out.push(`<li>${mdInline(m[1])}</li>`); continue; }
+    if ((m = l.match(/^\s*\d+\.\s+(.*)$/))) { if (list !== "ol") { close(); out.push("<ol>"); list = "ol"; } out.push(`<li>${mdInline(m[1])}</li>`); continue; }
+    close();
+    if ((m = l.match(/^>\s?(.*)$/))) { out.push(`<blockquote>${mdInline(m[1])}</blockquote>`); continue; }
+    if (l.trim()) out.push(`<p>${mdInline(l)}</p>`);
+  }
+  close(); if (code !== null) out.push(`<pre><code>${H(code.join("\n"))}</code></pre>`);
+  return out.join("");
 }
-let ist = "open", ikind = "all", isub = "", iq = "";
+function ago(d) { if (!d) return ""; const s = (Date.now() - new Date(d)) / 1000; if (s < 45) return "just now"; if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} h ago`; if (s < 30 * 86400) return `${Math.round(s / 86400)} d ago`; return new Date(d).toISOString().slice(0, 10); }
+const tm = d => `<time data-t="${H(d || "")}" title="${H((d || "").replace("T", " ").replace("Z", " UTC"))}">${ago(d)}</time>`;
+setInterval(() => document.querySelectorAll("time[data-t]").forEach(e => { e.textContent = ago(e.dataset.t); }), 20000);
+const labChip = (l, col) => { const c = col && /^[0-9a-f]{6}$/i.test(col) ? "#" + col : null;
+  return `<span class="lab ${l === "bug" ? "bug" : l === "idea" ? "idea" : ""}" ${c ? `style="border-color:color-mix(in srgb,${c} 60%,transparent);background:color-mix(in srgb,${c} 18%,transparent);color:color-mix(in srgb,${c} 55%,var(--ink))"` : ""}>${H(l)}</span>`; };
+const avatar = (who, url) => `<img class="av" alt="" src="${H(url || (who && who !== "you" ? `https://github.com/${encodeURIComponent(who)}.png?size=48` : ""))}" onerror="this.style.visibility='hidden'">`;
+let ist = "active", ikind = "all", isub = "", iq = "";
 function issuesPage() {
   const all = M.issues || [];
-  const vis = all.filter(i => (ist === "all" || i.state === ist) && (ikind === "all" || i.kind === ikind) && (!isub || i.subsystems.includes(isub))
-    && (!iq || (i.title + " " + i.body + " #" + i.number).toLowerCase().includes(iq)));
-  const ago = d => { if (!d) return ""; const s = (Date.now() - new Date(d)) / 1000; return s < 3600 ? `${Math.round(s / 60)} min ago` : s < 86400 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} d ago`; };
+  const inState = i => ist === "all" || (ist === "active" ? i.state === "open" || i.status === "done" : i.state === ist);
+  const vis = all.filter(i => inState(i) && (ikind === "all" || i.kind === ikind) && (!isub || i.subsystems.includes(isub))
+    && (!iq || (i.title + " " + i.body + " #" + i.number).toLowerCase().includes(iq)))
+    // open first (newest change first); then closed ones, the most recently closed first
+    .sort((a, b) => (a.state === "closed") - (b.state === "closed") || String(a.state === "closed" ? b.closed || b.updated : b.updated).localeCompare(String(a.state === "closed" ? a.closed || a.updated : a.updated)));
   page(`<div class="ibar"><h2 style="margin:0">Issues</h2><span class="sp" style="flex:1"></span>${SERVED ? `<button class="act" data-form="idea">+ Idea</button><button class="act" data-form="bug">+ Bug</button>` : ""}</div>
     <p class="lead">From GitHub${M.issue_error && M.issue_error !== "skipped" ? ` — <span style="color:var(--warn-ink)">not loaded: ${H(M.issue_error)}</span>` : M.issue_error === "skipped" ? " (skipped this build)" : ""}. ${SERVED ? "Refreshed every 5 minutes." : `Snapshot from ${H((M.built || "").replace("T", " "))}.`} Labels place each issue in a subsystem; requirement IDs in the text link it to requirements.</p>
     <div class="filters"><input id="iq" placeholder="Search issues…" value="${H(iq)}">
-      ${["open", "closed", "all"].map(x => `<button class="fchip ${x === ist ? "on" : ""}" data-ist="${x}">${x}</button>`).join("")}
+      ${[["active", "open + done"], ["open", "open"], ["closed", "closed"], ["all", "all"]].map(([x, l]) => `<button class="fchip ${x === ist ? "on" : ""}" data-ist="${x}">${l}</button>`).join("")}
       <span style="width:8px"></span>${["all", "idea", "bug"].map(x => `<button class="fchip ${x === ikind ? "on" : ""}" data-ik="${x}">${x}</button>`).join("")}
       <select id="isub" class="fchip"><option value="">all subsystems</option>${M.subsystems.map(x => `<option ${x === isub ? "selected" : ""}>${x}</option>`).join("")}</select></div>
-    ${vis.map(i => `<div class="icard" id="i${i.number}"><div class="top">${stPill(i)}<span class="num">${i.number ? "#" + i.number : "#…"}</span><span class="t ilink" data-iss="${i.number}">${H(i.title)}</span>
-      ${i.labels.filter(l => !l.startsWith("status: ")).map(l => `<span class="lab ${l === "bug" ? "bug" : l === "idea" ? "idea" : ""}">${H(l)}</span>`).join("")}<span class="meta">${H(i.author)} · ${ago(i.updated)} · <a href="${H(i.url)}" target="_blank">GitHub ↗</a></span></div>
+    ${vis.map((i, k) => `${i.state === "closed" && (k === 0 || vis[k - 1].state !== "closed") ? `<div class="sgroup"><h3>Closed</h3><span class="c">most recently closed first</span></div>` : ""}<div class="icard ${i.state === "closed" ? "isdone" : ""}" id="i${i.number}"><div class="top">${stPill(i)}<span class="num">${i.number ? "#" + i.number : "#…"}</span><span class="t ilink" data-iss="${i.number}">${H(i.title)}</span>
+      ${i.labels.filter(l => !l.startsWith("status: ")).map(l => labChip(l, (i.colors || {})[l])).join("")}<span class="meta">${H(i.author)} · ${i.state === "closed" && i.closed ? "closed " + tm(i.closed) : tm(i.updated)} · <a href="${H(i.url)}" target="_blank">GitHub ↗</a></span></div>
       <div class="links" style="margin-top:6px">${i.subsystems.map(s => `<span class="chip" data-part="${M.top}.${s}">${H(s)}</span>`).join("")}${i.reqs.map(r => reqChip(reqById[r])).join("")}</div>
       ${i.body ? `<details><summary>Details</summary><div class="body">${mdLite(i.body)}</div></details>` : ""}</div>`).join("") || `<div class="empty">No issues match.</div>`}`);
   document.querySelectorAll("[data-iss]").forEach(e => e.onclick = () => showIssue(+e.dataset.iss));
@@ -785,9 +822,11 @@ function statusMenu(anchor, n) {
 }
 async function issueOp(op, body) {
   const i = (M.issues || []).find(x => x.number === body.number), st = body.status || body.then;
-  if (i && st) { i.status = st; i.state = ["done", "not planned", "duplicate"].includes(st) ? "closed" : "open"; }
+  const now = new Date().toISOString();
+  if (i && st) { const was = i.state; i.status = st; i.state = ["done", "not planned", "duplicate"].includes(st) ? "closed" : "open"; i.updated = now; if (i.state === "closed" && was !== "closed") i.closed = now; }
   if (op === "issue_delete") { M.issues = M.issues.filter(x => x.number !== body.number); closeDrawer(); }
-  if (op === "issue_comment" && body.body && $("#tlev")) { $("#tlev").insertAdjacentHTML("beforeend", `<div class="tli"><div class="tlh"><b>you</b> commented · now</div><div class="body">${mdLite(body.body)}</div></div>`); $("#icom").value = ""; }
+  if (op === "issue_comment" && body.body) { (pendingComments[body.number] ||= []).push({type: "comment", who: S_.me || "you", at: now, body: body.body}); setTimeout(() => delete pendingComments[body.number], 15000);
+    if ($("#icom")) $("#icom").value = ""; }
   const again = reopen; chrome(); if (["issues", "overview"].includes(view)) render(); if (again && op !== "issue_delete") again();
   try { const r = await post(`api/apply/${op}`, body); toast(r.message); if (window.syncNow) syncNow(); }
   catch (e) { toast(e.message, true); refreshModel(); }
@@ -796,33 +835,62 @@ function showIssue(n) { setTimeout(() => reopen = () => showIssue(n), 0); if (!n
   const i = (M.issues || []).find(x => x.number === n); if (!i) return;
   const closed = i.state === "closed";
   openDrawer(`<div class="dsub">${i.kind === "bug" ? "Bug" : i.kind === "idea" ? "Idea" : "Issue"} · <a href="${H(i.url)}" target="_blank">GitHub ↗</a></div><div class="dh">${H(i.title)} <span style="color:var(--faint);font-weight:400">#${n}</span></div>
-    <div class="links" style="margin:8px 0">${stPill(i)}${i.labels.filter(l => !l.startsWith("status: ")).map(l => `<span class="lab ${l === "bug" ? "bug" : l === "idea" ? "idea" : ""}">${H(l)}</span>`).join("")}</div>
+    <div class="links" style="margin:8px 0">${stPill(i)}${i.labels.filter(l => !l.startsWith("status: ")).map(l => labChip(l, (i.colors || {})[l])).join("")}</div>
     <div class="links">${i.subsystems.map(s => `<span class="chip" data-part="${M.top}.${s}">${H(s)}</span>`).join("")}${i.reqs.map(r => reqChip(reqById[r])).join("")}</div>
-    <div class="tl"><div class="tli"><div class="tlh"><b>${H(i.author)}</b> opened this · ${H((i.created || "").slice(0, 10))}</div>${i.body ? `<div class="body">${mdLite(i.body)}</div>` : ""}</div><div id="tlev"><div class="dsub">Loading activity…</div></div></div>
-    ${SERVED ? `<h4>Add a comment</h4><textarea id="icom" class="icom" placeholder="Write a comment (Markdown)"></textarea>
-      <div class="mfoot" style="margin-top:8px">${closed ? `<button class="btn" id="ireopen">Reopen</button>` : `<span class="split"><button class="btn" id="idone">${stIcon("done")} Close as done</button><button class="btn" id="icl">▾</button></span>`}<button class="newbtn" id="icomgo">Comment</button></div>
+    <div class="tl2"><div class="tc">${avatar(i.author)}<div class="box"><div class="hd"><b>${H(i.author)}</b> opened ${tm(i.created)}</div><div class="bd">${i.body ? mdLite(i.body) : `<span class="dsub">No description.</span>`}</div></div></div>
+      <div id="tlev"><div class="dsub" style="margin-left:42px">Loading activity…</div></div></div>
+    ${SERVED ? `<h4>Add a comment</h4><div class="ed" id="ed"><div class="bar"><button class="tab on" data-tab="w">Write</button><button class="tab" data-tab="p">Preview</button>
+        <span class="tools">${[["h", "H", "Heading"], ["b", "<b>B</b>", "Bold"], ["i", "<i>I</i>", "Italic"], ["q", "❝", "Quote"], ["c", "&lt;/&gt;", "Code"], ["l", "🔗", "Link"], ["ul", "•≡", "Bulleted list"], ["ol", "1≡", "Numbered list"], ["t", "☑", "Task list"]]
+          .map(([k, l, t]) => `<button type="button" data-md="${k}" title="${t}">${l}</button>`).join("")}</span></div>
+        <textarea id="icom" placeholder="Use Markdown to format your comment"></textarea><div class="pv2" id="icpv" style="display:none"></div>
+        <div class="foot" id="ifile">📎 Paste, drop, or click to add files<input type="file" id="ifin" multiple style="display:none"></div></div>
+      <div class="cbtns">${closed ? `<button class="btn" id="ireopen">${stIcon("backlog")} Reopen</button>` : `<span class="split"><button class="btn" id="idone">${stIcon("done")} Mark as Done</button><button class="btn" id="icl">▾</button></span>`}<button class="newbtn" id="icomgo">Comment</button></div>
       <div style="margin-top:22px"><button class="act dz" id="idel">Delete issue…</button></div>` : ""}`);
-  const icon = {comment: "💬", labeled: "🏷", unlabeled: "🏷", closed: "", reopened: "↺", renamed: "✎", referenced: "↗"};
+  const badge = e => e.type === "closed" ? `<span class="ic ${e.reason === "completed" ? "done" : "np"}">${e.reason === "completed" ? "✓" : "⊘"}</span>` : e.type === "reopened" ? `<span class="ic reopen">↻</span>`
+    : `<span class="ic">${{labeled: "🏷", unlabeled: "🏷", renamed: "✎", referenced: "↗"}[e.type] || "•"}</span>`;
+  const evHtml = e => e.type === "comment" ? `<div class="tc">${avatar(e.who, e.avatar)}<div class="box"><div class="hd"><b>${H(e.who)}</b> commented ${tm(e.at)}</div><div class="bd">${mdLite(e.body)}</div></div></div>`
+    : `<div class="ti">${badge(e)}${avatar(e.who)}<span><b>${H(e.who)}</b> ${e.type === "closed" ? `closed this as <u>${H(e.reason)}</u>` : e.type === "reopened" ? "reopened this"
+      : e.type === "labeled" ? `added ${e.labels.map(l => labChip(l, (e.colors || {})[l])).join(" ")}` : e.type === "unlabeled" ? `removed ${e.labels.map(l => labChip(l, (e.colors || {})[l])).join(" ")}`
+      : e.type === "renamed" ? `changed the title to <i>${H(e.to)}</i>` : `referenced this${e.commit ? ` in <span class="mono">${H(e.commit)}</span>` : ""}`} ${tm(e.at)}</span></div>`;
+  window._evHtml = evHtml;
   fetch(`api/issue/${n}`).then(r => r.json()).then(t => { const ev = $("#tlev"); if (!ev) return;
-    if (t.error) return ev.innerHTML = `<div class="dsub">Activity not loaded: ${H(t.error)}</div>`;
-    ev.innerHTML = t.events.map(e => e.type === "comment" ? `<div class="tli"><div class="tlh"><b>${H(e.who)}</b> commented · ${H(e.at.slice(0, 10))}</div><div class="body">${mdLite(e.body)}</div></div>`
-      : `<div class="tle">${e.type === "closed" ? stIcon(e.reason === "not planned" ? "not planned" : e.reason === "duplicate" ? "duplicate" : "done") : e.type === "reopened" ? stIcon("backlog") : `<span>${icon[e.type] || "•"}</span>`}
-        <span><b>${H(e.who)}</b> ${e.type === "closed" ? `closed this as <u>${H(e.reason)}</u>` : e.type === "reopened" ? "reopened this" : e.type === "labeled" ? `added ${e.labels.map(l => `<span class="lab">${H(l)}</span>`).join(" ")}`
-          : e.type === "unlabeled" ? `removed ${e.labels.map(l => `<span class="lab">${H(l)}</span>`).join(" ")}` : e.type === "renamed" ? `renamed this to <i>${H(e.to)}</i>` : `referenced this${e.commit ? ` in <span class="mono">${H(e.commit)}</span>` : ""}`}
-        <span style="color:var(--faint)">· ${H(e.at.slice(0, 10))}</span></span></div>`).join("") || ""; }).catch(() => {});
+    if (t.error) return ev.innerHTML = `<div class="dsub" style="margin-left:42px">Activity not loaded: ${H(t.error)}</div>`;
+    const mine = (pendingComments[n] || []).filter(p => !t.events.some(e => e.type === "comment" && e.body.trim() === p.body.trim()));
+    ev.innerHTML = t.events.map(evHtml).join("") + mine.map(evHtml).join(""); wire(ev); }).catch(() => { if ($("#tlev")) $("#tlev").innerHTML = ""; });
   if (!SERVED) return;
   wire($("#drawer-in")); $("#drawer-in").querySelectorAll("[data-stmenu]").forEach(e => e.onclick = ev => { ev.stopPropagation(); statusMenu(e, n); });
-  const body = () => $("#icom").value.trim();
+  const ta = $("#icom"), body = () => ta.value.trim();
+  // editor: tabs, toolbar, files
+  $("#ed").querySelectorAll("[data-tab]").forEach(t => t.onclick = () => { const p = t.dataset.tab === "p";
+    $("#ed").querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x === t)); ta.style.display = p ? "none" : ""; $("#icpv").style.display = p ? "" : "none";
+    if (p) $("#icpv").innerHTML = body() ? mdLite(body()) : `<span class="dsub">Nothing to preview</span>`; });
+  const wrap = (a, b2, ph) => { const s0 = ta.selectionStart, e0 = ta.selectionEnd, sel = ta.value.slice(s0, e0) || ph;
+    ta.setRangeText(a + sel + b2, s0, e0, "end"); ta.setSelectionRange(s0 + a.length, s0 + a.length + sel.length); ta.focus(); };
+  const prefix = p => { const s0 = ta.value.lastIndexOf("\n", ta.selectionStart - 1) + 1, e0 = ta.selectionEnd, block = ta.value.slice(s0, e0) || "";
+    const lines = (block || "text").split("\n").map((l, k) => (typeof p === "function" ? p(k) : p) + l); ta.setRangeText(lines.join("\n"), s0, e0, "end"); ta.focus(); };
+  $("#ed").querySelectorAll("[data-md]").forEach(btn => btn.onclick = () => ({h: () => prefix("### "), b: () => wrap("**", "**", "bold"), i: () => wrap("_", "_", "italic"), q: () => prefix("> "),
+    c: () => ta.value.slice(ta.selectionStart, ta.selectionEnd).includes("\n") ? wrap("```\n", "\n```", "code") : wrap("`", "`", "code"), l: () => wrap("[", "](https://)", "text"),
+    ul: () => prefix("- "), ol: () => prefix(k => `${k + 1}. `), t: () => prefix("- [ ] ")})[btn.dataset.md]());
+  ta.addEventListener("keydown", e => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") $("#icomgo").click(); if ((e.metaKey || e.ctrlKey) && e.key === "b") { e.preventDefault(); wrap("**", "**", "bold"); } if ((e.metaKey || e.ctrlKey) && e.key === "i") { e.preventDefault(); wrap("_", "_", "italic"); } });
+  const repo = S_.repo || {};
+  const addFiles = async files => { for (const f of files) { const ph = `![Uploading ${f.name}…]()`; ta.setRangeText((ta.value && !ta.value.endsWith("\n") ? "\n" : "") + ph + "\n", ta.selectionStart, ta.selectionEnd, "end");
+      const r = await upload(f); const url = r && repo.slug ? `https://github.com/${repo.slug}/blob/${repo.branch || "main"}/docs/media/${encodeURIComponent(r.file)}?raw=true` : r ? `docs/media/${r.file}` : "";
+      ta.value = ta.value.replace(ph, r ? (f.type.startsWith("image/") ? `![${r.file}](${url})` : `[${r.file}](${url})`) : ""); } if (window.syncNow) syncNow(); };
+  $("#ifile").onclick = () => $("#ifin").click(); $("#ifin").onchange = e => addFiles([...e.target.files]);
+  ta.addEventListener("paste", e => { const fs = [...(e.clipboardData?.files || [])]; if (fs.length) { e.preventDefault(); addFiles(fs); } });
+  $("#ed").addEventListener("dragover", e => { e.preventDefault(); $("#ed").classList.add("drag"); }); $("#ed").addEventListener("dragleave", () => $("#ed").classList.remove("drag"));
+  $("#ed").addEventListener("drop", e => { e.preventDefault(); $("#ed").classList.remove("drag"); addFiles([...e.dataTransfer.files]); });
   $("#icomgo").onclick = () => body() ? issueOp("issue_comment", {number: n, body: body()}) : toast("Write a comment first", true);
   if ($("#idone")) $("#idone").onclick = () => issueOp("issue_comment", {number: n, body: body(), then: "done"});
   if ($("#ireopen")) $("#ireopen").onclick = () => issueOp("issue_comment", {number: n, body: body(), then: "backlog"});
   if ($("#icl")) $("#icl").onclick = ev => { ev.stopPropagation(); document.querySelector(".stmenu")?.remove(); const r = ev.target.getBoundingClientRect(), m = document.createElement("div");
     m.className = "menu stmenu"; m.style.cssText = `position:fixed;left:${r.right - 220}px;top:${r.bottom + 6}px;right:auto`;
-    m.innerHTML = [["done", "Close as done"], ["not planned", "Close as not planned"], ["duplicate", "Close as duplicate"]].map(([k, l]) => `<button data-then="${k}">${stIcon(k)} ${l}</button>`).join("");
+    m.innerHTML = [["done", "Mark as Done"], ["not planned", "Close as not planned"], ["duplicate", "Close as duplicate"]].map(([k, l]) => `<button data-then="${k}">${stIcon(k)} ${l}</button>`).join("");
     document.body.appendChild(m); m.querySelectorAll("[data-then]").forEach(b => b.onclick = () => { m.remove(); issueOp("issue_comment", {number: n, body: body(), then: b.dataset.then}); });
     setTimeout(() => document.addEventListener("click", function off(e2) { if (!m.contains(e2.target)) m.remove(); document.removeEventListener("click", off); }), 0); };
   $("#idel").onclick = () => openForm("issue_delete", {number: String(n)});
 }
+const pendingComments = {};
 
 let curDoc = 0;
 function docsPage() {

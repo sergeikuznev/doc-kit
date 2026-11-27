@@ -475,10 +475,17 @@ PDF, for a design review, a report or URC documentation.
 (kept as a `status: …` label on GitHub), or Done, Not planned, Duplicate
 (GitHub's close reasons). Click it to change it.
 
+The list shows open issues first, then closed ones under **Closed**, the most
+recently closed first (*open + done* is the default filter; *closed* and *all*
+also show not planned and duplicates).
+
 **An issue's panel** (click its title) shows the description, its activity
-(comments, labels added, closed as…, reopened), and a comment box: **Comment**,
-**Close as done** (▾ for not planned or duplicate), or **Reopen** for a closed
-one. **Delete issue…** deletes it on GitHub for good, after a confirm; it needs
+(comments, labels added, closed as…, reopened), and a comment box like
+GitHub's: **Write / Preview**, a formatting bar (heading, bold, italic, quote,
+code, link, lists, task list; ⌘B, ⌘I, ⌘Enter to send), and files by paste,
+drop or click (they go to `docs/media/` and are linked in the comment). Then
+**Comment**, **Mark as Done** (▾ for not planned or duplicate), or **Reopen**
+for a closed one. **Delete issue…** deletes it on GitHub for good, after a confirm; it needs
 admin rights on the repo. Closing as *Not planned* keeps the history instead.
 
 Issues need the GitHub CLI (`gh auth login`) on the machine running `doc serve`.

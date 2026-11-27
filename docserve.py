@@ -49,7 +49,19 @@ class Server:
         # network work (git push, GitHub calls) runs one job at a time in the background, so saving is instant
         self.jobs, self.pending, self.sync_error, self.push_wanted = queue.Queue(), 0, None, False
         self.model_json = b"{}"
+        self.want_status, self.issue_jobs, self.repo = {}, 0, {}
+        threading.Thread(target=self._repo_info, daemon=True).start()
         threading.Thread(target=self.worker, daemon=True).start()
+
+    def _repo_info(self):
+        try:
+            r = subprocess.run(["gh", "repo", "view", "--json", "nameWithOwner,defaultBranchRef"], cwd=self.root,
+                               capture_output=True, text=True, timeout=30)
+            if r.returncode == 0:
+                j = json.loads(r.stdout)
+                self.repo = {"slug": j.get("nameWithOwner", ""), "branch": (j.get("defaultBranchRef") or {}).get("name", "main")}
+        except Exception:
+            pass
 
     def later(self, label, fn):
         self.pending += 1
@@ -143,6 +155,7 @@ class Server:
                                "labels": doc.subsystems(), "prefixes": [(r[0], r[1]) for r in doc.subsystem_rows()],
                                "setup": docedit.setup_info(self.root, m), "checklist": doc.checklist_sections(),
                                "last": self.git("log", "-1", "--format=%s%x00%an%x00%cr").stdout.strip().split("\0"),
+                               "repo": self.repo,
                                "procedures": sorted(os.listdir(os.path.join(self.root, "docs", "procedures")))
                                if os.path.isdir(os.path.join(self.root, "docs", "procedures")) else []}
                 data = json.dumps({k: v for k, v in m.items() if k != "built"}, sort_keys=True, default=list)
@@ -384,18 +397,22 @@ class Server:
             return {"preview": f"#{n} {iss['title']}", "warnings": [], "target": "GitHub"}
 
         def set_status(st):
-            labels = [l for l in iss["labels"] if l.startswith("status: ")]
+            cur = next((i for i in self.issues if i["number"] == n), iss)
+            labels = [l for l in cur["labels"] if l.startswith("status: ")]
             if st in docmodel.ISSUE_OPEN:
-                if iss["state"] == "closed":
+                if cur.get("gh_state", cur["state"]) == "closed":
                     self.gh("api", "-X", "PATCH", api, "-f", "state=open")
+                cur["gh_state"] = "open"
                 new = [] if st == "backlog" else [f"status: {st}"]
                 doc.ensure_labels(new)
                 args = [x for l in labels if l not in new for x in ("--remove-label", l)] + [x for l in new if l not in labels for x in ("--add-label", l)]
                 if args:
                     self.gh("issue", "edit", str(n), *args)
+                cur["labels"] = [l for l in cur["labels"] if not l.startswith("status: ")] + new
             else:
                 if labels:
                     self.gh("issue", "edit", str(n), *[x for l in labels for x in ("--remove-label", l)])
+                    cur["labels"] = [l for l in cur["labels"] if not l.startswith("status: ")]
                 reason = {"done": "completed", "not planned": "not_planned", "duplicate": "duplicate"}[st]
                 try:
                     self.gh("api", "-X", "PATCH", api, "-f", "state=closed", "-f", f"state_reason={reason}")
@@ -405,11 +422,18 @@ class Server:
                     doc.ensure_labels(["duplicate"])
                     self.gh("issue", "edit", str(n), "--add-label", "duplicate")
                     self.gh("api", "-X", "PATCH", api, "-f", "state=closed", "-f", "state_reason=not_planned")
+                cur["gh_state"] = "closed"
         if op == "issue_status":
             st = f.get("status")
             if st not in docmodel.ISSUE_OPEN and st not in ("done", "not planned", "duplicate"):
                 raise doc.OpError("unknown status")
-            work, msg, then = (lambda: set_status(st)), f"#{n} → {st}", st
+            self.want_status[n] = st
+
+            def work():  # several quick changes: only the latest one is sent
+                latest = self.want_status.pop(n, None)
+                if latest:
+                    set_status(latest)
+            msg, then = f"#{n} → {st}", st
         elif op == "issue_comment":
             body = str(f.get("body") or "").strip()
             then = f.get("then") or ""
@@ -427,16 +451,25 @@ class Server:
         else:
             raise doc.OpError(f"unknown issue operation {op}")
         if then:  # show it right away; GitHub catches up in the background
+            was = iss["state"]
+            iss.setdefault("gh_state", was)
             iss["status"], iss["state"] = then, "open" if then in docmodel.ISSUE_OPEN else "closed"
+            if iss["state"] == "closed" and was != "closed":
+                iss["closed"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         if op == "issue_delete":
             self.issues = [i for i in self.issues if i["number"] != n]
         self.rebuild(force=True, issues=False)
 
         def job():
-            work()
-            self.note(msg)
-            self.issues_at = 0
-            self.rebuild(force=True)
+            try:
+                work()
+                self.note(msg)
+            finally:
+                self.issue_jobs -= 1
+            if self.issue_jobs == 0:  # read GitHub back only when all issue changes are sent, so nothing flickers
+                self.issues_at = 0
+                self.rebuild(force=True)
+        self.issue_jobs += 1
         self.later(f"issue #{n}", job)
         return {"message": msg + " · syncing", "version": self.version}
 
