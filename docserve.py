@@ -724,6 +724,15 @@ def make_handler(S):
             m_ = re.match(r"^/api/issue/(\d+)$", path)
             if m_:
                 return self.send(200, docmodel.issue_timeline(S.root, m_.group(1)))
+            if path == "/api/kicad":
+                import dockicad
+                q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                if not q.get("file"):
+                    return self.send(200, {"files": dockicad.find_files(S.root)})
+                try:
+                    return self.send(200, dockicad.preview(S.root, q["file"][0], S.model))
+                except dockicad.KicadError as e:
+                    return self.send(400, {"error": str(e)})
             if path == "/api/version":
                 return self.send(200, {"version": S.version, "error": S.error, "log": S.log[-8:], "pending": S.pending,
                                        "sync_error": S.sync_error})

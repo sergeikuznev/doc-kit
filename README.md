@@ -18,6 +18,7 @@ on it. Every change becomes a git commit.
 - **Build it by clicking.** Add your subsystems and point each board at its
   `.ioc` in Setup; add parts and wire them in the diagrams: click a pin, click
   the module. No modelling language to learn, no boxes to arrange.
+  Or import the parts and nets straight from a KiCad netlist.
 - **Design the software too.** Move ROS nodes into the computers they run on,
   add topics and connect them with arrows before the code exists (dashed until
   it does), delete what you planned with the Delete key, and mark the wire that

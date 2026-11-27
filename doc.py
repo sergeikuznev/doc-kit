@@ -16,7 +16,7 @@ These commands set a project up and run the checks:
 (doc = python3 tools/doc-kit/doc.py; see tools/doc-kit/guides/TERMINAL.md)
 """
 
-__version__ = "0.8.0"
+__version__ = "0.8.1"
 
 import datetime
 import html
@@ -1015,7 +1015,7 @@ def cmd_init(args):
     shutil.copy2(os.path.abspath(__file__), tool)
     os.chmod(tool, 0o755)
     created.append("tools/doc-kit/doc.py (updated to " + __version__ + ")" if existed else "tools/doc-kit/doc.py")
-    for extra in ("docmodel.py", "docmodel_page.html", "docserve.py", "docedit.py", os.path.join("vendor", "elk.bundled.js"),
+    for extra in ("docmodel.py", "docmodel_page.html", "docserve.py", "docedit.py", "dockicad.py", os.path.join("vendor", "elk.bundled.js"),
                   os.path.join("vendor", "LICENSE-elkjs.md"), "README.md", os.path.join("docs", "PAGE.md"),
                   os.path.join("docs", "TERMINAL.md"), os.path.join("docs", "HANDBOOK.md")):
         src = os.path.join(kit, extra)

@@ -267,6 +267,37 @@ In the part form, **Details** next to a port opens its fields. Ports that
 come from a board's `.ioc` or a part's type keep their name and type, but take
 details too (e.g. the MCU's power input).
 
+### Import from KiCad
+
+**Import from KiCad** (Electrical toolbar) turns a KiCad schematic into parts,
+ports and wires, so you do not draw them twice.
+
+1. **Pick the file.** A netlist exported from KiCad (Schematic Editor › File ›
+   Export › Netlist…, *KiCad* format, saved in the repo), or the `.kicad_sch`
+   itself when `kicad-cli` (KiCad 7+) is installed on the computer running
+   `doc serve`.
+2. **Check the components.** Each row is one symbol: tick it to import it,
+   pick what it **becomes** (a new part in a subsystem, with a name and kind,
+   or a part already on the page; a part whose part number matches is
+   preselected, and the MCU of a board is matched to that board), and untick
+   what you do not want. Resistors, capacitors, test points and holes start
+   unticked.
+3. **Save.** What you get:
+   - nets that reach a **board** pin are wired to that board's port from its
+     `.ioc` (`SPI1_SCK`, `SPI1_MISO` and `SPI1_MOSI` to the radio become one
+     `SPI1` wire); a board pin not set up in the `.ioc` is listed and left out;
+   - **power nets** (`+5V`, `3V3`, `VBAT`, `VCC`…) become `PowerRail` ports with
+     their voltage, shown in the Power view; **ground** is left out unless you
+     tick it;
+   - every other net becomes a port named after the net on each part, and a
+     wire between them;
+   - a connection you already drew by hand is kept and not doubled.
+
+Imported ports and wires are marked (`kicad` in their details). **Importing
+again** after the schematic changed replaces exactly those, so the page
+follows the schematic; details you added to imported ports (voltage,
+current…) are kept.
+
 ### Wires
 
 Click a wire for its **wire details** (gauge, length, connector,

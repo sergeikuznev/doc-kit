@@ -1077,7 +1077,124 @@ def op_layout(cfg, A, f, ctx):
     return f"layout: {v.split(':')[0]}" + ("" if pos else " (automatic again)"), []
 
 
-OPS = {"layout": op_layout, "ros_topic_edit": op_ros_topic_edit, "ros_topic_delete": op_ros_topic_delete, "ros_node": op_ros_node, "ros_node_delete": op_ros_node_delete, "ros_topic": op_ros_topic, "ros_unplan": op_ros_unplan, "ros_link": op_ros_link,
+
+def op_kicad_import(cfg, A, f, ctx):
+    """Parts, ports and wires from a KiCad netlist. Imported ports and wires carry 'kicad' so a re-import replaces them."""
+    import dockicad as K
+    try:
+        comps, nets = K.read(ctx["root"], str(f.get("file") or ""))
+    except K.KicadError as ex:
+        raise EditError(str(ex))
+    tn, mparts, notes = A["top"]["name"], (ctx["model"] or {}).get("parts", {}), []
+    info = {c["ref"]: c for c in comps}
+    sel = {c["ref"]: c for c in f.get("comps") or [] if c.get("include") and c.get("ref") in info}
+    if not sel:
+        raise EditError("Pick at least one component to import")
+    A["port_defs"].setdefault("Net", {"super": "Signal", "doc": "a signal net from the KiCad schematic"})
+    A["port_defs"].setdefault("PowerRail", {"super": "Power", "doc": "a power rail"})
+    path = {}
+    for ref, c in sel.items():
+        if c.get("target"):
+            segs = split_path(tn, c["target"])
+            if node(A, segs) is None:
+                raise EditError(f"{ref}: no part {c['target']}")
+        else:
+            sub = str(c.get("subsystem") or "")
+            if node(A, [sub]) is None:
+                raise EditError(f"{ref}: pick a subsystem for it")
+            segs = [sub, check_name(c.get("name") or ref.lower(), f"{ref} name")]
+            if node(A, segs) is None:
+                k = info[ref]
+                node(A, [sub])["parts"].append({"name": segs[1], "type": None, "doc": " ".join(x for x in (k["value"], k["part"] if k["part"] != k["value"] else "") if x),
+                                                "ports": [], "parts": [], "attrs": {}})
+        p = node(A, segs)
+        k = info[ref]
+        p["attrs"] = {**(p.get("attrs") or {}), "kicad_ref": ref}
+        if not (mparts.get(f"{tn}.{'.'.join(segs)}") or {}).get("board"):
+            p["attrs"].setdefault("part_number", k["value"])
+            if k["footprint"]:
+                p["attrs"].setdefault("footprint", k["footprint"].split(":")[-1])
+            if c.get("kind"):
+                p["attrs"]["kind"] = c["kind"]
+        path[ref] = segs
+    mp = lambda segs: mparts.get(f"{tn}.{'.'.join(segs)}") or {}
+    is_board = lambda segs: bool(mp(segs).get("board"))
+    pinmap = {}
+    for ref, segs in path.items():
+        if is_board(segs):
+            pinmap[ref] = {str(pn[0]).upper(): (q["name"], q["type"]) for q in mp(segs).get("ports", []) for pn in (q.get("pins") or []) if pn}
+    # a re-import replaces what the last one made; details you added to imported ports are kept
+    old = {}
+    A["connects"] = [c for c in A["connects"] if not (c[2] or {}).get("kicad")]
+    for segs in path.values():
+        p = node(A, segs)
+        for q in p["ports"]:
+            if (q.get("attrs") or {}).get("kicad"):
+                old[(tuple(segs), q["name"])] = {a: v for a, v in q["attrs"].items() if a != "kicad"}
+        p["ports"] = [q for q in p["ports"] if not (q.get("attrs") or {}).get("kicad")]
+
+    def port(segs, name, typ, conj, attrs):
+        p = node(A, segs)
+        if not any(q["name"] == name for q in p["ports"]):
+            p["ports"].append({"name": name, "type": typ, "conj": conj, "attrs": {**attrs, **old.get((tuple(segs), name), {}), "kicad": "1"}})
+        return segs + [name]
+
+    def connect(a, b, net):
+        if a == b:
+            return
+        c = next((c for c in A["connects"] if sorted([c[0], c[1]]) == sorted([a, b])), None)
+        if c:
+            c[2]["kicad"] = ", ".join(sorted(set(c[2]["kicad"].split(", ")) | {net}))
+        else:
+            A["connects"].append([a, b, {"kicad": net}])
+    gnd, skipped = bool(f.get("gnd")), []
+    for n in nets:
+        nodes = [x for x in n["nodes"] if x["ref"] in path]
+        refs = list(dict.fromkeys(x["ref"] for x in nodes))
+        if len(refs) < 2:
+            continue
+        nm = K.short_net(n["name"])
+        if K.is_power(n["name"]):
+            if K.is_ground(n["name"]) and not gnd:
+                continue
+            v = K.voltage(n["name"])
+            ends = [port(path[r], K.ident(K.power_port(nm)), "PowerRail", False, {"voltage": v} if v else {}) for r in refs if not is_board(path[r])]
+            for e2 in ends[1:]:
+                connect(ends[0], e2, nm)
+            continue
+        anchor = None
+        for x in nodes:
+            if x["ref"] in pinmap:
+                hit = next((pinmap[x["ref"]][t.upper()] for t in re.split(r"[/\s,]+", x["fn"] or "") if t.upper() in pinmap[x["ref"]]), None)
+                if hit:
+                    anchor = (x["ref"], path[x["ref"]] + [hit[0]], hit[1])
+                else:
+                    skipped.append(f"{x['ref']}.{x['fn'] or x['pin']}")
+                break
+        if anchor:
+            for r in refs:
+                if r != anchor[0] and not is_board(path[r]):
+                    pr = path[r]  # already wired by hand to this board port: keep that wire, make no second one
+                    if any((c[0] == anchor[1] and c[1][:-1] == pr) or (c[1] == anchor[1] and c[0][:-1] == pr) for c in A["connects"] if not (c[2] or {}).get("kicad")):
+                        continue
+                    connect(anchor[1], port(pr, K.ident(anchor[1][-1].lower()), anchor[2], True, {}), nm)
+            continue
+        if any(x["ref"] in pinmap for x in nodes):
+            continue
+        ends = []
+        for i, r in enumerate(refs):
+            x = next(y for y in nodes if y["ref"] == r)
+            pname = K.ident(x["fn"] or "pin" + x["pin"]) if nm.startswith(("Net-(", "unconnected")) else K.ident(nm)
+            ends.append(port(path[r], pname, "Net", i > 0, {"pin": x["pin"]}))
+        for e2 in ends[1:]:
+            connect(ends[0], e2, nm)
+    if skipped:
+        notes.append(f"{len(skipped)} board pin(s) are not set up in the .ioc, so their nets were left out: {', '.join(skipped[:6])}{'…' if len(skipped) > 6 else ''}")
+    wires = sum(1 for c in A["connects"] if (c[2] or {}).get("kicad"))
+    return f"KiCad import: {len(path)} part(s), {wires} wire(s) from {f.get('file')}", notes
+
+
+OPS = {"kicad_import": op_kicad_import, "layout": op_layout, "ros_topic_edit": op_ros_topic_edit, "ros_topic_delete": op_ros_topic_delete, "ros_node": op_ros_node, "ros_node_delete": op_ros_node_delete, "ros_topic": op_ros_topic, "ros_unplan": op_ros_unplan, "ros_link": op_ros_link,
        "subsystem": op_subsystem, "subsystem_delete": op_subsystem_delete, "subsystem_restore": op_subsystem_restore,
        "subsystem_move": op_subsystem_move, "board": op_board, "board_remove": op_board_remove, "ros_paths": op_ros_paths,
        "port_type": op_port_type, "port_type_delete": op_port_type_delete, "part": op_part, "part_delete": op_part_delete,

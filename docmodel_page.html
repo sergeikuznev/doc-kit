@@ -244,6 +244,7 @@ tr.row:hover td,.rcard:hover,.icard:hover,.dcard:hover,.fcard:hover{background:c
 .sres{max-height:52vh;overflow:auto;padding:6px}.sr{display:grid;grid-template-columns:96px minmax(0,auto) 1fr;gap:12px;align-items:baseline;padding:8px 12px;border-radius:6px;cursor:pointer;border-left:2px solid transparent}
 .sr.on{background:var(--accent-soft);border-left-color:var(--accent)}.sk{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--faint)}.st{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ss{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.shint{padding:8px 16px;border-top:1px solid var(--hair)}
+.ktab td{vertical-align:middle;padding:4px 6px}.ktab .csel{min-width:110px}.modal .box:has(.ktab){width:min(980px,96vw)}
 .udg{display:inline-flex;gap:0}.udg .btn{border-radius:0;margin-left:-1px;padding-left:11px;padding-right:11px}.udg .btn:first-child{border-radius:8px 0 0 8px}.udg .btn:last-child{border-radius:0 8px 8px 0}.udg .btn:disabled{opacity:.4;cursor:default}
 .hmenu{max-height:70vh;overflow:auto;min-width:320px;max-width:460px}.hmenu .mh{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:8px 10px 4px}.hmenu .mh.now{color:var(--accent)}.hmenu button{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .menu button{display:block;width:100%;text-align:left;border:0;background:none;font:inherit;color:var(--ink);padding:7px 10px;border-radius:6px;cursor:pointer}.menu button:hover{background:var(--sunk)}
@@ -616,7 +617,7 @@ function allEdges(n, out = []) { (n.edges || []).forEach(e => out.push([e, n]));
 
 let zoom = null, keepVB = null;
 function canvasShell(title, lead, extra = "", edit = null) {
-  const eb = SERVED && edit && view === "electrical" ? `<button class="act addbtn" data-form="port_type">+ Port type</button><button class="act addbtn" data-form="part">+ Part</button>` : "";
+  const eb = SERVED && edit && view === "electrical" ? `<button class="act addbtn" data-form="port_type">+ Port type</button><button class="act addbtn" data-form="part">+ Part</button><button class="act" data-form="kicad" title="Parts and wires from a KiCad netlist">Import from KiCad</button>` : "";
   $("#main").innerHTML = `<div class="diagram"><div class="dtool"><div><h2>${title}</h2><p class="lead">${lead}</p></div><span class="sp"></span>${extra}${eb}<button class="btn" id="zout" title="Zoom out">−</button><button class="btn" id="zin" title="Zoom in">+</button><button class="btn" id="fit">Fit</button>${Object.keys(curOff()).length ? `<button class="btn" onclick="resetLayout()" title="Forget where you moved blocks in this view">Auto layout</button>` : ""}</div>${SERVED && edit ? `<div class="dhint">${edit}</div><div class="hintbar" id="hint" style="display:none"></div>` : ""}<div class="canvas ${editing && edit ? "editing" : ""}" id="cv"></div></div>`;
   const tb = $("#main .dtool");
   if (tb) { const leg = tb.querySelector(".legend"), row = document.createElement("div"); row.className = "dbtns";
@@ -1427,6 +1428,10 @@ function formSpec(kind, d) {
       return {title: "New topic", sub: "Pick who publishes and who subscribes now, or leave both as nobody and connect it later from its ● handle. Dashed until it is in the code.", html: rosLists() +
       `<div class="two">${fld("from", "Published by", "", sel("from", nodes, d.from || "", "nobody yet"))}${fld("to", "Subscribed by", "", sel("to", nodes, d.to || "", "nobody yet"))}</div>` +
       fld("topic", "Topic", "An existing topic keeps its message type.", `<input name="topic" list="dltopics" placeholder="/cmd_vel" autocomplete="off" oninput="const t = M.topics.find(x => x.topic === this.value.trim()); if (t && t.types[0] !== '?') { this.form.type.value = t.types[0]; }">`) + fld("type", "Message type", "", `<input name="type" list="dltypes" placeholder="geometry_msgs/msg/Twist" autocomplete="off">`)}; }
+    case "kicad": return {title: "Import from KiCad", sub: "Components and nets of a KiCad schematic become parts, ports and wires. Pick the netlist (KiCad: Schematic Editor › File › Export › Netlist…, KiCad format), or a .kicad_sch when kicad-cli is installed. Importing again updates what the last import made.", html:
+      fld("file", "Netlist or schematic", "", `<select name="file" id="kfile"><option value="">loading…</option></select>`) +
+      `<div id="kprev" class="dsub">Pick a file to see its components.</div>` +
+      `<div class="fld"><label><input type="checkbox" name="gnd"> Wire ground nets too (GND everywhere clutters the Power view)</label></div>`, op: "kicad_import"};
     case "ros_topic_edit": { const t = M.topics.find(x => x.topic === d.topic);
       return {title: `Topic ${t.topic}`, sub: "A planned topic: renaming it changes it for every node that plans it.", html: rosLists() +
       fld("topic", "Topic", "", `<input name="topic" value="${H(t.topic)}" autocomplete="off">`) + fld("type", "Message type", "", `<input name="type" list="dltypes" value="${H(t.types[0] === "?" ? "" : t.types[0])}" autocomplete="off">`), extra: {orig: t.topic}}; }
@@ -1631,6 +1636,21 @@ function openForm(kind, data = {}) {
   if ($("#addcol")) $("#addcol").onclick = () => { $("#rplist").insertAdjacentHTML("beforeend", `<div class="prow" style="grid-template-columns:1fr auto"><input name="columns[]" placeholder="e.g. mass_g, lead_time"><button class="act dz" type="button" data-rm>✕</button></div>`); $("#rplist").lastElementChild.querySelector("input").focus(); };
   if (kind === "check") frm.section.onchange = () => { $("#newsec").style.display = frm.section.value === "+new" ? "" : "none"; };
   if (kind === "check" && frm.section.value === "+new") $("#newsec").style.display = "";
+  if (kind === "kicad") {
+    const subs = M.subsystems.map(x => [x, x]), parts = leafParts().map(p => [p.path, short(p.path)]);
+    const load = async () => { const fv = frm.file.value; if (!fv) return; $("#kprev").innerHTML = "Reading…";
+      try { const r = await fetch("api/kicad?file=" + encodeURIComponent(fv), {headers: {"X-Doc": "1"}}).then(x => x.json()); if (r.error) throw new Error(r.error);
+        $("#kprev").innerHTML = `<div style="margin:6px 0">${r.components.length} components, ${r.nets} nets (${r.power_nets} power). Passives (R, C, L…) are left out; tick any you want.</div>
+          <table class="stab ktab"><tr><th></th><th>Ref</th><th>Value</th><th>Becomes</th><th>Subsystem / name</th><th>Kind</th></tr>${r.components.map(c => `<tr data-ref="${H(c.ref)}">
+          <td><input type="checkbox" data-k="include" ${c.include ? "checked" : ""}></td><td class="mono">${H(c.ref)}</td><td>${H(c.value)}<div class="dsub">${H(c.sheet || "")}</div></td>
+          <td>${sel("", [["", "a new part"], ...parts], c.target).replace("<select", '<select data-k="target"')}</td>
+          <td><div style="display:flex;gap:6px">${sel("", subs, c.subsystem || "", "subsystem…").replace("<select", '<select data-k="subsystem"')}<input data-k="name" value="${H(c.name)}" style="width:130px"></div></td>
+          <td>${sel("", PKINDS.map(k => [k[0], k[0]]), c.ref.match(/^U/) ? "sensor" : c.ref.match(/^J|^P/) ? "other" : "other").replace("<select", '<select data-k="kind"')}</td></tr>`).join("")}</table>`;
+        const sync = tr => { const t = tr.querySelector('[data-k="target"]').value; tr.querySelectorAll('[data-k="subsystem"],[data-k="name"]').forEach(x => x.closest("div").style.opacity = t ? .35 : 1); };
+        $("#kprev").querySelectorAll("tr[data-ref]").forEach(tr => { sync(tr); tr.querySelector('[data-k="target"]').addEventListener("change", () => sync(tr)); });
+      } catch (e) { $("#kprev").innerHTML = `<span class="warnline">${H(e.message)}</span>`; } };
+    fetch("api/kicad", {headers: {"X-Doc": "1"}}).then(x => x.json()).then(r => { frm.file.innerHTML = r.files.length ? r.files.map(f => `<option>${H(f)}</option>`).join("") : `<option value="">no .net or .kicad_sch in this repo</option>`; load(); });
+    frm.file.onchange = load; }
   if (kind === "connect") { const fill = () => { const [ap, aq] = [frm.a.value.split(".").slice(0, -1).join("."), frm.a.value.split(".").pop()];
       [...frm.b_part.options].forEach(o => { o.hidden = o.disabled = !!o.value && o.value === ap; }); if (frm.b_part.value === ap) frm.b_part.value = "";
       const qa = (M.parts[ap] || {ports: []}).ports.find(q => q.name === aq); const bp = M.parts[frm.b_part.value];
@@ -1661,6 +1681,8 @@ function openForm(kind, data = {}) {
     if (kind === "bom_columns" && !o.columns) o.columns = [];
     if (kind === "satisfy" && !o.parts) o.parts = [];
     if (kind === "ros_node") ["out", "in"].forEach(io => { o[io] = (o[io + "_topic"] || []).map((t, i) => ({topic: t, type: (o[io + "_type"] || [])[i] || ""})); delete o[io + "_topic"]; delete o[io + "_type"]; });
+    if (kind === "kicad") { o.comps = [...document.querySelectorAll("#kprev tr[data-ref]")].map(tr => ({ref: tr.dataset.ref, include: tr.querySelector('[data-k="include"]').checked,
+      target: tr.querySelector('[data-k="target"]').value, subsystem: tr.querySelector('[data-k="subsystem"]').value, name: tr.querySelector('[data-k="name"]').value.trim(), kind: tr.querySelector('[data-k="kind"]').value})); }
     if (kind === "ros_link") { const [a, b] = (o.wire || "|").split("|"); o.a = a; o.b = b; delete o.wire; }
     if (kind === "decision") { o.options = []; document.querySelectorAll("#opts .opts").forEach((x, i) => o.options.push({name: frm[`o${i + 1}_name`].value, pros: frm[`o${i + 1}_pros`].value, cons: frm[`o${i + 1}_cons`].value})); }
     return o; };
