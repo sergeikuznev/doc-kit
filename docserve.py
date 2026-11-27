@@ -189,7 +189,8 @@ class Server:
     def guard(self, paths):
         for pth in paths:
             relp = os.path.relpath(pth, self.root)
-            if os.path.exists(pth) and self.git("status", "--porcelain", "--", relp).stdout.strip():
+            st = self.git("status", "--porcelain", "--", relp).stdout.strip() if os.path.exists(pth) else ""
+            if st and not st.startswith("??"):  # an untracked file has nothing of yours to lose
                 raise doc.OpError(f"{relp} has uncommitted changes in {self.root}. Commit or stash them first, "
                                   f"so the page does not commit half of your edit.")
 
@@ -380,6 +381,7 @@ class Server:
                 if ign:
                     warnings.append(f"{', '.join(sorted(ign))}: ignored by .gitignore, so saved on this computer only (not committed)")
                     inside = [w for w in inside if os.path.relpath(w[0], self.root) not in ign]
+            inside = [w for w in inside if self.git("status", "--porcelain", "--", os.path.relpath(w[0], self.root)).stdout.strip()]
             pushed = self.commit([w[0] for w in inside], msg) if inside else None
             self.rebuild(force=True, issues=False)
             self.inputs = None
