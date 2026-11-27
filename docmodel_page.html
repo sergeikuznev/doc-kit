@@ -115,7 +115,14 @@ aside h4{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:va
 .icard details summary{cursor:pointer;color:var(--muted);font-size:12.5px;margin-top:6px}.icard .body{font-size:13px;margin-top:6px}
 .icard .body h3{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);margin:10px 0 2px}
 .lab{font-size:11px;padding:1px 8px;border-radius:999px;border:1px solid var(--hair);color:var(--muted)}
-.lab.bug{border-color:var(--crit);color:var(--crit-ink)}.lab.idea{border-color:var(--accent);color:var(--accent)}
+.lab.bug{border-color:var(--crit);color:var(--crit-ink)}
+.stpill{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;border:1px solid color-mix(in srgb,var(--stc) 55%,transparent);background:color-mix(in srgb,var(--stc) 14%,transparent);color:var(--ink);cursor:pointer}
+.stpill i{font-style:normal;color:var(--muted);font-size:10px}.stpill:disabled{cursor:default}.ilink{cursor:pointer}.ilink:hover{color:var(--accent)}
+.stmenu button{display:flex;align-items:center;gap:8px}.tl{border-left:2px solid var(--hair);margin:16px 0 6px 6px;padding-left:14px}
+.tli{border:1px solid var(--hair);border-radius:10px;margin:0 0 12px;overflow:hidden}.tlh{background:var(--sunk);padding:6px 10px;font-size:12.5px;color:var(--muted)}.tli .body{padding:8px 12px;font-size:13px}
+.tle{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--muted);margin:0 0 12px}.tle .lab{margin:0 2px}
+.icom{width:100%;min-height:90px;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--hair);border-radius:8px;background:var(--bg);color:var(--ink);resize:vertical}
+.split{display:inline-flex}.split .btn:first-child{border-radius:7px 0 0 7px;display:inline-flex;gap:6px;align-items:center}.split .btn:last-child{border-radius:0 7px 7px 0;border-left:0}.lab.idea{border-color:var(--accent);color:var(--accent)}
 .state{font-size:11.5px;font-weight:700}.state.open{color:var(--good-ink)}.state.closed{color:var(--faint)}
 .docs{display:grid;grid-template-columns:240px 1fr;gap:24px}.dlist{position:sticky;top:0;align-self:start}
 .dlist .g{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);margin:14px 0 6px}
@@ -256,7 +263,7 @@ function wire(root) {
   root.querySelectorAll("[data-dec]").forEach(e => e.onclick = ev => { ev.stopPropagation(); go("decisions"); setTimeout(() => document.getElementById("d" + e.dataset.dec)?.scrollIntoView({behavior: "smooth"}), 50); });
   root.querySelectorAll("[data-form]").forEach(e => e.onclick = ev => { ev.stopPropagation(); openForm(e.dataset.form, {...e.dataset}); });
   root.querySelectorAll("[data-media]").forEach(e => e.onclick = ev => { ev.stopPropagation(); lightbox(e.dataset.media); });
-  root.querySelectorAll("[data-issue]").forEach(e => e.onclick = ev => { ev.stopPropagation(); go("issues"); setTimeout(() => document.getElementById("i" + e.dataset.issue)?.scrollIntoView({behavior: "smooth", block: "center"}), 60); });
+  root.querySelectorAll("[data-issue]").forEach(e => e.onclick = ev => { ev.stopPropagation(); showIssue(+e.dataset.issue); });
   root.querySelectorAll("[data-focus]").forEach(e => e.onclick = ev => { ev.stopPropagation(); go(e.dataset.view || "electrical", {focus: e.dataset.focus, edit: e.dataset.edit ? true : undefined}); });
 }
 const reqChip = r => `<span class="chip" data-req="${H(r.id)}"><span class="pill ${H(r.status)}"><i>${ICON[r.status] ?? "?"}</i></span><span class="mono">${H(r.id)}</span></span>`;
@@ -740,14 +747,73 @@ function issuesPage() {
       ${["open", "closed", "all"].map(x => `<button class="fchip ${x === ist ? "on" : ""}" data-ist="${x}">${x}</button>`).join("")}
       <span style="width:8px"></span>${["all", "idea", "bug"].map(x => `<button class="fchip ${x === ikind ? "on" : ""}" data-ik="${x}">${x}</button>`).join("")}
       <select id="isub" class="fchip"><option value="">all subsystems</option>${M.subsystems.map(x => `<option ${x === isub ? "selected" : ""}>${x}</option>`).join("")}</select></div>
-    ${vis.map(i => `<div class="icard" id="i${i.number}"><div class="top"><span class="state ${i.state}">${i.state === "open" ? "● open" : "✓ closed"}</span><span class="num">#${i.number}</span><span class="t">${H(i.title)}</span>
-      ${i.labels.map(l => `<span class="lab ${l === "bug" ? "bug" : l === "idea" ? "idea" : ""}">${H(l)}</span>`).join("")}<span class="meta">${H(i.author)} · ${ago(i.updated)} · <a href="${H(i.url)}" target="_blank">GitHub ↗</a></span></div>
+    ${vis.map(i => `<div class="icard" id="i${i.number}"><div class="top">${stPill(i)}<span class="num">#${i.number}</span><span class="t ilink" data-iss="${i.number}">${H(i.title)}</span>
+      ${i.labels.filter(l => !l.startsWith("status: ")).map(l => `<span class="lab ${l === "bug" ? "bug" : l === "idea" ? "idea" : ""}">${H(l)}</span>`).join("")}<span class="meta">${H(i.author)} · ${ago(i.updated)} · <a href="${H(i.url)}" target="_blank">GitHub ↗</a></span></div>
       <div class="links" style="margin-top:6px">${i.subsystems.map(s => `<span class="chip" data-part="${M.top}.${s}">${H(s)}</span>`).join("")}${i.reqs.map(r => reqChip(reqById[r])).join("")}</div>
       ${i.body ? `<details><summary>Details</summary><div class="body">${mdLite(i.body)}</div></details>` : ""}</div>`).join("") || `<div class="empty">No issues match.</div>`}`);
+  document.querySelectorAll("[data-iss]").forEach(e => e.onclick = () => showIssue(+e.dataset.iss));
+  document.querySelectorAll("[data-stmenu]").forEach(e => e.onclick = ev => { ev.stopPropagation(); statusMenu(e, +e.dataset.stmenu); });
   $("#iq").oninput = e => { iq = e.target.value.toLowerCase(); const p = e.target.selectionStart; issuesPage(); $("#iq").focus(); $("#iq").setSelectionRange(p, p); };
   document.querySelectorAll("[data-ist]").forEach(b => b.onclick = () => { ist = b.dataset.ist; issuesPage(); });
   document.querySelectorAll("[data-ik]").forEach(b => b.onclick = () => { ikind = b.dataset.ik; issuesPage(); });
   $("#isub").onchange = e => { isub = e.target.value; issuesPage(); };
+}
+
+// ------------------------------------------------------------------ issue status, activity, comments
+const ST = {"backlog": ["Backlog", "var(--good)"], "todo": ["Todo", "var(--good)"], "in progress": ["In progress", "var(--good)"], "in review": ["In review", "var(--good)"],
+  "done": ["Done", "#8b5cf6"], "not planned": ["Not planned", "var(--faint)"], "duplicate": ["Duplicate", "var(--faint)"]};
+function stIcon(st, size = 14) {
+  const [, c] = ST[st] || ST.backlog, r = 6.2, cx = 8, cy = 8;
+  const pie = f => { const a = 2 * Math.PI * f - Math.PI / 2, x = cx + 3.6 * Math.cos(a), y = cy + 3.6 * Math.sin(a);
+    return `<path d="M${cx} ${cy} L${cx} ${cy - 3.6} A3.6 3.6 0 ${f > .5 ? 1 : 0} 1 ${x.toFixed(2)} ${y.toFixed(2)} Z" fill="${c}"/>`; };
+  const inner = st === "backlog" ? `<circle cx="8" cy="8" r="1.6" fill="${c}"/>` : st === "todo" ? pie(.25) : st === "in progress" ? pie(.5) : st === "in review" ? pie(.75)
+    : st === "done" ? `<path d="M5.2 8.2l1.9 1.9 3.8-4" fill="none" stroke="${c}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>` : `<path d="M4.4 11.6l7.2-7.2" stroke="${c}" stroke-width="1.5"/>`;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 16 16" style="vertical-align:-2px;flex:none"><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${c}" stroke-width="1.6"/>${inner}</svg>`;
+}
+const stPill = i => `<button class="stpill" ${SERVED ? `data-stmenu="${i.number}"` : "disabled"} style="--stc:${(ST[i.status] || ST.backlog)[1]}">${stIcon(i.status)}<span>${(ST[i.status] || ST.backlog)[0]}</span>${SERVED ? "<i>▾</i>" : ""}</button>`;
+function statusMenu(anchor, n) {
+  document.querySelector(".stmenu")?.remove();
+  const i = (M.issues || []).find(x => x.number === n), r = anchor.getBoundingClientRect(), m = document.createElement("div");
+  m.className = "menu stmenu"; m.style.cssText = `position:fixed;left:${r.left}px;top:${r.bottom + 6}px;right:auto`;
+  m.innerHTML = Object.entries(ST).map(([k, [label]]) => `<button data-st="${k}"><span style="display:inline-block;width:16px">${i.status === k ? "✓" : ""}</span>${stIcon(k)} ${label}</button>`).join("");
+  document.body.appendChild(m);
+  m.querySelectorAll("[data-st]").forEach(b => b.onclick = () => { m.remove(); if (b.dataset.st !== i.status) issueOp("issue_status", {number: n, status: b.dataset.st}); });
+  setTimeout(() => document.addEventListener("click", function off(ev) { if (!m.contains(ev.target)) m.remove(); document.removeEventListener("click", off); }), 0);
+}
+async function issueOp(op, body) {
+  try { toast("Updating GitHub…"); const r = await post(`api/apply/${op}`, body); toast(r.message); setTimeout(() => location.reload(), 900); }
+  catch (e) { toast(e.message, true); }
+}
+function showIssue(n) {
+  const i = (M.issues || []).find(x => x.number === n); if (!i) return;
+  const closed = i.state === "closed";
+  openDrawer(`<div class="dsub">${i.kind === "bug" ? "Bug" : i.kind === "idea" ? "Idea" : "Issue"} · <a href="${H(i.url)}" target="_blank">GitHub ↗</a></div><div class="dh">${H(i.title)} <span style="color:var(--faint);font-weight:400">#${n}</span></div>
+    <div class="links" style="margin:8px 0">${stPill(i)}${i.labels.filter(l => !l.startsWith("status: ")).map(l => `<span class="lab ${l === "bug" ? "bug" : l === "idea" ? "idea" : ""}">${H(l)}</span>`).join("")}</div>
+    <div class="links">${i.subsystems.map(s => `<span class="chip" data-part="${M.top}.${s}">${H(s)}</span>`).join("")}${i.reqs.map(r => reqChip(reqById[r])).join("")}</div>
+    <div class="tl"><div class="tli"><div class="tlh"><b>${H(i.author)}</b> opened this · ${H((i.created || "").slice(0, 10))}</div>${i.body ? `<div class="body">${mdLite(i.body)}</div>` : ""}</div><div id="tlev"><div class="dsub">Loading activity…</div></div></div>
+    ${SERVED ? `<h4>Add a comment</h4><textarea id="icom" class="icom" placeholder="Write a comment (Markdown)"></textarea>
+      <div class="mfoot" style="margin-top:8px">${closed ? `<button class="btn" id="ireopen">Reopen</button>` : `<span class="split"><button class="btn" id="idone">${stIcon("done")} Close as done</button><button class="btn" id="icl">▾</button></span>`}<button class="newbtn" id="icomgo">Comment</button></div>
+      <div style="margin-top:22px"><button class="act dz" id="idel">Delete issue…</button></div>` : ""}`);
+  const icon = {comment: "💬", labeled: "🏷", unlabeled: "🏷", closed: "", reopened: "↺", renamed: "✎", referenced: "↗"};
+  fetch(`api/issue/${n}`).then(r => r.json()).then(t => { const ev = $("#tlev"); if (!ev) return;
+    if (t.error) return ev.innerHTML = `<div class="dsub">Activity not loaded: ${H(t.error)}</div>`;
+    ev.innerHTML = t.events.map(e => e.type === "comment" ? `<div class="tli"><div class="tlh"><b>${H(e.who)}</b> commented · ${H(e.at.slice(0, 10))}</div><div class="body">${mdLite(e.body)}</div></div>`
+      : `<div class="tle">${e.type === "closed" ? stIcon(e.reason === "not planned" ? "not planned" : e.reason === "duplicate" ? "duplicate" : "done") : e.type === "reopened" ? stIcon("backlog") : `<span>${icon[e.type] || "•"}</span>`}
+        <span><b>${H(e.who)}</b> ${e.type === "closed" ? `closed this as <u>${H(e.reason)}</u>` : e.type === "reopened" ? "reopened this" : e.type === "labeled" ? `added ${e.labels.map(l => `<span class="lab">${H(l)}</span>`).join(" ")}`
+          : e.type === "unlabeled" ? `removed ${e.labels.map(l => `<span class="lab">${H(l)}</span>`).join(" ")}` : e.type === "renamed" ? `renamed this to <i>${H(e.to)}</i>` : `referenced this${e.commit ? ` in <span class="mono">${H(e.commit)}</span>` : ""}`}
+        <span style="color:var(--faint)">· ${H(e.at.slice(0, 10))}</span></span></div>`).join("") || ""; }).catch(() => {});
+  if (!SERVED) return;
+  wire($("#drawer-in")); $("#drawer-in").querySelectorAll("[data-stmenu]").forEach(e => e.onclick = ev => { ev.stopPropagation(); statusMenu(e, n); });
+  const body = () => $("#icom").value.trim();
+  $("#icomgo").onclick = () => body() ? issueOp("issue_comment", {number: n, body: body()}) : toast("Write a comment first", true);
+  if ($("#idone")) $("#idone").onclick = () => issueOp("issue_comment", {number: n, body: body(), then: "done"});
+  if ($("#ireopen")) $("#ireopen").onclick = () => issueOp("issue_comment", {number: n, body: body(), then: "backlog"});
+  if ($("#icl")) $("#icl").onclick = ev => { ev.stopPropagation(); document.querySelector(".stmenu")?.remove(); const r = ev.target.getBoundingClientRect(), m = document.createElement("div");
+    m.className = "menu stmenu"; m.style.cssText = `position:fixed;left:${r.right - 220}px;top:${r.bottom + 6}px;right:auto`;
+    m.innerHTML = [["done", "Close as done"], ["not planned", "Close as not planned"], ["duplicate", "Close as duplicate"]].map(([k, l]) => `<button data-then="${k}">${stIcon(k)} ${l}</button>`).join("");
+    document.body.appendChild(m); m.querySelectorAll("[data-then]").forEach(b => b.onclick = () => { m.remove(); issueOp("issue_comment", {number: n, body: body(), then: b.dataset.then}); });
+    setTimeout(() => document.addEventListener("click", function off(e2) { if (!m.contains(e2.target)) m.remove(); document.removeEventListener("click", off); }), 0); };
+  $("#idel").onclick = () => openForm("issue_delete", {number: String(n)});
 }
 
 let curDoc = 0;
@@ -932,6 +998,8 @@ function formSpec(kind, d) {
       `<details class="fld"><summary class="dsub">Wire details (optional): gauge, length, connector</summary>${kvBox({}, SUGGEST.wire, "pattr")}</details>`}; }
     case "pages": return {title: "Publish the page on GitHub Pages", sub: "Adds .github/workflows/doc-kit-pages.yml. GitHub then rebuilds the page on every push. The published page is public.", html: ""};
     case "pages_off": return {title: "Stop publishing", sub: "Removes the workflow. Also unpublish it in the repo's Settings › Pages.", html: "", op: "pages", extra: {disable: true}};
+    case "issue_delete": { const i = (M.issues || []).find(x => x.number === +d.number);
+      return {title: `Delete issue #${i.number}?`, sub: `<b>${H(i.title)}</b><br>This deletes it on GitHub for good: it cannot be undone, and needs admin rights on the repo. To keep the history, close it as <i>Not planned</i> instead.`, html: "", op: "issue_delete", extra: {number: i.number}}; }
     case "undo": return {title: "Undo the last change?", sub: `<b>${H((S_.last || [])[0] || "")}</b><br>${H((S_.last || [])[1] || "")}, ${H((S_.last || [])[2] || "")}. A new commit reverses it; the history keeps both.`, html: "", op: "undo"};
     case "bom_item": { const e = d.index !== undefined ? SET().bom_items[+d.index] : null;
       return {title: e ? `BOM item: ${e.item}` : "Add a BOM item", sub: "Things that are not parts in the diagram: screws, heat-shrink, zip ties, spare connectors.", html:

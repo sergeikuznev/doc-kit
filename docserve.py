@@ -183,6 +183,8 @@ class Server:
         lines = lambda k: [x.strip() for x in str(f.get(k, "")).splitlines() if x.strip()]
         need = lambda k: (str(f.get(k, "")).strip() or (_ for _ in ()).throw(D.OpError(f"'{k}' is required")))
         warnings, msg = [], ""
+        if op.startswith("issue_"):
+            return self.issue_op(op, f, dry)
         if op == "idea" or op == "bug":
             if op == "idea":
                 body, labels = D.issue_body("idea", {"what": lines("what"), "why": lines("why"), "sub": need("sub"),
@@ -326,6 +328,70 @@ class Server:
         if writes and not inside:
             tail = " · outside the project, so not committed"
         return {"message": msg.replace("doc: ", "Saved: ") + tail, "version": self.version, "warnings": warnings}
+
+    def gh(self, *args):
+        r = subprocess.run(["gh", *args], cwd=self.root, capture_output=True, text=True, timeout=30)
+        if r.returncode:
+            raise doc.OpError("GitHub: " + ((r.stderr or r.stdout).strip().splitlines() or ["failed"])[-1])
+        return r.stdout
+
+    def issue_op(self, op, f, dry):
+        """Status, comments and deletion of GitHub issues (through gh; nothing is committed)."""
+        n = int(f.get("number") or 0)
+        iss = next((i for i in self.issues if i["number"] == n), None)
+        if not n or iss is None:
+            raise doc.OpError(f"no issue #{n}")
+        api = f"repos/{{owner}}/{{repo}}/issues/{n}"
+        if dry:
+            return {"preview": f"#{n} {iss['title']}", "warnings": [], "target": "GitHub"}
+
+        def set_status(st):
+            labels = [l for l in iss["labels"] if l.startswith("status: ")]
+            if st in docmodel.ISSUE_OPEN:
+                if iss["state"] == "closed":
+                    self.gh("api", "-X", "PATCH", api, "-f", "state=open")
+                new = [] if st == "backlog" else [f"status: {st}"]
+                doc.ensure_labels(new)
+                args = [x for l in labels if l not in new for x in ("--remove-label", l)] + [x for l in new if l not in labels for x in ("--add-label", l)]
+                if args:
+                    self.gh("issue", "edit", str(n), *args)
+            else:
+                if labels:
+                    self.gh("issue", "edit", str(n), *[x for l in labels for x in ("--remove-label", l)])
+                reason = {"done": "completed", "not planned": "not_planned", "duplicate": "duplicate"}[st]
+                try:
+                    self.gh("api", "-X", "PATCH", api, "-f", "state=closed", "-f", f"state_reason={reason}")
+                except doc.OpError:
+                    if reason != "duplicate":
+                        raise
+                    doc.ensure_labels(["duplicate"])
+                    self.gh("issue", "edit", str(n), "--add-label", "duplicate")
+                    self.gh("api", "-X", "PATCH", api, "-f", "state=closed", "-f", "state_reason=not_planned")
+        if op == "issue_status":
+            st = f.get("status")
+            if st not in docmodel.ISSUE_OPEN and st not in ("done", "not planned", "duplicate"):
+                raise doc.OpError("unknown status")
+            set_status(st)
+            msg = f"#{n} → {st}"
+        elif op == "issue_comment":
+            body = str(f.get("body") or "").strip()
+            then = f.get("then") or ""
+            if not body and not then:
+                raise doc.OpError("Write a comment first")
+            if body:
+                self.gh("issue", "comment", str(n), "--body", body)
+            if then:
+                set_status(then)
+            msg = f"#{n}: " + ", ".join(x for x in ("commented" if body else "", f"→ {then}" if then else "") if x)
+        elif op == "issue_delete":
+            self.gh("issue", "delete", str(n), "--yes")
+            msg = f"#{n} deleted on GitHub"
+        else:
+            raise doc.OpError(f"unknown issue operation {op}")
+        self.note(msg)
+        self.issues_at = 0
+        self.rebuild(force=True)
+        return {"message": msg, "version": self.version}
 
     def _inside(self, path):
         return os.path.realpath(path).startswith(os.path.realpath(self.root) + os.sep)
@@ -491,6 +557,9 @@ def make_handler(S):
                 if not S.page:
                     return self.send(500, f"<pre>doc model failed:\n{S.error}</pre>", "text/html")
                 return self.send(200, S.page, "text/html; charset=utf-8")
+            m_ = re.match(r"^/api/issue/(\d+)$", path)
+            if m_:
+                return self.send(200, docmodel.issue_timeline(S.root, m_.group(1)))
             if path == "/api/version":
                 return self.send(200, {"version": S.version, "error": S.error, "log": S.log[-8:]})
             if path.startswith("/media/"):

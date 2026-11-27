@@ -1156,6 +1156,59 @@ def page(m, report_link=True):
 
 # ================================================================ extras: issues, docs, media
 
+ISSUE_OPEN = ["backlog", "todo", "in progress", "in review"]
+ISSUE_CLOSED = {"COMPLETED": "done", "NOT_PLANNED": "not planned", "DUPLICATE": "duplicate"}
+
+
+def issue_status(i):
+    """Open issues: a 'status: …' label (Backlog if none). Closed: GitHub's close reason."""
+    if i["state"].upper() == "CLOSED":
+        if any(l["name"] == "duplicate" for l in i.get("labels", [])) and (i.get("stateReason") or "").upper() != "COMPLETED":
+            return "duplicate"
+        return ISSUE_CLOSED.get((i.get("stateReason") or "COMPLETED").upper(), "done")
+    for l in i.get("labels", []):
+        if l["name"].startswith("status: ") and l["name"][8:] in ISSUE_OPEN:
+            return l["name"][8:]
+    return "backlog"
+
+
+def issue_timeline(root, number):
+    """Comments and events of one issue, oldest first (GitHub timeline API via gh)."""
+    import subprocess
+    r = subprocess.run(["gh", "api", "--paginate", f"repos/{{owner}}/{{repo}}/issues/{int(number)}/timeline?per_page=100"],
+                       cwd=root, capture_output=True, text=True, timeout=30)
+    if r.returncode != 0:
+        return {"error": (r.stderr.strip().splitlines() or ["gh failed"])[-1], "events": []}
+    items, dec, pos, txt = [], json.JSONDecoder(), 0, r.stdout.strip()
+    while pos < len(txt):  # --paginate prints one JSON array per page, back to back
+        page, pos = dec.raw_decode(txt, pos)
+        items += page
+        while pos < len(txt) and txt[pos].isspace():
+            pos += 1
+    out = []
+    for e in items:
+        kind = e.get("event")
+        who = (e.get("actor") or e.get("user") or {}).get("login", "")
+        at = e.get("created_at") or e.get("submitted_at") or ""
+        if kind == "commented":
+            out.append({"type": "comment", "who": who, "at": at, "body": e.get("body", "")})
+        elif kind in ("labeled", "unlabeled"):
+            name = (e.get("label") or {}).get("name", "")
+            if out and out[-1]["type"] == kind and out[-1]["who"] == who:
+                out[-1]["labels"].append(name)
+            else:
+                out.append({"type": kind, "who": who, "at": at, "labels": [name]})
+        elif kind == "closed":
+            out.append({"type": "closed", "who": who, "at": at, "reason": (e.get("state_reason") or "completed").replace("_", " ")})
+        elif kind == "reopened":
+            out.append({"type": "reopened", "who": who, "at": at})
+        elif kind == "renamed":
+            out.append({"type": "renamed", "who": who, "at": at, "to": (e.get("rename") or {}).get("to", "")})
+        elif kind in ("cross-referenced", "referenced"):
+            out.append({"type": "referenced", "who": who, "at": at, "commit": (e.get("commit_id") or "")[:7]})
+    return {"events": out}
+
+
 def fetch_issues(root):
     """Open issues plus recently closed ones, via the GitHub CLI. Returns (issues, error)."""
     import shutil, subprocess, datetime
@@ -1164,7 +1217,7 @@ def fetch_issues(root):
     out = []
     for state, limit in (("open", 200), ("closed", 30)):
         r = subprocess.run(["gh", "issue", "list", "--state", state, "--limit", str(limit), "--json",
-                            "number,title,labels,url,updatedAt,createdAt,author,body,state"],
+                            "number,title,labels,url,updatedAt,createdAt,author,body,state,stateReason"],
                            cwd=root, capture_output=True, text=True, timeout=30)
         if r.returncode != 0:
             return [], (r.stderr.strip().splitlines() or ["gh failed"])[-1]
@@ -1172,7 +1225,7 @@ def fetch_issues(root):
             out.append({"number": i["number"], "title": i["title"], "url": i["url"], "state": i["state"].lower(),
                         "labels": [l["name"] for l in i.get("labels", [])], "updated": i.get("updatedAt", ""),
                         "created": i.get("createdAt", ""), "author": (i.get("author") or {}).get("login", ""),
-                        "body": i.get("body", "")})
+                        "body": i.get("body", ""), "status": issue_status(i)})
     return out, None
 
 

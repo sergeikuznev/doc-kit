@@ -471,6 +471,16 @@ PDF, for a design review, a report or URC documentation.
 4. **GitHub ↗** opens it on GitHub, where comments and closing happen.
 5. **Details** shows the issue body.
 
+**Status.** Each issue has a status pill: Backlog, Todo, In progress, In review
+(kept as a `status: …` label on GitHub), or Done, Not planned, Duplicate
+(GitHub's close reasons). Click it to change it.
+
+**An issue's panel** (click its title) shows the description, its activity
+(comments, labels added, closed as…, reopened), and a comment box: **Comment**,
+**Close as done** (▾ for not planned or duplicate), or **Reopen** for a closed
+one. **Delete issue…** deletes it on GitHub for good, after a confirm; it needs
+admin rights on the repo. Closing as *Not planned* keeps the history instead.
+
 Issues need the GitHub CLI (`gh auth login`) on the machine running `doc serve`.
 
 ### Docs
