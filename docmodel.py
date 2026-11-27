@@ -508,7 +508,7 @@ class Parser:
 
     # ---- grammar
     def parse(self):
-        model = {"port_defs": {}, "part_defs": {}, "parts": [], "allocations": [], "satisfies": [], "actions": [], "doc": ""}
+        model = {"port_defs": {}, "part_defs": {}, "parts": [], "allocations": [], "satisfies": [], "actions": [], "items": [], "doc": ""}
         while self.peek()[0] != "eof":
             if self.peek()[1] == "package":
                 self.take()
@@ -658,6 +658,14 @@ class Parser:
                 self.take(";")
             model["actions"].append(act)
             return
+        if v == "item" and owner is None and self.peek(1)[0] == "id":  # a planned topic nobody uses yet
+            self.take()
+            it = {"topic": self.take(kind="id")[1], "type": "", "line": line}
+            if self.accept(":"):
+                it["type"] = ".".join(self.path())
+            self.take(";")
+            model["items"].append(it)
+            return
         if v in ("item", "requirement", "action", "state", "alias", "comment", "metadata"):
             self.skip_block()
             return
@@ -701,7 +709,7 @@ def build(root, overrides=None):
     if os.path.exists(arch_path) or (overrides and arch_path in overrides):
         arch = Parser(_read(arch_path, overrides), afile).parse()
     else:
-        arch = {"port_defs": {}, "part_defs": {}, "parts": [], "allocations": [], "satisfies": [], "actions": [], "doc": ""}
+        arch = {"port_defs": {}, "part_defs": {}, "parts": [], "allocations": [], "satisfies": [], "actions": [], "items": [], "doc": ""}
     if not arch["parts"]:
         arch["parts"] = [{"name": name, "type": None, "parts": [], "ports": [], "connects": [], "doc": "", "line": 1}]
     table = subsystem_table(cfg, root)
@@ -945,7 +953,15 @@ def build(root, overrides=None):
                 t[role].append(n["name"])
                 if not e.get("planned"):
                     t["planned"] = False
+    for it in arch.get("items", []):
+        t = topics.setdefault(it["topic"], {"topic": it["topic"], "types": set(), "pub": [], "sub": [], "planned": True})
+        if it["type"]:
+            t["types"].add(it["type"])
     for t in topics.values():
+        if not t["pub"] and not t["sub"]:
+            gap("software", f"topic {t['topic']} is planned but no node publishes or subscribes to it yet")
+            t["types"] = sorted(t["types"]) or ["?"]
+            continue
         if len(t["types"]) > 1:
             problems.append(f"ROS topic {t['topic']} is used with different types: {', '.join(sorted(t['types']))}")
         if not t["sub"]:

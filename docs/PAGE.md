@@ -228,7 +228,10 @@ connect the same MCU port to each.
 
 ![Part form](images/page-32-part-form.png)
 
-1. **Subsystem**, then **Name** under it. Moving a part to another subsystem
+1. **Subsystem**, then **Name** under it, then **Kind** (MCU, computer,
+   sensor, motor / actuator, driver, power, radio / comms, mechanical, other).
+   The kind colours the part's band in the diagrams and the legend; a board
+   from an `.ioc` is an MCU. Moving a part to another subsystem
    keeps its wires. Parts sit directly in a subsystem, never inside another part.
 2. **What it is**: part number or one line. **Start from the parts library**
    (above, when the library has parts) fills in everything below.
@@ -268,7 +271,7 @@ show under the connection, in the Interfaces table and in the BOM.
 
 ![Allocate form](images/page-33-allocate.png)
 
-In the **Software** view, **drag the node onto a computer** (or click it,
+In the **Software** view, **drag the node into a computer's box** (or click it,
 then **Change** next to *Runs on*). Nodes that run nowhere yet are grouped
 under *Not allocated to hardware*. A micro-ROS node whose source file sits
 inside a board's folder (the folder of its `.ioc`) is placed on that board's
@@ -296,6 +299,18 @@ layout (and drops `//` comments) on its next change.
 ---
 
 ## 5. The views
+
+**Moving blocks.** In every view (System, Electrical, Power, Software) you
+can drag any block to where you want it, and its wires follow. Moving a
+subsystem box moves everything in it. The layout is remembered per view in
+this browser; **Auto layout** (toolbar) forgets it and lets the page arrange
+the view again.
+
+**Each thing is edited in its own view.** Parts are edited, connected,
+deleted and saved to the parts library in **Electrical**; wires in
+Electrical and Power; ROS nodes and topics in **Software**. Clicking a part
+anywhere else shows it, without the editing buttons. The one shortcut kept:
+**+ Part here** in a subsystem's panel.
 
 ### System
 
@@ -389,9 +404,7 @@ A typical chain: `battery.out → buck.vin`, `buck.vout → mcu.vin`,
 Nodes carry a colour band for their language: purple micro-ROS, blue C++,
 green Python, grey planned. Topics are amber pills.
 
-1. **A computer** with the nodes that run on it. Boards, parts that already
-   run nodes, and parts that look like computers (Pi, Jetson, MCU…) are shown,
-   empty ones as *drop a node here*.
+1. **A computer** with the nodes that run on it.
 2. **A node**, with the file it was found in. Click for its topics and line numbers.
 3. **A topic** with its message type. Arrows go publisher → topic → subscriber.
 4. **Not allocated to hardware**: nodes no computer runs yet (dashed box).
@@ -403,17 +416,24 @@ Everything solid is read from the code in the ROS2 code folders, so the robot
 can be off. A topic name built at runtime (`'debug/' + name`) cannot be read
 for certain, so it is listed as a gap instead of guessed.
 
-#### Connecting by dragging
+#### Moving, connecting and deleting
 
-| Drag | onto | does |
+- **Drag a block** (node, topic, computer) to move it. Drop a node inside
+  another computer to run it there.
+- **Connect from the ● handle** on a block's right edge (it shows on hover):
+
+| Drag the ● of | onto | does |
 |---|---|---|
-| a node | a computer | runs it there |
-| a node | another node | **New topic**: the first publishes it, the second subscribes (name and message type) |
 | a node | a topic | the node publishes that topic |
 | a topic | a node | the node subscribes to it |
-| a computer | another computer | **ROS link**: pick the wire between them and what it carries (micro-ROS agent over serial, USB or UDP, Ethernet…) |
+| a node | another node | **New topic** form: the first publishes, the second subscribes |
+| a computer | another computer | **ROS link**: pick the wire between them and what it carries |
 
-A plain click still opens the panel. Drag on empty space to pan.
+- **+ Topic** adds a topic on its own; connect it afterwards from its ●.
+- **Click an arrow, a topic or a node, then press Delete** to remove it.
+  Only planned things can be deleted here; something that is in the code
+  says where it is (file and line), so you remove it there.
+- A planned topic's panel has **Rename / change type** and **Delete**.
 
 #### Planning nodes and topics before the code
 

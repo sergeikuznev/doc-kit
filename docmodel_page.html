@@ -27,7 +27,7 @@ nav button.on{background:var(--accent-soft)!important;color:var(--accent)!import
 .canvas{background-color:#000}svg .leaf rect,svg .cont>rect,.rosnode rect.b,.sysnode rect,.elab rect,.addph rect,.roshost>rect{rx:2px;ry:2px}.topic>rect{rx:3px;ry:3px}
 .elab rect{fill:#0b0c0d}.elab text{font-family:var(--mono);font-size:10px}
 body,button,input,select,textarea,svg text,.lead,.dsub,h1,h2,h3,h4,.page,.drawer,aside,nav,header{font-family:var(--mono)!important}body{font-size:13px}
-.navi path{stroke:var(--faint)!important;stroke-linecap:square;stroke-linejoin:miter;stroke-width:1.4}nav button.on .navi path,nav button:hover .navi path{stroke:var(--accent)!important}
+.navi path{stroke-linecap:square;stroke-linejoin:miter;stroke-width:1.4}
 nav button{color:var(--muted);font-size:12px;gap:8px}nav button .n{font-size:11px}.roslink{stroke:var(--facts)}nav button:hover{color:var(--ink)}
 .counter.gap{border-color:var(--warn)!important;color:var(--warn)}.gapsp{background:color-mix(in srgb,var(--warn) 6%,var(--surface))!important;border-left:3px solid var(--warn)!important}
 }
@@ -203,6 +203,10 @@ aside .in{position:relative}aside .dsub:first-of-type{padding-right:40px}.lightb
 .newbtn.dzbtn{background:var(--crit);border-color:var(--crit)}.newbtn{font:inherit;font-size:12.5px;font-weight:600;padding:5px 12px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer}
 .menu{position:absolute;right:20px;top:52px;background:var(--surface);border:1px solid var(--ring);border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.15);padding:6px;z-index:45;min-width:220px}
 .navi{flex:none;margin:0}nav button{white-space:nowrap}nav button .n{flex:none}
+.moving path.edge,.moving .elab,.moving .rosedge,.moving .roslink{opacity:.15}[data-mv]{cursor:move}
+.hdl{fill:var(--surface);stroke:var(--accent);stroke-width:1.5;cursor:crosshair;opacity:0}.rosnode:hover .hdl,.topic:hover .hdl,.roshost:hover>.hdl{opacity:1}
+.rhit{fill:none;stroke:transparent;stroke-width:14;cursor:pointer}.rhit:hover{stroke:var(--accent);stroke-opacity:.18}.rsel>rect,.rsel>rect.b{stroke:var(--accent)!important;stroke-width:2}path.rosedge.rsel{stroke:var(--accent);stroke-width:2.4;opacity:1}
+.dtool .btn,.dtool .act,.dtool h2{white-space:nowrap}
 .udg{display:inline-flex;gap:0}.udg .btn{border-radius:0;margin-left:-1px;padding-left:11px;padding-right:11px}.udg .btn:first-child{border-radius:8px 0 0 8px}.udg .btn:last-child{border-radius:0 8px 8px 0}.udg .btn:disabled{opacity:.4;cursor:default}
 .hmenu{max-height:70vh;overflow:auto;min-width:320px;max-width:460px}.hmenu .mh{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:8px 10px 4px}.hmenu .mh.now{color:var(--accent)}.hmenu button{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .menu button{display:block;width:100%;text-align:left;border:0;background:none;font:inherit;color:var(--ink);padding:7px 10px;border-radius:6px;cursor:pointer}.menu button:hover{background:var(--sunk)}
@@ -265,11 +269,11 @@ const kindCount = k => conns.filter(c => c.kind === k).length;
 
 // ------------------------------------------------------------------ chrome
 const NAVI = {  // [colour, 16px icon path]
-  overview: ["var(--accent)", "M2 2h5v5H2zM9 2h5v5H9zM2 9h5v5H2zM9 9h5v5H9z"], setup: ["var(--muted)", "M8 5.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5zM8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.5 1.5M11.5 11.5L13 13M3 13l1.5-1.5M11.5 4.5L13 3"],
+  overview: ["var(--accent)", "M2 2h5v5H2zM9 2h5v5H9zM2 9h5v5H2zM9 9h5v5H9z"], setup: ["var(--muted)", "M2 4h12M2 8h12M2 12h12M5 2.5v3M10.5 6.5v3M7 10.5v3"],
   system: ["var(--ink)", "M1.5 4h5v8h-5zM9.5 4h5v8h-5zM6.5 8h3"], electrical: ["var(--sig)", "M9 1L3 9h4l-1 6 6-8H8z"],
-  power: ["var(--pwr)", "M3 5h8v7H3zM11 7h2v3h-2zM5.5 2v3M8.5 2v3"], software: ["var(--arch)", "M5 4L1.5 8 5 12M11 4l3.5 4-3.5 4M9.5 2.5l-3 11"],
-  interfaces: ["var(--sig)", "M2 5h8M7 2l3 3-3 3M14 11H6M9 8l-3 3 3 3"], requirements: ["var(--good)", "M3 2h10v12H3zM5.5 6l1.5 1.5L10 4.5M5.5 10.5h5"],
-  faults: ["var(--crit)", "M8 1.5L15 14H1zM8 6v4M8 11.5v.5"], decisions: ["var(--warn)", "M8 1v4M8 5L3 10M8 5l5 5M3 10v4M13 10v4"],
+  power: ["var(--pwr)", "M6 1.5v3.5M10 1.5v3.5M4 5h8v3a4 4 0 01-8 0zM8 12v2.5"], software: ["var(--arch)", "M5 4L1.5 8 5 12M11 4l3.5 4-3.5 4M9.5 2.5l-3 11"],
+  interfaces: ["var(--sig)", "M2 5h8M7 2l3 3-3 3M14 11H6M9 8l-3 3 3 3"], requirements: ["var(--warn)", "M3 2h10v12H3zM5.5 6l1.5 1.5L10 4.5M5.5 10.5h5"],
+  faults: ["var(--crit)", "M8 1.5L15 14H1zM8 6v4M8 11.5v.5"], decisions: ["var(--good)", "M8 1.5v13M8 3h5l1.5 1.75L13 6.5H8M8 8H3L1.5 9.75 3 11.5h5"],
   budget: ["var(--pwr)", "M2 14V9M6 14V5M10 14V7M14 14V2"], bom: ["var(--muted)", "M2 3h12M2 6.5h12M2 10h12M2 13.5h8"],
   issues: ["var(--good)", "M8 1.5a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM8 5v3.5M8 10.5v.5"], docs: ["var(--accent)", "M3 1.5h6l4 4v9H3zM9 1.5v4h4M5.5 9h5M5.5 11.5h5"],
   media: ["var(--arch)", "M1.5 3h13v10h-13zM1.5 11l4-4 3 3 2-2 4 4M10.5 5.5a1 1 0 100 2 1 1 0 000-2z"]};
@@ -338,6 +342,12 @@ function faultList(fs) {
   if (!fs.length) return `<div class="dsub">None analysed yet.</div>`;
   return `<div class="mini">${fs.map(f => `<div class="mitem" data-fault="${H(f.id)}" style="border-left:4px solid var(--sev${f.sev})"><div class="h"><span class="id">${H(f.id)}</span><span class="sev" style="--sevc:var(--sev${f.sev})">S${H(f.sev)}</span></div>${H(f.failure)}</div>`).join("")}</div>`;
 }
+const PKINDS = [["mcu", "Microcontroller (MCU)", "var(--facts)"], ["computer", "Computer (Pi, Jetson…)", "var(--sig)"], ["sensor", "Sensor", "var(--good)"],
+  ["actuator", "Motor / actuator", "var(--pwr)"], ["driver", "Driver / controller", "var(--warn)"], ["power", "Power (battery, regulator)", "var(--crit)"],
+  ["radio", "Radio / comms", "var(--arch)"], ["mechanical", "Mechanical", "var(--muted)"], ["other", "Other", "var(--faint)"]];
+const partKind = p => (p.attrs || {}).kind || (p.board || p.source === "facts" ? "mcu" : "other");
+const kindCol = k => (PKINDS.find(x => x[0] === k) || PKINDS[PKINDS.length - 1])[2];
+const WIREV = () => SERVED && (view === "electrical" || view === "power");
 function showPart(path) { setTimeout(() => reopen = () => showPart(path), 0);
   selected = path; markSel(); saveHash();
   const p = M.parts[path];
@@ -349,7 +359,7 @@ function showPart(path) { setTimeout(() => reopen = () => showPart(path), 0);
     <div class="dh">${H(p.name)}${p.depth === 1 && (M.prefix_names || {})[p.name] ? ` <span style="font-weight:400;color:var(--muted)">${H(M.prefix_names[p.name])}</span>` : ""}</div>`;
   h += `<div class="links" style="margin:6px 0 4px"><span class="chip" style="color:var(--${p.source})">${p.source === "facts" ? "board, from its .ioc" : p.depth === 1 ? "subsystem" : "part"}</span>${p.depth === 1 ? `<span class="chip focus" data-focus="${H(p.name)}">Open in Electrical</span>` : ""}</div>`;
   if (SERVED && p.depth === 1) h += `<div class="links" style="margin:10px 0"><button class="act" data-form="part" data-parent="${H(path)}">+ Part here</button><button class="act" onclick="go('setup')">Edit in Setup</button></div>`;
-  if (SERVED && p.depth >= 2) h += `<div class="links" style="margin:10px 0"><button class="act" data-form="part" data-orig="${H(path)}">Edit part</button><button class="act" data-focus="${H(p.subsystem)}" data-view="electrical" data-edit="1">Connect ports…</button><button class="act" data-form="template" data-from="${H(path)}">Save to parts library</button><button class="act dz" data-form="part_delete" data-path="${H(path)}">Delete</button></div>`;
+  if (SERVED && p.depth >= 2 && view === "electrical") h += `<div class="links" style="margin:10px 0"><button class="act" data-form="part" data-orig="${H(path)}">Edit part</button><button class="act" data-focus="${H(p.subsystem)}" data-view="electrical" data-edit="1">Connect ports…</button><button class="act" data-form="template" data-from="${H(path)}">Save to parts library</button><button class="act dz" data-form="part_delete" data-path="${H(path)}">Delete</button></div>`;
   if (p.doc) h += `<p>${H(p.doc)}</p>`;
   if (Object.keys(p.attrs || {}).length) h += `<h4>Details</h4><div class="kv">${attrsKv(p.attrs)}</div>`;
   const b = M.boards.find(b => b.board === p.board);
@@ -370,7 +380,7 @@ function showPart(path) { setTimeout(() => reopen = () => showPart(path), 0);
       h += `<tr class="${to.length ? "" : "off"} ${det ? "row" : ""}" data-i="${i}"><td class="mono">${det ? "▸ " : ""}${H(q.name)}</td><td><span class="kdot" style="background:${KCOL[q.kind]}"></span>${H(q.meaning || q.type)}${Object.keys(q.attrs || {}).length ? `<div class="dsub" style="margin:2px 0 0">${Object.entries(q.attrs).map(([k, v]) => `${H(k.replace(/_/g, " "))} ${H(v)}`).join(" · ")}</div>` : ""}</td>
         <td class="mono">${(q.pins || []).map(x => `${H(x[0])} <span style="color:var(--faint)">${H(x[1])}</span>`).join("<br>") || "—"}</td>
         <td>${to.map(t => { const cw = conns.find(c => [c.a.join("."), c.b.join(".")].sort().join() === [path + "." + q.name, t.join(".")].sort().join()); const wa = cw && cw.attrs || {};
-          return `<span class="lnk mono" data-part="${t[0]}">${H(short(t[0]))}.${H(t[1])}</span>${Object.keys(wa).length ? `<div class="dsub" style="margin:0">${Object.values(wa).map(H).join(" · ")}</div>` : ""}${SERVED ? ` <button class="act" style="padding:0 6px" title="Wire details" data-form="wire" data-a="${H(path + "." + q.name)}" data-b="${H(t.join("."))}">wire</button>` : ""}${SERVED ? ` <button class="act dz" style="padding:0 6px" title="Remove this connection" data-form="disconnect" data-a="${H(path + "." + q.name)}" data-b="${H(t.join("."))}">✕</button>` : ""}`; }).join("<br>") || "—"}</td></tr>`;
+          return `<span class="lnk mono" data-part="${t[0]}">${H(short(t[0]))}.${H(t[1])}</span>${Object.keys(wa).length ? `<div class="dsub" style="margin:0">${Object.values(wa).map(H).join(" · ")}</div>` : ""}${WIREV() ? ` <button class="act" style="padding:0 6px" title="Wire details" data-form="wire" data-a="${H(path + "." + q.name)}" data-b="${H(t.join("."))}">wire</button>` : ""}${WIREV() ? ` <button class="act dz" style="padding:0 6px" title="Remove this connection" data-form="disconnect" data-a="${H(path + "." + q.name)}" data-b="${H(t.join("."))}">✕</button>` : ""}`; }).join("<br>") || "—"}</td></tr>`;
       if (det) h += `<tr class="det" data-d="${i}" style="display:none"><td colspan="4"><div class="kv">${q.settings.map(s => `<div>${H(s[0])}</div><div>${H(s[1])}</div>`).join("")}</div></td></tr>`;
     });
     h += `</table>`;
@@ -427,7 +437,8 @@ function showTopic(t) { setTimeout(() => reopen = () => showTopic(t), 0);
   const x = M.topics.find(y => y.topic === t);
   openDrawer(`<div class="dsub">ROS2 topic</div><div class="dh mono">${H(t)}</div><div class="dsub mono">${x.types.map(H).join(", ")}</div>
     <h4>Published by</h4><div class="links">${x.pub.map(n => `<span class="chip" data-node="${H(n)}">${H(n)}</span>`).join("") || `<span class="warnline">nobody</span>`}</div>
-    <h4>Subscribed by</h4><div class="links">${x.sub.map(n => `<span class="chip" data-node="${H(n)}">${H(n)}</span>`).join("") || `<span class="warnline">nobody</span>`}</div>`);
+    <h4>Subscribed by</h4><div class="links">${x.sub.map(n => `<span class="chip" data-node="${H(n)}">${H(n)}</span>`).join("") || `<span class="warnline">nobody</span>`}</div>
+    ${SERVED && view === "software" ? (x.planned ? `<div class="links" style="margin-top:12px"><button class="act" data-form="ros_topic_edit" data-topic="${H(t)}">Rename / change type</button><button class="act dz" onclick="rsel={type:'topic',topic:'${H(t)}'};rosDelete()">Delete</button></div>` : `<div class="dsub" style="margin-top:12px">Used in the code: rename or remove it there.</div>`) : ""}`);
 }
 function markSel() { document.querySelectorAll(".leaf").forEach(g => g.classList.toggle("sel", g.dataset.part === selected)); hot(selected); }
 
@@ -509,13 +520,46 @@ function buildSystem() {
   return {graph: {id: "root", layoutOptions: {"elk.algorithm": "layered", "elk.direction": "RIGHT", "elk.edgeRouting": "ORTHOGONAL", "elk.layered.spacing.nodeNodeBetweenLayers": "120",
     "elk.spacing.nodeNode": "40", "elk.spacing.edgeLabel": "4", "elk.edgeLabels.inline": "true", "elk.layered.spacing.edgeEdgeBetweenLayers": "16"}, children: nodes, edges}};
 }
-function absMap(n, ox = 0, oy = 0, out = {}) { out[n.id] = {x: ox + (n.x || 0), y: oy + (n.y || 0), n}; (n.children || []).forEach(c => absMap(c, out[n.id].x, out[n.id].y, out)); return out; }
+let LAYOUT = {}; try { LAYOUT = JSON.parse(localStorage.getItem("doc-kit-layout:" + M.name) || "{}"); } catch (e) {}
+const curOff = () => (LAYOUT[view + (focus ? ":" + focus : "")] ||= {});
+const saveLayout = () => { try { localStorage.setItem("doc-kit-layout:" + M.name, JSON.stringify(LAYOUT)); } catch (e) {} };
+function absMap(n, ox = 0, oy = 0, out = {}, par = null, cx = 0, cy = 0) {
+  const o = curOff()[n.id] || {x: 0, y: 0}, X = cx + o.x, Y = cy + o.y;
+  out[n.id] = {x: ox + (n.x || 0) + o.x, y: oy + (n.y || 0) + o.y, n, p: par, cx: X, cy: Y};
+  (n.children || []).forEach(c => absMap(c, out[n.id].x, out[n.id].y, out, n.id, X, Y)); return out; }
+const layCache = new Map();
+async function lay(g) { const k = JSON.stringify(g); if (!layCache.has(k)) { if (layCache.size > 30) layCache.clear(); layCache.set(k, JSON.stringify(await elk.layout(g))); } return JSON.parse(layCache.get(k)); }
+function routePts(e, cont, abs, s) {  // ELK's route, or a fresh elbow when one end was moved by hand
+  const base = abs[e.container || cont.id] || {x: 0, y: 0, cx: 0, cy: 0};
+  const ow = id => { let k = id; while (k && !abs[k]) k = k.includes(".") ? k.slice(0, k.lastIndexOf(".")) : ""; return abs[k] || base; };
+  const a = ow(e.sources[0]), b = ow(e.targets[0]), P = p => ({x: p.x + base.x, y: p.y + base.y});
+  if (a.cx === base.cx && a.cy === base.cy && b.cx === base.cx && b.cy === base.cy) return {pts: [s.startPoint, ...(s.bendPoints || []), s.endPoint].map(P), moved: false};
+  const st = P(s.startPoint), en = P(s.endPoint); st.x += a.cx - base.cx; st.y += a.cy - base.cy; en.x += b.cx - base.cx; en.y += b.cy - base.cy;
+  const mx = (st.x + en.x) / 2; return {pts: [st, {x: mx, y: st.y}, {x: mx, y: en.y}, en], moved: true};
+}
+function tagMv(g, id, abs, move = true) { const ch = []; let k = id; while (k && k !== "root" && ch.length < 12) { ch.push(k); k = abs[k] && abs[k].p; } if (move) g.dataset.mv = id; g.dataset.chain = ch.join(" "); }
+let justMoved = false;
+function movable(svg, root, onDrop) {  // drag any block to move it (and what is inside it); the layout is kept per view in this browser
+  if (!SERVED && !true) return;
+  svg.addEventListener("click", ev => { if (justMoved) { ev.stopPropagation(); ev.preventDefault(); } }, true);
+  svg.addEventListener("pointerdown", ev => { if (ev.button !== 0) return; const g = ev.target.closest("[data-mv]"); if (!g || ev.target.closest(".phit,.hdl,.ehit,.rhit,.addph")) return;
+    const st = {id: g.dataset.mv, x0: ev.clientX, y0: ev.clientY, k: 1 / root.getScreenCTM().a, moving: false, list: null, dx: 0, dy: 0};
+    const mv = e => { if (!st.moving) { if (Math.hypot(e.clientX - st.x0, e.clientY - st.y0) < 5) return; st.moving = true; svg.classList.add("moving");
+        st.list = [...root.querySelectorAll("[data-chain]")].filter(x => x.dataset.chain.split(" ").includes(st.id)).map(x => [x, x.getAttribute("transform") || ""]); }
+      st.dx = (e.clientX - st.x0) * st.k; st.dy = (e.clientY - st.y0) * st.k; st.list.forEach(([x, t]) => x.setAttribute("transform", `translate(${st.dx},${st.dy}) ${t}`)); };
+    const up = e => { window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up);
+      if (!st.moving) return; justMoved = true; setTimeout(() => justMoved = false, 0); svg.classList.remove("moving");
+      if (onDrop && onDrop(st.id, e, st)) return;
+      const o = curOff(), c = o[st.id] || {x: 0, y: 0}; o[st.id] = {x: c.x + st.dx, y: c.y + st.dy}; saveLayout(); render(); };
+    window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up); }, true);
+}
+function resetLayout() { delete LAYOUT[view + (focus ? ":" + focus : "")]; saveLayout(); render(); }
 function allEdges(n, out = []) { (n.edges || []).forEach(e => out.push([e, n])); (n.children || []).forEach(c => allEdges(c, out)); return out; }
 
 let zoom = null, keepVB = null;
 function canvasShell(title, lead, extra = "", edit = null) {
   const eb = SERVED && edit && view === "electrical" ? `<button class="act addbtn" data-form="port_type">+ Port type</button><button class="act addbtn" data-form="part">+ Part</button>` : "";
-  $("#main").innerHTML = `<div class="diagram"><div class="dtool"><div><h2>${title}</h2><p class="lead">${lead}</p></div><span class="sp"></span>${extra}${eb}<button class="btn" id="zout" title="Zoom out">−</button><button class="btn" id="zin" title="Zoom in">+</button><button class="btn" id="fit">Fit</button></div>${SERVED && edit ? `<div class="dhint">${edit}</div><div class="hintbar" id="hint" style="display:none"></div>` : ""}<div class="canvas ${editing && edit ? "editing" : ""}" id="cv"></div></div>`;
+  $("#main").innerHTML = `<div class="diagram"><div class="dtool"><div><h2>${title}</h2><p class="lead">${lead}</p></div><span class="sp"></span>${extra}${eb}<button class="btn" id="zout" title="Zoom out">−</button><button class="btn" id="zin" title="Zoom in">+</button><button class="btn" id="fit">Fit</button>${Object.keys(curOff()).length ? `<button class="btn" onclick="resetLayout()" title="Forget where you moved blocks in this view">Auto layout</button>` : ""}</div>${SERVED && edit ? `<div class="dhint">${edit}</div><div class="hintbar" id="hint" style="display:none"></div>` : ""}<div class="canvas ${editing && edit ? "editing" : ""}" id="cv"></div></div>`;
   wire($("#main"));
   return $("#cv");
 }
@@ -543,7 +587,7 @@ function panZoom(svg, W, H) {
     vb = {x: mx - (mx - vb.x) * s, y: my - (my - vb.y) * s, w: vb.w * s, h: vb.h * s}; set(); }, {passive: false});
   let drag = null;
   svg.addEventListener("contextmenu", () => { drag = null; });
-  svg.addEventListener("pointerdown", ev => { if (ev.button !== 0) { drag = null; return; } if (ev.target.closest(".leaf,.rosnode,.topic,.sysnode,.ehit,.addph")) return; ev.preventDefault(); window.getSelection()?.removeAllRanges(); drag = {x: ev.clientX, y: ev.clientY, vb: {...vb}}; svg.setPointerCapture(ev.pointerId); });
+  svg.addEventListener("pointerdown", ev => { if (ev.button !== 0) { drag = null; return; } if (ev.target.closest(".leaf,.rosnode,.topic,.sysnode,.ehit,.addph,[data-mv]")) return; ev.preventDefault(); window.getSelection()?.removeAllRanges(); drag = {x: ev.clientX, y: ev.clientY, vb: {...vb}}; svg.setPointerCapture(ev.pointerId); });
   svg.addEventListener("pointermove", ev => { if (!drag) return; if (!(ev.buttons & 1)) { drag = null; return; } const r = svg.getBoundingClientRect(); const scale = Math.max(vb.w / r.width, vb.h / r.height);
     vb.x = drag.vb.x - (ev.clientX - drag.x) * scale; vb.y = drag.vb.y - (ev.clientY - drag.y) * scale; set(); });
   svg.addEventListener("pointerup", ev => {
@@ -555,9 +599,10 @@ function panZoom(svg, W, H) {
 }
 function drawEdges(root, out, abs, cls) {
   allEdges(out).forEach(([e, cont]) => {
-    const off = abs[e.container || cont.id] || {x: 0, y: 0};
+    const off = abs[e.container || cont.id] || {x: 0, y: 0}; let mid = null;
     (e.sections || []).forEach(s => {
-      const pts = [s.startPoint, ...(s.bendPoints || []), s.endPoint].map(p => `${p.x + off.x},${p.y + off.y}`);
+      const r = routePts(e, cont, abs, s); if (r.moved) mid = {x: (r.pts[1].x + r.pts[2].x) / 2, y: (r.pts[1].y + r.pts[2].y) / 2};
+      const pts = r.pts.map(p => `${p.x},${p.y}`);
       let hit = null;
       if (editing && e.c && e.c.ok !== undefined) { hit = el("path", {d: "M" + pts.join(" L"), class: "ehit"}, root);
         el("title", {}, hit).textContent = e.c.ok ? "Click for wire details, or to remove it" : "Click to remove this broken connection";
@@ -567,14 +612,14 @@ function drawEdges(root, out, abs, cls) {
       path.dataset.ends = e.c ? `${e.c.a[0]}|${e.c.b[0]}` : (e.a ? `${M.top}.${e.a.s}|${M.top}.${e.a.t}` : `${e.sources[0]}|${e.targets[0]}`);
       if (e.c) el("title", {}, path).textContent = `${short(e.c.a.join("."))} → ${short(e.c.b.join("."))} (${e.c.type})`;
     });
-    (e.labels || []).forEach(l => { const g = el("g", {class: "elab", transform: `translate(${l.x + off.x},${l.y + off.y})`}, root);
+    (e.labels || []).forEach(l => { const g = el("g", {class: "elab", transform: mid ? `translate(${mid.x - l.width / 2},${mid.y + 4})` : `translate(${l.x + off.x},${l.y + off.y})`}, root);
       el("rect", {width: l.width, height: l.height, rx: 5}, g); l.text.split("\n").forEach((t, j) => { el("text", {x: 7, y: 13.5 + j * 15}, g).textContent = t; }); });
   });
 }
 function hot(path) { document.querySelectorAll("path.edge").forEach(p => { const on = path && p.dataset.ends.split("|").includes(path); p.classList.toggle("hot", !!on); p.classList.toggle("dim", !!path && !on); }); }
 
 async function drawParts(kinds, title, lead) {
-  const extra = `<div class="legend">${kinds.map(k => `<span><i style="border-color:${KCOL[k]}${k === "Mechanical" ? ";border-top-style:dashed" : ""}"></i>${k}</span>`).join("")}<span><i class="box" style="background:var(--facts)"></i>board (.ioc)</span><span><i class="box" style="background:var(--arch)"></i>part</span></div>` +
+  const extra = `<div class="legend">${kinds.map(k => `<span><i style="border-color:${KCOL[k]}${k === "Mechanical" ? ";border-top-style:dashed" : ""}"></i>${k}</span>`).join("")}${[...new Set(Object.values(M.parts).filter(p => p.depth >= 2).map(partKind))].map(k => `<span><i class="box" style="background:${kindCol(k)}"></i>${H(k)}</span>`).join("")}</div>` +
     (focus ? `<span class="chip focus" id="unfocus">Focus: ${H(focus)} ✕</span>` : "");
   const cv = canvasShell(title, lead, extra, EDIT_HINT);
   if ($("#unfocus")) $("#unfocus").onclick = () => { focus = null; render(); };
@@ -582,7 +627,7 @@ async function drawParts(kinds, title, lead) {
   if (!graph.children.length) { cv.innerHTML = M.subsystems.length ? `<div class="empty">Nothing of this kind is wired yet.${SERVED ? `<br><br>${view === "electrical" ? `<button class="ebtn" data-form="part">+ Part</button> to add parts, then connect their ports here.` : `Add parts in the <span class="xref" onclick="go('electrical')">Electrical</span> view first.`}` : ""}</div>`
     : `<div class="empty">No subsystems yet.${SERVED ? ` <span class="xref" onclick="go('setup')">Open Setup</span> to add them.` : ""}</div>`; return; }
   // pass 1: let ELK choose the port order that avoids crossings; pass 2: pin ports under the title
-  const first = await elk.layout(JSON.parse(JSON.stringify(graph)));
+  const first = await lay(JSON.parse(JSON.stringify(graph)));
   const firstAbs = absMap(first);
   allLeaves(graph).forEach(n => {
     if (n.add) return;
@@ -592,11 +637,11 @@ async function drawParts(kinds, title, lead) {
       const src = n.ports.find(q => q.id === pt.id); src.x = pt.x; src.y = HEAD - 4 + i * PORT_H; }));
     n.layoutOptions["elk.portConstraints"] = "FIXED_POS";
   });
-  const out = await elk.layout(graph);
+  const out = await lay(graph);
   const abs = absMap(out);
   const svg = el("svg", {}, cv), root = el("g", {}, svg);
   out.children.forEach(c => {
-    const a = abs[c.id], g = el("g", {class: "cont", transform: `translate(${a.x},${a.y})`}, root);
+    const a = abs[c.id], g = el("g", {class: "cont", transform: `translate(${a.x},${a.y})`}, root); tagMv(g, c.id, abs);
     el("rect", {width: c.width, height: c.height, rx: 12}, g);
     el("text", {x: 14, y: 24, class: "t"}, g).textContent = M.parts[c.id].name;
     const nr = partReqs(c.id).length; el("text", {x: 14 + M.parts[c.id].name.length * 11 + 10, y: 24, class: "s"}, g).textContent = `${nr} requirement${nr === 1 ? "" : "s"}`;
@@ -604,20 +649,20 @@ async function drawParts(kinds, title, lead) {
   });
   const missing = new Set(M.connections.filter(c => !c.ok).flatMap(c => [c.a_txt, c.b_txt]));
   Object.values(abs).forEach(({x, y, n}) => { if (!n.children || !n.children.length || !M.parts[n.id] || M.parts[n.id].depth < 2) return;
-    const g = el("g", {class: "cont asm", transform: `translate(${x},${y})`}, root); el("rect", {width: n.width, height: n.height, rx: 10}, g);
+    const g = el("g", {class: "cont asm", transform: `translate(${x},${y})`}, root); tagMv(g, n.id, abs); el("rect", {width: n.width, height: n.height, rx: 10}, g);
     el("text", {x: 12, y: 22, class: "t", style: "font-size:12px"}, g).textContent = M.parts[n.id].name;
     if (M.parts[n.id].doc) el("text", {x: 12 + M.parts[n.id].name.length * 8 + 8, y: 22, class: "s"}, g).textContent = M.parts[n.id].doc.slice(0, 40);
     g.style.cursor = "pointer"; g.addEventListener("click", ev => { if (ev.target.closest(".leaf,.addph")) return; ev.stopPropagation();
       if (pend) { const a = pend.full; cancelPend(); return openForm("connect", {a, bpart: n.id}); } showPart(n.id); }); });
   drawEdges(root, out, abs, e => `edge ${e.c.kind}${e.c.ok ? "" : " bad"}`);
   allLeaves(out).forEach(n => {
-    if (n.id.endsWith("::add")) { const a = abs[n.id], g = el("g", {class: "addph", transform: `translate(${a.x},${a.y})`}, root);
+    if (n.id.endsWith("::add")) { const a = abs[n.id], g = el("g", {class: "addph", transform: `translate(${a.x},${a.y})`}, root); tagMv(g, n.id, abs, false);
       el("rect", {width: n.width, height: n.height, rx: 8}, g); el("text", {x: n.width / 2, y: 27, "text-anchor": "middle"}, g).textContent = "+ Part";
       g.addEventListener("click", ev => { ev.stopPropagation(); openForm("part", {parent: n.id.slice(0, -5)}); }); return; }
     const a = abs[n.id], p = M.parts[n.id];
-    const g = el("g", {class: `leaf ${p.source}`, transform: `translate(${a.x},${a.y})`}, root); g.dataset.part = n.id;
+    const g = el("g", {class: `leaf ${p.source}`, transform: `translate(${a.x},${a.y})`}, root); g.dataset.part = n.id; tagMv(g, n.id, abs);
     el("rect", {class: "b", width: n.width, height: n.height, rx: 8}, g);
-    el("rect", {class: "band", x: 0, y: 8, width: 4, height: n.height - 16}, g);
+    el("rect", {class: "band", x: 0, y: 8, width: 4, height: n.height - 16, style: `fill:${kindCol(partKind(p))}`}, g);
     el("text", {x: 14, y: 20, class: "t"}, g).textContent = p.name;
     el("text", {x: 14, y: 35, class: "ty"}, g).textContent = p.type || "";
     const hidden = p.ports.filter(q => !q.missing).length - n.ports.filter(pt => !p.ports.find(x => `${n.id}.${x.name}` === pt.id)?.missing).length; if (hidden > 0) el("text", {x: 14, y: n.height - 7, class: "more"}, g).textContent = `+${hidden} port${hidden > 1 ? "s" : ""} not in this view`;
@@ -631,19 +676,19 @@ async function drawParts(kinds, title, lead) {
     g.addEventListener("click", ev => { ev.stopPropagation(); if (pend) { const a = pend.full; cancelPend(); return openForm("connect", {a, bpart: n.id}); } showPart(n.id); });
     g.addEventListener("mouseenter", () => !selected && hot(n.id)); g.addEventListener("mouseleave", () => !selected && hot(null));
   });
-  panZoom(svg, out.width, out.height); markSel();
+  panZoom(svg, out.width, out.height); movable(svg, root); markSel();
 }
 async function drawSystem() {
   const cv = canvasShell("System", "Subsystems and everything that crosses between them. Click a subsystem for its interfaces, requirements and faults.",
     `<div class="legend">${["Signal", "Power"].map(k => `<span><i style="border-color:${KCOL[k]}"></i>${k}</span>`).join("")}</div>`,
     "Parts are added in the Electrical view (+ Part) and wired there or in Power. Subsystems are added in Setup.");
   if (!M.subsystems.length) { cv.innerHTML = `<div class="empty">No subsystems yet.${SERVED ? `<br><br><button class="ebtn" onclick="go('setup')">Open Setup</button> to add them: they become the boxes here and the prefixes of requirement IDs.` : ""}</div>`; return; }
-  const {graph} = buildSystem(); const out = await elk.layout(graph); const abs = absMap(out);
+  const {graph} = buildSystem(); const out = await lay(graph); const abs = absMap(out);
   const svg = el("svg", {}, cv), root = el("g", {}, svg);
   drawEdges(root, out, abs, e => `edge ${e.a.kind}`);
   out.children.forEach(n => {
     const src = graph.children.find(x => x.id === n.id), s = M.parts[n.id];
-    const g = el("g", {class: "leaf sysnode arch", transform: `translate(${n.x},${n.y})`}, root); g.dataset.part = n.id;
+    const g = el("g", {class: "leaf sysnode arch", transform: `translate(${abs[n.id].x},${abs[n.id].y})`}, root); g.dataset.part = n.id; tagMv(g, n.id, abs);
     el("rect", {class: "b", width: n.width, height: n.height, rx: 10}, g);
     el("text", {x: 14, y: 24, class: "t", style: "font-size:14px;letter-spacing:.04em"}, g).textContent = s.name;
     const full = (M.prefix_names || {})[s.name], y0 = full ? 16 : 0;
@@ -658,13 +703,11 @@ async function drawSystem() {
     g.addEventListener("click", ev => { ev.stopPropagation(); showPart(n.id); });
     g.addEventListener("mouseenter", () => !selected && hot(n.id)); g.addEventListener("mouseleave", () => !selected && hot(null));
   });
-  panZoom(svg, out.width, out.height); markSel();
+  panZoom(svg, out.width, out.height); movable(svg, root); markSel();
 }
 const COMPUTER_RE = /\b(pi|rpi\d*|raspberry|jetson|nuc|computer|laptop|pc|odroid|esp32|teensy|arduino|stm32|mcu|board|nano|orin)\b|pi\d/i;
 function rosHosts() {  // computers a node can run on: boards, parts that already run nodes, and parts that look like computers
   const hs = new Set(M.nodes.map(n => n.host).filter(Boolean));
-  Object.values(M.parts).forEach(p => { if (p.depth >= 2 && !p.children.length && (p.board || COMPUTER_RE.test(`${p.name} ${p.doc || ""} ${p.type || ""}`))) hs.add(p.path); });
-  (M.ros_links || []).forEach(l => { hs.add(l.a); hs.add(l.b); });
   return [...hs].filter(h => M.parts[h]);
 }
 function buildSoftware() {
@@ -686,44 +729,71 @@ function buildSoftware() {
 async function drawSoftware() {
   const cv = canvasShell("Software (ROS2)", "Nodes and topics found in the code (the robot does not need to be on), grouped by the computer each node runs on, plus the ones you planned.",
     `<div class="legend"><span><i class="box" style="background:var(--sunk);border:1px solid var(--faint);border-radius:6px;width:16px"></i>topic</span><span><i class="box" style="background:var(--surface);border:1px solid var(--faint)"></i>node</span><span><i class="box" style="background:var(--arch)"></i>micro-ROS</span><span><i class="box" style="background:var(--sig)"></i>C++</span><span><i class="box" style="background:var(--good)"></i>Python</span><span><i style="border-color:var(--muted)"></i>publish → subscribe</span><span><i style="border-color:var(--muted);border-top-style:dashed"></i>planned, not in the code</span><span><i style="border-color:var(--facts);border-top-width:3px"></i>ROS link (wire)</span></div>` +
-    (SERVED ? `<button class="act addbtn" data-form="ros_node">+ Node</button>` : ""),
-    SERVED ? "Drag a node onto a computer to run it there. Drag a node onto another node for a new topic, a node onto a topic to publish it, a topic onto a node to subscribe. Drag one computer onto another to mark the wire that carries ROS between them." : null);
+    (SERVED ? `<button class="act addbtn" data-form="ros_topic">+ Topic</button><button class="act addbtn" data-form="ros_node">+ Node</button>` : ""),
+    SERVED ? "Drag blocks to move them; drag a node into another computer to run it there. Connect from the ● on a block's right edge: node → topic publishes, topic → node subscribes, node → node makes a new topic, computer → computer marks the wire that carries ROS. Click a node, topic or arrow and press Delete to remove it." : null);
   if (!M.nodes.length && !SERVED) { cv.innerHTML = `<div class="empty">No ROS2 code found. Add ROS2 code folders in Setup (doc serve).</div>`; return; }
-  const {graph} = buildSoftware(); const out = await elk.layout(graph); const abs = absMap(out);
+  const {graph} = buildSoftware(); const out = await lay(graph); const abs = absMap(out);
   const svg = el("svg", {}, cv), root = el("g", {}, svg);
   out.children.filter(c => c.id.startsWith("h:")).forEach(c => { const src = graph.children.find(x => x.id === c.id);
-    const g = el("g", {class: "cont roshost" + (src.none ? " none" : ""), transform: `translate(${c.x},${c.y})`}, root); g.dataset.host = src.none ? "" : src.host;
+    const g = el("g", {class: "cont roshost" + (src.none ? " none" : ""), transform: `translate(${abs[c.id].x},${abs[c.id].y})`}, root); g.dataset.host = src.none ? "" : src.host; tagMv(g, c.id, abs);
     el("rect", {width: c.width, height: c.height, rx: 12}, g);
     el("text", {x: 14, y: 24, class: "t", style: src.none ? "fill:var(--muted)" : ""}, g).textContent = src.label;
-    if (!src.children.length) el("text", {x: 14, y: 52, class: "ty"}, g).textContent = src.none ? "every node has a computer" : "drop a node here";
+    if (SERVED && !src.none) el("circle", {class: "hdl", cx: c.width, cy: 20, r: 5}, g);
     if (!src.none) g.addEventListener("click", ev => { if (!ev.target.closest(".rosnode") && !dragged) showPart(src.host); }); });
   const defs = el("defs", {}, svg); const mk = el("marker", {id: "arr", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse"}, defs);
   el("path", {d: "M0,0 L10,5 L0,10 z", fill: "var(--muted)"}, mk);
   allEdges(out).forEach(([e, cont]) => { const off = abs[e.container || cont.id] || {x: 0, y: 0};
-    (e.sections || []).forEach(s => { const pts = [s.startPoint, ...(s.bendPoints || []), s.endPoint]; const d = "M" + pts.map(p => `${p.x + off.x},${p.y + off.y}`).join(" L");
+    (e.sections || []).forEach(s => { const r = routePts(e, cont, abs, s); const d = "M" + r.pts.map(p => `${p.x},${p.y}`).join(" L");
       if (e.link) { const p = el("path", {d, class: "roslink"}, root); el("title", {}, p).textContent = `${e.link.wire}\nclick to change`;
         if (SERVED) p.addEventListener("click", ev => { ev.stopPropagation(); openForm("ros_link", {a: e.link.a, b: e.link.b}); }); return; }
-      el("path", {d, class: "rosedge" + (e.e && e.e.planned ? " plan" : ""), "marker-end": "url(#arr)"}, root); });
+      const pub = e.id.startsWith("p:"), nn = e.id.split(":")[1], tp = e.e.topic;
+      const p = el("path", {d, class: "rosedge" + (e.e.planned ? " plan" : ""), "marker-end": "url(#arr)"}, root); p.dataset.redge = `${nn}|${tp}|${pub ? "out" : "in"}`;
+      if (SERVED) { const hit = el("path", {d, class: "rhit"}, root); el("title", {}, hit).textContent = `${pub ? `${nn} publishes ${tp}` : `${nn} subscribes to ${tp}`}${e.e.planned ? " (planned)" : ` (in the code, ${M.nodes.find(x => x.name === nn)?.file || ""}:${e.e.line})`}. Click, then Delete to remove.`;
+        hit.addEventListener("click", ev => { ev.stopPropagation(); rsel = {type: "edge", node: nn, topic: tp, io: pub ? "out" : "in", planned: !!e.e.planned}; markR(); }); } });
     (e.labels || []).forEach(l => { const g = el("g", {class: "elab", transform: `translate(${l.x + off.x},${l.y + off.y})`}, root);
       el("rect", {width: l.width, height: l.height, rx: 5}, g); el("text", {x: 7, y: 12.5}, g).textContent = l.text; }); });
   Object.values(abs).forEach(({x, y, n}) => {
     if (n.id.startsWith("n:")) { const nd = graph.children.flatMap(c => c.children || []).find(z => z.id === n.id).n;
-      const g = el("g", {class: "rosnode" + (nd.lang === "plan" ? " plan" : ""), transform: `translate(${x},${y})`}, root); g.dataset.node = nd.name;
+      const g = el("g", {class: "rosnode" + (nd.lang === "plan" ? " plan" : ""), transform: `translate(${x},${y})`}, root); g.dataset.node = nd.name; tagMv(g, n.id, abs);
       el("rect", {class: "b", width: n.width, height: n.height, rx: 8}, g);
       el("rect", {x: 0, y: 6, width: 4, height: n.height - 12, rx: 2, fill: LANGCOL[nd.lang] || "var(--faint)"}, g);
       el("text", {x: 12, y: 20, style: "font-size:12.5px;font-weight:650"}, g).textContent = nd.name;
       el("text", {x: 12, y: 36, style: "font-size:10.5px;fill:var(--muted)"}, g).textContent = nd.lang === "plan" ? "planned · not in the code yet" : nd.file.split("/").pop() + (nd.lang === "c" ? " · micro-ROS" : "");
-      g.addEventListener("click", ev => { ev.stopPropagation(); if (!dragged) showNode(nd.name); }); }
+      if (SERVED) el("circle", {class: "hdl", cx: n.width, cy: n.height / 2, r: 5}, g);
+      g.addEventListener("click", ev => { ev.stopPropagation(); if (!dragged) { rsel = {type: "node", name: nd.name}; markR(); showNode(nd.name); } }); }
     if (n.id.startsWith("t:")) { const t = graph.children.find(z => z.id === n.id).t; const lonely = !t.pub.length || !t.sub.length;
-      const g = el("g", {class: "topic" + (t.planned ? " plan" : ""), transform: `translate(${x},${y})`}, root); g.dataset.topic = t.topic;
+      const g = el("g", {class: "topic" + (t.planned ? " plan" : ""), transform: `translate(${x},${y})`}, root); g.dataset.topic = t.topic; tagMv(g, n.id, abs);
       el("rect", {width: n.width, height: n.height, rx: 19, style: lonely || t.planned ? "stroke-dasharray:4 3" : ""}, g);
       el("text", {x: 12, y: 16, class: "mono", style: "font-size:11.5px"}, g).textContent = t.topic;
       el("text", {x: 12, y: 30, class: "ty"}, g).textContent = t.types.join(", ").split("/").pop();
-      g.addEventListener("click", ev => { ev.stopPropagation(); if (!dragged) showTopic(t.topic); }); }
+      if (SERVED) el("circle", {class: "hdl", cx: n.width, cy: n.height / 2, r: 5}, g);
+      g.addEventListener("click", ev => { ev.stopPropagation(); if (!dragged) { rsel = {type: "topic", topic: t.topic}; markR(); showTopic(t.topic); } }); }
   });
-  panZoom(svg, out.width, out.height);
+  panZoom(svg, out.width, out.height); markR();
+  movable(svg, root, (id, ev, st) => {  // a node dropped into another computer now runs there
+    if (!id.startsWith("n:")) return false;
+    const nm = id.slice(2), n = M.nodes.find(x => x.name === nm);
+    const h = document.elementsFromPoint(ev.clientX, ev.clientY).map(e => e.closest && e.closest(".roshost")).find(g => g && g.dataset.mv !== "h:" + (n.host || "__none"));
+    if (!h || !SERVED) return false;
+    const to = h.dataset.host || ""; delete curOff()[id]; saveLayout();
+    n.host = to || null; n.host_from = to ? "node" : null; render(); quick("allocate", {node: nm, to}); return true; });
   if (SERVED) rosDrag(svg, root);
 }
+let rsel = null;
+function markR() { document.querySelectorAll(".rsel").forEach(x => x.classList.remove("rsel")); if (!rsel) return;
+  const q = rsel.type === "node" ? `.rosnode[data-node="${CSS.escape(rsel.name)}"]` : rsel.type === "topic" ? `.topic[data-topic="${CSS.escape(rsel.topic)}"]` : `path.rosedge[data-redge="${CSS.escape(`${rsel.node}|${rsel.topic}|${rsel.io}`)}"]`;
+  document.querySelectorAll(q).forEach(x => x.classList.add("rsel")); }
+function rosDelete() {
+  const r = rsel; if (!r) return;
+  if (r.type === "edge") return r.planned ? (rsel = null, quick("ros_unplan", {node: r.node, topic: r.topic, io: r.io}))
+    : toast(`${r.node} ${r.io === "out" ? "publishes" : "subscribes to"} ${r.topic} in its code: remove it there.`, true);
+  if (r.type === "node") { const n = M.nodes.find(x => x.name === r.name); if (!n) return;
+    return n.lang === "plan" ? (rsel = null, closeDrawer(), quick("ros_node_delete", {name: n.name})) : toast(`${n.name} is in the code (${n.file}): remove it there. ${n.planned ? "Its plan can be dropped in its panel." : ""}`, true); }
+  if (r.type === "topic") { const t = M.topics.find(x => x.topic === r.topic); if (!t) return;
+    return t.planned ? (rsel = null, closeDrawer(), quick("ros_topic_delete", {topic: t.topic})) : toast(`${t.topic} is used in the code: remove it there.`, true); }
+}
+document.addEventListener("keydown", e => { if ((e.key === "Delete" || e.key === "Backspace") && view === "software" && rsel && SERVED && !document.querySelector(".modal")
+  && !/INPUT|TEXTAREA|SELECT/.test((document.activeElement || {}).tagName || "")) { e.preventDefault(); rosDelete(); } });
 let dragged = false;
 const LANGCOL = {c: "var(--arch)", cpp: "var(--sig)", py: "var(--good)", plan: "var(--faint)"};
 function rosDrag(svg, root) {  // drag node → computer / node / topic, topic → node, computer → computer
@@ -753,7 +823,7 @@ function rosDrag(svg, root) {  // drag node → computer / node / topic, topic �
       const tp = M.topics.find(x => x.topic === t.dataset.topic); return quick("ros_topic", {from: nm, topic: tp.topic, type: tp.types[0] === "?" ? "" : tp.types[0]}); }
     if (s.matches(".topic")) { const tp = M.topics.find(x => x.topic === s.dataset.topic); return quick("ros_topic", {to: t.dataset.node, topic: tp.topic, type: tp.types[0] === "?" ? "" : tp.types[0]}); }
     openForm("ros_link", {a: s.dataset.host, b: t.dataset.host}); };
-  svg.addEventListener("pointerdown", ev => { const src = ev.target.closest(".rosnode,.topic,.roshost:not(.none)"); if (!src || ev.button) return;
+  svg.addEventListener("pointerdown", ev => { if (!ev.target.closest(".hdl")) return; const src = ev.target.closest(".rosnode,.topic,.roshost:not(.none)"); if (!src || ev.button) return;
     ev.stopPropagation(); ev.preventDefault(); dragged = false; st = {src, x0: ev.clientX, y0: ev.clientY, p: at(ev), line: null};
     window.addEventListener("pointermove", move); window.addEventListener("pointerup", up); }, true);
 }
@@ -884,7 +954,7 @@ function ago(d) { if (!d) return ""; const s = (Date.now() - new Date(d)) / 1000
   if (s < 86400) return `${Math.round(s / 3600)} h ago`; if (s < 30 * 86400) return `${Math.round(s / 86400)} d ago`; return new Date(d).toISOString().slice(0, 10); }
 const tm = d => `<time data-t="${H(d || "")}" title="${H((d || "").replace("T", " ").replace("Z", " UTC"))}">${ago(d)}</time>`;
 setInterval(() => document.querySelectorAll("time[data-t]").forEach(e => { e.textContent = ago(e.dataset.t); }), 20000);
-const labChip = (l, col) => { const c = col && /^[0-9a-f]{6}$/i.test(col) ? "#" + col : null;
+const labChip = (l, col) => { const c = null;
   return `<span class="lab ${l === "bug" ? "bug" : l === "idea" ? "idea" : ""}" ${c ? `style="border-color:color-mix(in srgb,${c} 60%,transparent);background:color-mix(in srgb,${c} 18%,transparent);color:color-mix(in srgb,${c} 55%,var(--ink))"` : ""}>${H(l)}</span>`; };
 const avatar = (who, url) => `<img class="av" alt="" src="${H(url || (who && who !== "you" ? `https://github.com/${encodeURIComponent(who)}.png?size=48` : ""))}" onerror="this.style.visibility='hidden'">`;
 let ist = "active", ikind = "all", isub = "", iq = "";
@@ -1197,7 +1267,7 @@ function formSpec(kind, d) {
       `<div id="rplist">${SET().ros_paths.map(x => `<div class="prow" style="grid-template-columns:1fr auto"><input name="paths[]" value="${H(x)}"><button class="act dz" type="button" data-rm>✕</button></div>`).join("")}</div>` +
       fld("pick", "Add a folder", "Found in the repo: ROS2 packages, STM32 Core/Src folders, folders under software/ or src/.", `<select id="rppick"><option value="">pick…</option>${SET().ros_candidates.filter(x => !SET().ros_paths.includes(x.path)).map(x => `<option value="${H(x.path)}">${H(x.path)} (${H(x.note)})</option>`).join("")}<option value="+">another folder (type it)…</option></select>`)};
     case "port_type": return {title: "New port type", sub: "For connections the built-in types do not cover, e.g. a 5 V rail or a motor mount. Ports connect only to ports of the same type.", html: ownTypes() +
-      `<div class="two">${fld("name", "Type name", "e.g. Power5V, MotorMount", inp("name", "", "Power5V"))}${fld("kind", "Kind (which view shows it)", "", sel("kind", [["Signal", "Signal"], ["Power", "Power"]]))}</div>` + fld("meaning", "Meaning", "Shown in panels and the ICD.", inp("meaning", "", "5 V rail"))};
+      fld("name", "Type name", "e.g. Power5V, CanBus2", inp("name", "", "Power5V")) + fld("kind", "Kind (which view shows it)", "", sel("kind", [["Signal", "Signal"], ["Power", "Power"]])) + fld("meaning", "Meaning", "Shown in panels and the ICD.", inp("meaning", "", "5 V rail"))};
     case "port_type_delete": return {title: `Delete port type ${d.name}`, sub: "Only possible when no port uses it.", html: "", extra: {name: d.name}};
     case "part": { const parentPath = part ? part.path.split(".").slice(0, -1).join(".") : (d.parent && M.parts[d.parent] ? d.parent.split(".").slice(0, 2).join(".") : ""), own = part ? part.ports.filter(q => q.own) : [];
       const inherited = part ? part.ports.filter(q => !q.own && !q.missing) : [];
@@ -1206,8 +1276,9 @@ function formSpec(kind, d) {
       return {title: part ? `Edit ${short(d.orig)}` : "New part", sub: "A module, sensor, driver, battery or computer. Its ports are the pins, buses, power and mounts it connects with.", html:
       (!part && templates().length ? fld("tpl", "Start from the parts library", "Fills in the fields below.", `<select id="tplsel"><option value="">none</option>${templates().map((t, i) => `<option value="${i}">${H(t.name)}${t.doc ? " · " + H(t.doc.slice(0, 40)) : ""}</option>`).join("")}</select>`) : "") +
       fld("parent", "Subsystem", "", (places.length ? sel("parent", places, parentPath) : sel("parent", [], "", "add subsystems in Setup first"))) + fld("name", "Name", "e.g. imu, lora, pi, battery", inp("name", part ? part.name : "", "imu")) +
+      fld("pkind", "Kind", "Colours the part in the diagrams.", sel("pkind", PKINDS.map(k => [k[0], k[1]]), part ? partKind(part) : "sensor")) +
       fld("doc", "What it is", "Part number or one line.", inp("doc", part ? part.doc : "", "ICM-42688-P IMU, SPI")) +
-      `<div class="fld"><label>Details</label><div class="hint">For the BOM and the checks: part number, supplier, cost, I2C address… Add any field you like.</div>${kvBox(part ? part.attrs : {}, SUGGEST.part, "pattr", true)}</div>` +
+      `<div class="fld"><label>Details</label><div class="hint">For the BOM and the checks: part number, supplier, cost, I2C address… Add any field you like.</div>${kvBox(Object.fromEntries(Object.entries(part ? part.attrs : {}).filter(([k]) => k !== "kind")), SUGGEST.part, "pattr", true)}</div>` +
       `<div class="fld"><label>Ports</label><div class="hint">${inherited.length ? `${inherited.length} come from ${part.board ? "its .ioc" : `its type ${H(part.type)}`} (name and type fixed, details editable). ` : ""}You can also add ports while connecting: click a port, then this part.</div>
         <div id="prows">${inherited.map(q => prow(q, true)).join("")}${own.map(q => prow(q)).join("")}</div><button class="act" type="button" id="addport">+ Port</button> <span class="dsub">Missing a type? <span class="xref" onclick="parkModal()">Add one</span></span></div>`,
       extra: part ? {orig: d.orig} : {}}; }
@@ -1257,9 +1328,12 @@ function formSpec(kind, d) {
     case "ros_node_delete": { const n = M.nodes.find(x => x.name === d.name);
       return {title: n.lang === "plan" ? `Delete ${n.name}?` : `Drop the plan for ${n.name}?`, sub: n.lang === "plan" ? "Removes the planned node and its planned topics." : "The node stays (it is in the code); only its planned topics go.", html: "", extra: {name: n.name}}; }
     case "ros_topic": { const nodes = M.nodes.map(n => [n.name, n.name]);
-      return {title: "New topic", sub: "The first node publishes it, the second subscribes. Added to their plans; dashed until it is in the code.", html: rosLists() +
+      return {title: "New topic", sub: "Pick who publishes and who subscribes now, or leave both as nobody and connect it later from its ● handle. Dashed until it is in the code.", html: rosLists() +
       `<div class="two">${fld("from", "Published by", "", sel("from", nodes, d.from || "", "nobody yet"))}${fld("to", "Subscribed by", "", sel("to", nodes, d.to || "", "nobody yet"))}</div>` +
       fld("topic", "Topic", "An existing topic keeps its message type.", `<input name="topic" list="dltopics" placeholder="/cmd_vel" autocomplete="off" oninput="const t = M.topics.find(x => x.topic === this.value.trim()); if (t && t.types[0] !== '?') { this.form.type.value = t.types[0]; }">`) + fld("type", "Message type", "", `<input name="type" list="dltypes" placeholder="geometry_msgs/msg/Twist" autocomplete="off">`)}; }
+    case "ros_topic_edit": { const t = M.topics.find(x => x.topic === d.topic);
+      return {title: `Topic ${t.topic}`, sub: "A planned topic: renaming it changes it for every node that plans it.", html: rosLists() +
+      fld("topic", "Topic", "", `<input name="topic" value="${H(t.topic)}" autocomplete="off">`) + fld("type", "Message type", "", `<input name="type" list="dltypes" value="${H(t.types[0] === "?" ? "" : t.types[0])}" autocomplete="off">`), extra: {orig: t.topic}}; }
     case "ros_link": { const ws = hostWires(d.a, d.b), cur = ws.find(c => (c.attrs || {}).ros);
       return {title: `ROS between ${short(d.a)} and ${short(d.b)}`, sub: "Which wire carries ROS between these two (the micro-ROS agent link, Ethernet…). It is drawn in this view, and the wire's panel lists it.", html: ws.length ?
       fld("wire", "Wire", "", sel("wire", ws.map(c => [`${c.a.join(".")}|${c.b.join(".")}`, `${short(c.a.join("."))} ↔ ${short(c.b.join("."))} (${c.type})`]), cur ? `${cur.a.join(".")}|${cur.b.join(".")}` : "")) +
@@ -1411,6 +1485,7 @@ function openForm(kind, data = {}) {
     frm.querySelectorAll("input[type=checkbox][name]").forEach(cb => { if (!cb.name.endsWith("[]")) o[cb.name] = cb.checked; });
     if ((kind === "part" || kind === "template") && $("#prows")) o.ports = [...frm.querySelectorAll("#prows > .prow")].map(r => ({name: r.querySelector("[data-pn]").value.trim(), type: r.querySelector("[data-pt]").value, was: r.dataset.was || "", attrs: kvCollect(r.querySelector(".kvbox"))}));
     if ($("#pattr")) o.attrs = kvCollect($("#pattr"));
+    if (kind === "part" && o.pkind) { o.attrs = [...(o.attrs || []).filter(x => x.key !== "kind"), {key: "kind", value: o.pkind}]; delete o.pkind; }
     if (kind === "ros_paths" && !o.paths) o.paths = [];
     if (kind === "bom_columns" && !o.columns) o.columns = [];
     if (kind === "satisfy" && !o.parts) o.parts = [];

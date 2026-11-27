@@ -105,7 +105,7 @@ def load_arch(root, cfg):
     if os.path.exists(path):
         a = dm.Parser(open(path, encoding="utf-8").read(), os.path.relpath(path, root)).parse()
     else:
-        a = {"port_defs": {}, "part_defs": {}, "parts": [], "allocations": [], "satisfies": [], "actions": []}
+        a = {"port_defs": {}, "part_defs": {}, "parts": [], "allocations": [], "satisfies": [], "actions": [], "items": []}
     if len(a["parts"]) > 1:
         raise EditError(f"{os.path.relpath(path, root)} has {len(a['parts'])} top-level parts; the page needs exactly one (the robot)")
     top = a["parts"][0] if a["parts"] else {"name": cfg["project"]["name"], "type": None, "parts": [], "ports": [],
@@ -126,7 +126,8 @@ def load_arch(root, cfg):
             "part_defs": {k: _clean(v) for k, v in a["part_defs"].items()},
             "allocs": [[x["what"], rel(x["to"])] for x in a["allocations"]],
             "sats": [[x["req"], rel(x["by"])] for x in a["satisfies"]],
-            "acts": [{"name": x["name"], "doc": x.get("doc", ""), "out": x["out"], "in": x["in"]} for x in a.get("actions", [])]}
+            "acts": [{"name": x["name"], "doc": x.get("doc", ""), "out": x["out"], "in": x["in"]} for x in a.get("actions", [])],
+            "items": [{"topic": x["topic"], "type": x["type"]} for x in a.get("items", [])]}
 
 
 def q(s):
@@ -197,13 +198,14 @@ def arch_text(A, cfg):
     if A["sats"]:
         o.append("")
         o += [f"    satisfy {q(r)} by {path([top['name']] + b)};" for r, b in A["sats"]]
-    if A.get("acts"):
+    if A.get("acts") or A.get("items"):
         o += ["", "    // ROS2 plan: nodes and the topics they publish (out) and subscribe to (in), drawn on the page.",
               "    // A node with the same name in the code is the same node; the page shows what is planned but not built."]
         for a in A["acts"]:
             body = ([f"        doc /* {_doc(a['doc'])} */"] if a.get("doc") else []) + \
                 [f"        {io} item {q_any(x['topic'])}" + (f" : {q_any(x['type'])}" if x.get("type") else "") + ";" for io in ("out", "in") for x in a[io]]
             o += [f"    action {q(a['name'])} {{"] + body + ["    }"] if body else [f"    action {q(a['name'])};"]
+        o += [f"    item {q_any(x['topic'])}" + (f" : {q_any(x['type'])}" if x.get("type") else "") + ";" for x in A.get("items", [])]
     o.append("}")
     return "\n".join(o) + "\n"
 
@@ -987,8 +989,45 @@ def op_ros_topic(cfg, A, f, ctx):
             a[io].append({"topic": t, "type": typ})
         done.append(f"{who} {'publishes' if io == 'out' else 'subscribes to'} {t}")
     if not done:
-        raise EditError("Pick a publisher or a subscriber")
+        if any(x["topic"] == t for x in A.setdefault("items", [])) or have or t in {tp["topic"] for tp in (ctx["model"] or {}).get("topics", [])}:
+            raise EditError(f"{t} already exists; connect it from its ● handle")
+        A["items"].append({"topic": t, "type": typ})
+        return f"ROS plan: topic {t}", []
     return "ROS plan: " + ", ".join(done), []
+
+
+def _code_uses(ctx, t):
+    return [f"{n['name']}" for n in (ctx["model"] or {}).get("nodes", []) for r in ("pub", "sub") for x in n[r] if x["topic"] == t and not x.get("planned")]
+
+
+def op_ros_topic_edit(cfg, A, f, ctx):
+    orig, t = str(f.get("orig") or ""), _topic(f.get("topic"))
+    typ = str(f.get("type") or "").strip()
+    if t != orig and _code_uses(ctx, orig):
+        raise EditError(f"{orig} is used in the code ({', '.join(_code_uses(ctx, orig))}): rename it there")
+    hit = False
+    for a in A.get("acts", []):
+        for io in ("out", "in"):
+            for x in a[io]:
+                if x["topic"] == orig:
+                    x["topic"], x["type"], hit = t, typ or x["type"], True
+    for x in A.get("items", []):
+        if x["topic"] == orig:
+            x["topic"], x["type"], hit = t, typ or x["type"], True
+    if not hit:
+        raise EditError(f"{orig} is not planned")
+    return f"ROS plan: topic {orig}" + (f" → {t}" if t != orig else "") + (f" ({typ})" if typ else ""), []
+
+
+def op_ros_topic_delete(cfg, A, f, ctx):
+    t = str(f.get("topic") or "")
+    if _code_uses(ctx, t):
+        raise EditError(f"{t} is used in the code ({', '.join(_code_uses(ctx, t))}): remove it there")
+    for a in A.get("acts", []):
+        for io in ("out", "in"):
+            a[io] = [x for x in a[io] if x["topic"] != t]
+    A["items"] = [x for x in A.get("items", []) if x["topic"] != t]
+    return f"ROS plan: remove topic {t}", []
 
 
 def op_ros_unplan(cfg, A, f, ctx):
@@ -997,7 +1036,7 @@ def op_ros_unplan(cfg, A, f, ctx):
     if not a:
         raise EditError("that node has no plan")
     t = str(f.get("topic") or "")
-    for io in ("out", "in"):
+    for io in ([f["io"]] if f.get("io") in ("out", "in") else ["out", "in"]):
         a[io] = [x for x in a[io] if x["topic"] != t]
     return f"ROS plan: {a['name']} without {t}", []
 
@@ -1018,7 +1057,7 @@ def op_ros_link(cfg, A, f, ctx):
     raise EditError("no such wire; connect the two in the Electrical view first")
 
 
-OPS = {"ros_node": op_ros_node, "ros_node_delete": op_ros_node_delete, "ros_topic": op_ros_topic, "ros_unplan": op_ros_unplan, "ros_link": op_ros_link,
+OPS = {"ros_topic_edit": op_ros_topic_edit, "ros_topic_delete": op_ros_topic_delete, "ros_node": op_ros_node, "ros_node_delete": op_ros_node_delete, "ros_topic": op_ros_topic, "ros_unplan": op_ros_unplan, "ros_link": op_ros_link,
        "subsystem": op_subsystem, "subsystem_delete": op_subsystem_delete, "subsystem_restore": op_subsystem_restore,
        "subsystem_move": op_subsystem_move, "board": op_board, "board_remove": op_board_remove, "ros_paths": op_ros_paths,
        "port_type": op_port_type, "port_type_delete": op_port_type_delete, "part": op_part, "part_delete": op_part_delete,
