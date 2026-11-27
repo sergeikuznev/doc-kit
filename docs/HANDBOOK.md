@@ -599,7 +599,8 @@ A prefix is permanent once a requirement uses it; the name can change any time.
 - **A part** is anything else: a module, sensor, driver, battery, computer.
   You give it ports.
 - **A port type** says what a port carries, and so which view shows it:
-  Signal (SPI, I²C, UART, GPIO, …), Power or Mechanical. A wire joins two
+  Signal (SPI, I²C, UART, GPIO, …, in Electrical), Power (in Power) or
+  Mechanical (mounts, dashed in System). A wire joins two
   ports of the same type. Make your own types (`Power5V`, `MotorMount`) when
   the check should be stricter.
 - **A wire** (`connect` in the file) joins two ports.

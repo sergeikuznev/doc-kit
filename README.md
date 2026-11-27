@@ -4,7 +4,7 @@
 fail and what is proven. Built from the files you already keep, for hardware
 and robotics projects.**
 
-![System view](docs/images/page-02-system.png)
+![System view](docs/images/system.png)
 
 doc-kit reads your CubeMX `.ioc` files, your ROS2 and micro-ROS code, and a
 plain-text record of requirements, faults and decisions in your repo, and turns
@@ -43,12 +43,12 @@ only shows what your files say, and only writes what you typed.
 
 | | |
 |---|---|
-| ![Setup](docs/images/page-24-setup.png) | ![Wiring in Electrical](docs/images/page-29-edit-mode.png) |
-| Setup: your subsystems, boards and code | Wiring: click a pin, then the module |
-| ![Electrical view with a part open](docs/images/page-05-part-panel.png) | ![Recording a test](docs/images/page-18-form.png) |
-| Click a part: every pin, setting and link | Record a test, with the photo |
-| ![Broken link](docs/images/page-22-broken-link.png) | ![Requirements](docs/images/page-09-requirements.png) |
-| A renamed pin shows up in red | Requirements with evidence and photos |
+| ![Overview](docs/images/overview.png) | ![Wiring in Electrical](docs/images/wiring.png) |
+| Overview: size, coverage, problems and gaps | Wiring: click a pin, then the module |
+| ![Electrical view with a part open](docs/images/part-panel.png) | ![Software view](docs/images/software.png) |
+| Click a part: every pin, setting and link | ROS2 nodes and topics, read from the code and planned |
+| ![Recording a test](docs/images/form.png) | ![Requirements](docs/images/requirements.png) |
+| Record a test, with the photo | Requirements with evidence and photos |
 
 ## Documentation
 
