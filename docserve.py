@@ -479,6 +479,15 @@ def make_handler(S):
         def do_GET(self):
             path = urllib.parse.urlparse(self.path).path
             if path in ("/", "/system.html", "/index.html"):
+                # a reload shows the current files: rebuild now if anything changed (no waiting for the next check),
+                # and look for new commits on GitHub in the background (the reload banner appears if there are some)
+                try:
+                    S.rebuild()
+                except Exception as e:
+                    S.note(f"rebuild failed: {e}")
+                if time.time() - getattr(S, "pulled_at", 0) > 10:
+                    S.pulled_at = time.time()
+                    threading.Thread(target=lambda: (S.pull(), S.rebuild()), daemon=True).start()
                 if not S.page:
                     return self.send(500, f"<pre>doc model failed:\n{S.error}</pre>", "text/html")
                 return self.send(200, S.page, "text/html; charset=utf-8")
