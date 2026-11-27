@@ -67,8 +67,8 @@ doc serve               # the page, live, at http://127.0.0.1:8765
 
 `init` asks only for the project name; there are no default subsystems. On the
 page, open **Setup** and add your subsystems, boards (each with its `.ioc`) and
-ROS2 code folders, then click **Edit** in the System views to add parts and wire
-them ([step by step](docs/PAGE.md#a-first-setup-on-a-project)).
+ROS2 code folders, then add parts and wire them straight in the System, Electrical and
+Power views ([step by step](docs/PAGE.md#a-first-setup-on-a-project)).
 
 **On your phone:** `doc serve` listens on this machine only. Share it with your
 own devices through [Tailscale](https://tailscale.com): `tailscale serve --bg 8765`.

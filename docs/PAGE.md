@@ -183,20 +183,21 @@ Raspberry Pi, a laptop) is an ordinary part: add it in the System views.
 
 ## 4. Building the robot: parts and wiring
 
-Parts and wires are added in the diagrams. Click **Edit** in the toolbar of
-the System, Electrical, Power or Mechanical view.
+Parts and wires are added straight in the System, Electrical and Power
+views: there is no separate edit mode. Every part and every port of the
+view's kind is drawn, connected or not.
 
 ![Edit mode](images/page-29-edit-mode.png)
 
-1. **Edit / Done** switches edit mode on and off. In edit mode every part and
-   every port of the view's kind is drawn, connected or not.
+1. **The hint** under the title says what clicks do.
 2. **+ Part** adds a module, sensor, driver, battery or computer.
-3. **The hint bar** says what the next click does.
+3. **The hint bar** appears once you pick a port and says what the next click does.
 4. **Click a port** to start a wire. It is highlighted.
 5. **Click the other end**: a port of the same type, or a part. Clicking a
    part offers to give it a new port of the right type.
 
-Click a wire to remove it; click a part to open its panel. Esc cancels.
+Click a wire for its details (and **Remove**); click a part to open its panel.
+Click empty space or press Esc to drop a picked port.
 
 ![Connect form](images/page-30-connect-form.png)
 
@@ -214,7 +215,7 @@ connect the same MCU port to each.
 ![Part panel actions](images/page-31-part-actions.png)
 
 1. **Edit part / Connect ports… / Delete** in the part's panel.
-   *Connect ports…* opens the Electrical view of its subsystem in edit mode.
+   *Connect ports…* opens the Electrical view of its subsystem.
 2. **Ports and what each connects to.** **✕** removes that connection.
 
 ![Part form](images/page-32-part-form.png)
@@ -248,7 +249,7 @@ details too (e.g. the MCU's power input).
 
 ### Wires
 
-In edit mode, click a wire for its **wire details** (gauge, length, connector,
+Click a wire for its **wire details** (gauge, length, connector,
 cable…) or to remove it. The connect form has the same fields, folded away.
 In a part's panel, **wire** next to each connection opens them; the details
 show under the connection, in the Interfaces table and in the BOM.
@@ -258,7 +259,9 @@ show under the connection, in the Interfaces table and in the BOM.
 ![Allocate form](images/page-33-allocate.png)
 
 In the **Software** view, click a node, then **Change** next to *Runs on*.
-Nodes that run nowhere yet are grouped under *Not allocated*.
+Nodes that run nowhere yet are grouped under *Not allocated to hardware*.
+A micro-ROS node whose source file sits inside a board's folder (the folder
+of its `.ioc`) is placed on that board's part by itself.
 
 doc-kit also reads your **launch files** (`.launch.py`, `.launch.xml`) in the
 ROS2 code folders. A node's panel shows which launch file starts it, with its
@@ -288,8 +291,9 @@ layout (and drops `//` comments) on its next change.
 ![System view](images/page-02-system.png)
 
 1. **A subsystem** with its name and the parts inside it. Click it for its panel.
-2. **What crosses between subsystems**: one line per kind, labelled with the
-   ports it carries (`spi1, nrf24_csn, nrf24_ce`) or *power* / *mount*.
+2. **What crosses between subsystems**: one line per kind, labelled with each
+   connection as `part.port → part.port` (`mcu.spi1 → radio.spi`), up to four,
+   then *+N more*. **+ Part** in a subsystem adds a part to it.
 3. **Open issues** placed in this subsystem.
 4. **Requirement progress**: verified out of total, and how many failed.
 5. **Legend.** Blue is signal, amber is power, dashed purple is mechanical.
@@ -304,9 +308,11 @@ Clicking empty space closes the panel.
 3. **Requirements** that belong here (every `COMM-###` lands in `COMM`).
 4. **Faults** covered by those requirements. Decisions and open issues follow below.
 
-### Electrical, Power, Mechanical
+### Electrical
 
-Three views of the same parts, each showing only the ports of its kind.
+Two views of the same parts, each showing only the ports of its kind:
+signal buses and pins in Electrical, power in Power. Mechanical links (mounts)
+show as dashed lines in the System view.
 
 ![Electrical view](images/page-04-electrical.png)
 
@@ -340,6 +346,30 @@ Click a part to open its panel.
 Further down the panel: requirements, faults, decisions, open issues and
 photos that belong to this part, and any gap that names it.
 
+### Power
+
+The same parts with only their **power ports**: battery outputs, regulator
+inputs and outputs, supply pins of boards and modules. Amber lines are power.
+
+1. **A power port.** Wire a source (battery `out`, buck `vout`) to each
+   device's input (`vin`, `vcc`) the same way as in Electrical: click one port,
+   then the other.
+2. **Details** on a power port are what the power checks use: `voltage` on
+   every port, `max_current` on a source (what it can supply), `current` on a
+   load (what it draws). Open them in the part form, **Details** next to the
+   port, or in the connect form.
+3. **Every group of wired power ports is a rail.** Its load against what is
+   available, and any rail that is overloaded or mixes voltages, are in
+   **Power & checks** and among the Overview's gaps.
+4. A regulator is both: a load on its input rail and a source on its output
+   rail. Enter its input draw by hand (output load ÷ efficiency, scaled by
+   voltage).
+
+A typical chain: `battery.out → buck.vin`, `buck.vout → mcu.vin`,
+`buck.vout → radio.vcc`. Use your own port types (Setup › Port types, e.g.
+`Power5V`) to make the check stricter, so a 12 V output cannot be wired to a
+5 V input.
+
 ### Software (ROS2)
 
 ![Software view](images/page-07-software.png)
@@ -347,7 +377,7 @@ photos that belong to this part, and any gap that names it.
 1. **A computer** with the nodes that run on it.
 2. **A node**, with the file it was found in. Click for its topics and line numbers.
 3. **A topic** with its message type. Arrows go publisher → topic → subscriber.
-4. **Not allocated**: nodes no computer runs yet (amber). Click one and set *Runs on*.
+4. **Not allocated to hardware**: nodes no computer runs yet (dashed box). Click one and set *Runs on*.
 5. **A topic with only one side** (amber border): published but never
    subscribed, or the other way round.
 
@@ -597,7 +627,7 @@ wire to `nrf24_ce` now points at a pin that is gone.
 2. **The link to it**, red and dashed, instead of silently drawing the old wire.
 3. **Focus** on one subsystem (from its panel) to see just the affected wiring.
 
-Fix it on the page: **Edit**, click the red wire to remove it, then connect
+Fix it on the page: click the red wire to remove it, then connect
 `radio_ce` to the module's `ce`. The red counter disappears.
 
 The pre-commit hook stops a commit from your own clone with the same message,

@@ -667,7 +667,7 @@ def build(root, overrides=None):
     for b in cfg["board"]:
         if "name" not in b or "ioc" not in b:
             raise ModelError("each [[board]] in model.toml needs name and ioc")
-        boards.append(parse_ioc(resolve_ioc(root, b["ioc"]), b) | {"board": b["name"]})
+        boards.append(parse_ioc(resolve_ioc(root, b["ioc"]), b) | {"board": b["name"], "board_cfg": b})
     nodes, ros_unknown = scan_ros(root, cfg["ros"]["paths"])
     launches = scan_launch(root, cfg["ros"]["paths"])
     for n in nodes:
@@ -823,9 +823,24 @@ def build(root, overrides=None):
         else:
             problems.append(f"{afile}:{a['line']}: allocate {'::'.join(a['what'])}: no ROS node of that name "
                             f"(found: {', '.join(sorted(node_names)) or 'none'})")
+    # a micro-ROS node in a board's firmware folder runs on the part that is that board
+    by_folder = {}
+    for b in boards:
+        try:
+            folder = os.path.relpath(os.path.dirname(resolve_ioc(root, b["board_cfg"]["ioc"])), root)
+        except Exception:
+            continue
+        on = [k for k, p in parts.items() if p.get("board") == b["board"]]
+        if len(on) == 1:
+            by_folder[folder] = on[0]
     for n in nodes:
         n["host"] = host.get(n["name"]) or via_launch.get(n["name"])
         n["host_from"] = "node" if n["name"] in host else "launch" if n["host"] else None
+        if not n["host"] and n.get("lang") == "c":
+            for folder, k in by_folder.items():
+                if folder == "." or n["file"].startswith(folder.rstrip("/") + "/"):
+                    n["host"], n["host_from"] = k, "board"
+                    break
 
     # ---- requirement placement
     found = [c.split(".")[-1] for c in parts[top["name"]]["children"]]

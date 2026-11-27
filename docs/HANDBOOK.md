@@ -564,7 +564,7 @@ Two kinds of information, kept apart on purpose:
   `docs/model/<name>_facts.sysml`. Nobody edits that file; change the source instead.
 - **Architecture** is what only you know: that the nRF24 sits on SPI1, that the
   radio belongs to COMM, that the EKF runs on the Pi. You enter it on the page
-  (Setup, and **Edit** in the diagrams), and the page keeps it in
+  (Setup, and the diagrams), and the page keeps it in
   `docs/model/model.toml` and `docs/model/<name>_arch.sysml`.
 
 The facts say SPI1 exists on PA5 to PA7 at 3.75 Mbit/s. Only the architecture

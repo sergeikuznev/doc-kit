@@ -49,7 +49,7 @@ svg text{fill:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI"
 .elab rect{fill:var(--surface);stroke:var(--hair)}.elab text{font-size:10.5px;fill:var(--muted)}
 .topic>rect{fill:var(--sunk);stroke:var(--hair)}.topic text{font-size:11.5px}.topic text.ty{fill:var(--muted);font-size:10px}.topic{cursor:pointer}
 .rosnode>rect.b{fill:var(--surface);stroke:var(--ring)}.rosnode{cursor:pointer}
-.rosedge{fill:none;stroke:var(--sig);stroke-width:1.5;opacity:.85}
+.rosedge{fill:none;stroke:var(--muted);stroke-width:1.4;opacity:.8}
 /* drawer */
 aside{width:0;overflow:hidden;border-left:1px solid var(--hair);background:var(--surface);transition:width .18s}
 aside.open{width:440px;overflow:auto}aside .in{padding:18px 20px 40px;width:440px}
@@ -189,7 +189,7 @@ aside .in{position:relative}aside .dsub:first-of-type{padding-right:40px}.lightb
 .act.dz:hover{border-color:var(--crit);color:var(--crit-ink)}.act:disabled,.newbtn:disabled{opacity:.35;cursor:default;pointer-events:none}
 .dadd{color:var(--good-ink)}.ddel{color:var(--crit-ink)}.dhunk{color:var(--faint)}.wgood{color:var(--good-ink)!important}.wbad{color:var(--crit-ink)!important}
 .phit{fill:transparent;cursor:crosshair}.editing .leaf{cursor:pointer}.port.pend{fill:var(--accent);stroke:var(--accent)!important;stroke-width:3}
-.ehit{fill:none;stroke:transparent;stroke-width:12;cursor:pointer}.ehit:hover+path.edge,.ehit:hover{stroke:var(--crit);stroke-opacity:.25}
+.ehit{fill:none;stroke:transparent;stroke-width:22;cursor:pointer}.ehit:hover{stroke:var(--accent);stroke-opacity:.18}.addbtn{color:var(--accent);border-color:var(--accent);font-weight:600}
 .addph rect{fill:var(--accent-soft);stroke:var(--accent);stroke-dasharray:4 3}.addph text{font-size:12.5px;font-weight:600;fill:var(--accent)}.addph{cursor:pointer}.addph:hover rect{stroke-dasharray:none}.addph:hover text{text-decoration:underline}
 .ebtn{font:inherit;font-size:12.5px;padding:5px 10px;border-radius:7px;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);cursor:pointer;white-space:nowrap}
 .ebtn.on{background:var(--accent);color:#fff}.dtool .act{white-space:nowrap}.hintbar{padding:7px 18px;background:var(--accent-soft);color:var(--accent);font-size:12.5px;border-bottom:1px solid var(--hair);display:flex;gap:10px;align-items:center}
@@ -236,7 +236,7 @@ const kindCount = k => conns.filter(c => c.kind === k).length;
 const VIEWS = [
   ["Model", [["overview", "Overview", null, () => M.problems.length + M.gaps.length || ""], ...(SERVED ? [["setup", "Setup", null, () => ""]] : [])]],
   ["Views", [["system", "System", "var(--ink)", () => M.subsystems.length], ["electrical", "Electrical", "var(--sig)", () => kindCount("Signal")],
-             ["power", "Power", "var(--pwr)", () => kindCount("Power")], ["mechanical", "Mechanical", "var(--mech)", () => kindCount("Mechanical")],
+             ["power", "Power", "var(--pwr)", () => kindCount("Power")],
              ["software", "Software (ROS2)", "var(--arch)", () => M.nodes.length]]],
   ["Records", [["interfaces", "Interfaces (ICD)", null, () => M.icd.length], ["requirements", "Requirements", null, () => M.requirements.length],
                ["faults", "Faults (FDIR)", null, () => M.faults.length], ["decisions", "Decisions", null, () => M.decisions.length],
@@ -244,7 +244,7 @@ const VIEWS = [
   ["Project", [["issues", "Issues", null, () => (M.issues || []).filter(i => i.state === "open").length || ""], ["docs", "Docs", null, () => (M.docs || []).length],
                ["media", "Media", null, () => (M.media || []).length]]],
 ];
-let view = "overview", focus = null, selected = null, editing = false, pend = null;
+let view = "overview", focus = null, selected = null, editing = SERVED, pend = null;
 function chrome() {
   $("#title").textContent = M.name;
   $("#subtitle").textContent = `${Object.keys(M.parts).length - 1} parts · ${conns.length} connections · built ${(M.built || "").replace("T", " ")}${SERVED ? " · live" : ""}`;
@@ -262,11 +262,11 @@ function chrome() {
     `<button data-v="${id}" class="${id === view ? "on" : ""}">${col ? `<span class="dot" style="background:${col}"></span>` : `<span class="dot"></span>`}${label}<span class="n">${n()}</span></button>`).join("")).join("");
   document.querySelectorAll("nav button").forEach(b => b.onclick = () => go(b.dataset.v));
 }
-function go(v, opts = {}) { focus = opts.focus ?? null; view = v; if (opts.edit !== undefined) editing = opts.edit; pend = null; chrome(); render(); saveHash(); }
-function saveHash() { const h = [view, focus ? "focus:" + focus : "", selected ? "sel:" + selected : "", editing ? "edit" : ""].filter(Boolean).join("/"); history.replaceState(null, "", "#" + h); }
+function go(v, opts = {}) { focus = opts.focus ?? null; view = v; pend = null; chrome(); render(); saveHash(); }
+function saveHash() { const h = [view, focus ? "focus:" + focus : "", selected ? "sel:" + selected : "", ""].filter(Boolean).join("/"); history.replaceState(null, "", "#" + h); }
 function loadHash() { const parts = decodeURIComponent(location.hash.slice(1)).split("/"); const v = parts[0];
   if (v && document.querySelector) { view = VIEWS.flatMap(g => g[1]).some(x => x[0] === v) ? v : view; }
-  parts.slice(1).forEach(x => { if (x.startsWith("focus:")) focus = x.slice(6); if (x.startsWith("sel:")) selected = x.slice(4); if (x === "edit" && SERVED) editing = true; }); }
+  parts.slice(1).forEach(x => { if (x.startsWith("focus:")) focus = x.slice(6); if (x.startsWith("sel:")) selected = x.slice(4); }); }
 
 // ------------------------------------------------------------------ drawer
 let refit = null;
@@ -373,7 +373,7 @@ function showNode(name) { setTimeout(() => reopen = () => showNode(name), 0);
   const row = (e, role) => `<tr class="row" data-topic="${H(e.topic)}"><td>${role}</td><td class="mono lnk">${H(e.topic)}</td><td class="mono">${H(e.type)}</td><td class="mono">:${e.line}</td></tr>`;
   openDrawer(`<div class="dsub">ROS2 node · ${H(n.lang === "c" ? "micro-ROS (C)" : n.lang === "py" ? "Python" : "C++")}</div><div class="dh">${H(n.name)}</div>
     <div class="kv" style="margin-top:8px"><div>Source</div><div class="mono">${H(n.file)}</div><div>Runs on</div><div>${n.host ? `<span class="lnk" data-part="${n.host}">${H(short(n.host))}</span>` : `<span class="warnline">not allocated</span>`}${SERVED ? ` <button class="act" data-form="allocate" data-node="${H(n.name)}">Change</button>` : ""}</div></div>
-    ${n.host_from === "launch" ? `<div class="dsub" style="margin-top:4px">placed by its launch file</div>` : ""}
+    ${n.host_from === "launch" ? `<div class="dsub" style="margin-top:4px">placed by its launch file</div>` : n.host_from === "board" ? `<div class="dsub" style="margin-top:4px">placed by its folder: the firmware of this board</div>` : ""}
     <h4>Topics</h4><table class="ptab"><tr><th></th><th>Topic</th><th>Type</th><th>Line</th></tr>${n.pub.map(e => row(e, "pub")).join("")}${n.sub.map(e => row(e, "sub")).join("")}</table>
     ${(n.launch || []).map(l => `<h4>Started by ${H(l.file.split("/").pop())}</h4><div class="kv"><div>File</div><div class="mono">${H(l.file)}</div>${l.package ? `<div>Package</div><div class="mono">${H(l.package)}</div>` : ""}${l.executable ? `<div>Executable</div><div class="mono">${H(l.executable)}</div>` : ""}${l.namespace ? `<div>Namespace</div><div class="mono">${H(l.namespace)}</div>` : ""}
       ${l.remappings.length ? `<div>Remappings</div><div class="mono">${l.remappings.map(r => `${H(r[0])} → ${H(r[1])}`).join("<br>")}</div>` : ""}${l.parameters ? `<div>Parameters</div><div class="mono">${H(l.parameters)}</div>` : ""}</div>`).join("")}`);
@@ -412,16 +412,16 @@ function buildElectrical(kinds) {
   const used = new Set(); const shown = cs.filter(c => !keep || (keep.has(c.a[0]) && keep.has(c.b[0])));
   shown.forEach(c => { used.add(c.a.join(".")); used.add(c.b.join(".")); });
   const hasUsed = k => M.parts[k].ports.some(q => used.has(`${k}.${q.name}`)) || M.parts[k].children.some(hasUsed);
-  const visible = k => (!keep || keep.has(k)) && (editing || kinds.length > 1 || hasUsed(k));
+  const visible = k => !keep || keep.has(k);
   const byId = {}, leafIds = new Set();
   const make = k => {
     const p = M.parts[k], kids = p.children.filter(visible);
-    if (p.children.length && (kids.length || editing)) {
+    if (p.children.length) {
       const n = {id: k, children: kids.map(make), edges: [], asm: true, layoutOptions: {...ASM_PAD}};
       if (!n.children.length) n.children.push({id: `${k}::add`, width: 130, height: 40, ports: [], layoutOptions: {}, add: k});
       return byId[k] = n;
     }
-    if (editing) p.ports.forEach(q => { if (kinds.includes(q.kind) && !q.missing) used.add(`${k}.${q.name}`); });
+    p.ports.forEach(q => { if (kinds.includes(q.kind) && !q.missing) used.add(`${k}.${q.name}`); });
     leafIds.add(k);
     return byId[k] = leafNode(k, kinds, used);
   };
@@ -453,11 +453,13 @@ function buildSystem() {
     const k = `${x}|${y}|${c.kind}`; (agg[k] ||= {s: x, t: y, kind: c.kind, items: []}).items.push(c);
   });
   const nodes = M.subsystems.map(s => { const kids = M.parts[`${M.top}.${s}`].children; const full = (M.prefix_names || {})[s] || "";
-    return {id: `${M.top}.${s}`, width: Math.max(190, s.length * 11 + 110, full.length * 6.6 + 40, ...kids.map(k => (M.parts[k].name.length + Math.min(30, (M.parts[k].type || M.parts[k].doc || "").length) + 3) * 6.6 + 40)), height: 52 + (full ? 16 : 0) + kids.length * 17 + (editing ? 17 : 0), kids}; });
+    return {id: `${M.top}.${s}`, width: Math.max(190, s.length * 11 + 110, full.length * 6.6 + 40, ...kids.map(k => (M.parts[k].name.length + Math.min(30, (M.parts[k].type || M.parts[k].doc || "").length) + 3) * 6.6 + 40)), height: 52 + (full ? 16 : 0) + kids.length * 17 + (editing ? 30 : 0), kids}; });
   const edges = Object.values(agg).map((a, i) => {
-    const names = [...new Set(a.items.map(c => (M.parts[c.a[0]].source === "facts" ? c.a[1] : M.parts[c.b[0]].source === "facts" ? c.b[1] : c.type)))];
-    const text = a.kind === "Signal" ? names.join(", ") : a.kind === "Power" ? "power" : "mount";
-    return {id: "s" + i, sources: [`${M.top}.${a.s}`], targets: [`${M.top}.${a.t}`], a, labels: [{text, width: Math.min(text.length, 34) * 6 + 14, height: 18}]};
+    const end = (p, q) => `${M.parts[p].name}.${q}`;
+    let lines = [...new Set(a.items.map(c => M.parts[c.a[0]].subsystem === a.s ? `${end(c.a[0], c.a[1])} → ${end(c.b[0], c.b[1])}` : `${end(c.b[0], c.b[1])} → ${end(c.a[0], c.a[1])}`))];
+    if (lines.length > 5) lines = [...lines.slice(0, 4), `+${lines.length - 4} more`];
+    lines = lines.map(t => t.length > 46 ? t.slice(0, 45) + "…" : t);
+    return {id: "s" + i, sources: [`${M.top}.${a.s}`], targets: [`${M.top}.${a.t}`], a, labels: [{text: lines.join("\n"), width: Math.max(...lines.map(t => t.length)) * 6.3 + 14, height: lines.length * 15 + 5}]};
   });
   return {graph: {id: "root", layoutOptions: {"elk.algorithm": "layered", "elk.direction": "RIGHT", "elk.edgeRouting": "ORTHOGONAL", "elk.layered.spacing.nodeNodeBetweenLayers": "120",
     "elk.spacing.nodeNode": "40", "elk.spacing.edgeLabel": "4", "elk.edgeLabels.inline": "true", "elk.layered.spacing.edgeEdgeBetweenLayers": "16"}, children: nodes, edges}};
@@ -466,7 +468,7 @@ function buildSoftware() {
   const hosts = {};
   M.nodes.forEach(n => (hosts[n.host || "__none"] ||= []).push(n));
   const children = Object.entries(hosts).map(([h, ns]) => ({id: "h:" + h, label: h === "__none" ? "Not allocated to hardware" : short(h), none: h === "__none",
-    layoutOptions: {"elk.padding": "[top=38,left=14,bottom=14,right=14]"},
+    layoutOptions: {"elk.padding": "[top=38,left=14,bottom=14,right=14]", "elk.nodeSize.constraints": "[MINIMUM_SIZE]", "elk.nodeSize.minimum": `(${((h === "__none" ? "Not allocated to hardware" : short(h)).length) * 8.6 + 30},60)`},
     children: ns.map(n => ({id: "n:" + n.name, width: Math.max(150, n.name.length * 7.4 + 30, (n.file.split("/").pop().length + (n.lang === "c" ? 12 : 0)) * 6 + 28), height: 48, n})), edges: []}));
   M.topics.forEach(t => children.push({id: "t:" + t.topic, width: Math.max(t.topic.length * 6.8 + 24, t.types[0].split("/").pop().length * 6 + 24), height: 38, t}));
   const edges = [];
@@ -481,22 +483,20 @@ function allEdges(n, out = []) { (n.edges || []).forEach(e => out.push([e, n]));
 
 let zoom = null, keepVB = null;
 function canvasShell(title, lead, extra = "", edit = null) {
-  const eb = SERVED && edit ? (editing ? `<button class="act" data-form="part">+ Part</button><button class="ebtn on" id="edtog">Done</button>` : `<button class="ebtn" id="edtog">Edit</button>`) : "";
-  $("#main").innerHTML = `<div class="diagram"><div class="dtool"><div><h2>${title}</h2><p class="lead">${lead}</p></div><span class="sp"></span>${extra}${eb}<button class="btn" id="zout" title="Zoom out">−</button><button class="btn" id="zin" title="Zoom in">+</button><button class="btn" id="fit">Fit</button></div>${SERVED && edit && editing ? `<div class="hintbar" id="hint">${edit}</div>` : ""}<div class="canvas ${editing && edit ? "editing" : ""}" id="cv"></div></div>`;
-  if ($("#edtog")) $("#edtog").onclick = () => { editing = !editing; pend = null; render(); saveHash(); };
+  const eb = SERVED && edit ? `<button class="act addbtn" data-form="part">+ Part</button>` : "";
+  $("#main").innerHTML = `<div class="diagram"><div class="dtool"><div><h2>${title}</h2><p class="lead">${lead}${SERVED && edit ? `<br><span class="dsub">${edit}</span>` : ""}</p></div><span class="sp"></span>${extra}${eb}<button class="btn" id="zout" title="Zoom out">−</button><button class="btn" id="zin" title="Zoom in">+</button><button class="btn" id="fit">Fit</button></div>${SERVED && edit ? `<div class="hintbar" id="hint" style="display:none"></div>` : ""}<div class="canvas ${editing && edit ? "editing" : ""}" id="cv"></div></div>`;
   wire($("#main"));
   return $("#cv");
 }
-const EDIT_HINT = "Editing. Click a port, then the port at the other end (or a part, to give it a new port). Click a wire to remove it. Click a part to edit it. Esc cancels.";
+const EDIT_HINT = "Click a port, then the port at the other end (or a part, to give it a new port). Click a wire for its details or to remove it. Click a part to edit it.";
 function portClick(part, q) {
   const full = `${part}.${q.name}`;
   if (!pend) { pend = {full, part, q}; document.querySelectorAll(`.port[data-full="${CSS.escape(full)}"]`).forEach(r => r.classList.add("pend"));
-    $("#hint").innerHTML = `From <b class="mono">${H(short(full))}</b> (${H(q.meaning || q.type)}). Now click the other end: a port of the same type, or a part to add a new port there. <button class="act" id="pcancel">Cancel</button>`;
-    $("#pcancel").onclick = cancelPend; return; }
+    $("#hint").innerHTML = `From <b class="mono">${H(short(full))}</b> (${H(q.meaning || q.type)}). Now click the other end: a port of the same type, or a part to add a new port there. Click anywhere else to cancel.`; $("#hint").style.display = ""; return; }
   if (pend.full === full) return cancelPend();
   const a = pend.full; cancelPend(); openForm("connect", {a, bpart: part, bport: q.name});
 }
-function cancelPend() { pend = null; document.querySelectorAll(".port.pend").forEach(r => r.classList.remove("pend")); if ($("#hint")) $("#hint").textContent = EDIT_HINT; }
+function cancelPend() { pend = null; document.querySelectorAll(".port.pend").forEach(r => r.classList.remove("pend")); if ($("#hint")) $("#hint").style.display = "none"; }
 function panZoom(svg, W, H) {
   let vb = {x: -20, y: -20, w: W + 40, h: H + 40};
   const set = () => { svg.setAttribute("viewBox", `${vb.x} ${vb.y} ${vb.w} ${vb.h}`); keepVB = {view, focus, vb: {...vb}}; };
@@ -533,7 +533,7 @@ function drawEdges(root, out, abs, cls) {
       if (e.c) el("title", {}, path).textContent = `${short(e.c.a.join("."))} → ${short(e.c.b.join("."))} (${e.c.type})`;
     });
     (e.labels || []).forEach(l => { const g = el("g", {class: "elab", transform: `translate(${l.x + off.x},${l.y + off.y})`}, root);
-      el("rect", {width: l.width, height: l.height, rx: 5}, g); el("text", {x: 7, y: 12.5}, g).textContent = l.text.length > 34 ? l.text.slice(0, 32) + "…" : l.text; });
+      el("rect", {width: l.width, height: l.height, rx: 5}, g); l.text.split("\n").forEach((t, j) => { el("text", {x: 7, y: 13.5 + j * 15}, g).textContent = t; }); });
   });
 }
 function hot(path) { document.querySelectorAll("path.edge").forEach(p => { const on = path && p.dataset.ends.split("|").includes(path); p.classList.toggle("hot", !!on); p.classList.toggle("dim", !!path && !on); }); }
@@ -544,7 +544,7 @@ async function drawParts(kinds, title, lead) {
   const cv = canvasShell(title, lead, extra, EDIT_HINT);
   if ($("#unfocus")) $("#unfocus").onclick = () => { focus = null; render(); };
   const {graph} = buildElectrical(kinds);
-  if (!graph.children.length) { cv.innerHTML = M.subsystems.length ? `<div class="empty">Nothing of this kind is wired yet.${SERVED ? `<br><br><button class="ebtn" onclick="editing=true;render();saveHash()">Edit</button> to add parts and connect their ports.` : ""}</div>`
+  if (!graph.children.length) { cv.innerHTML = M.subsystems.length ? `<div class="empty">Nothing of this kind is wired yet.${SERVED ? `<br><br><button class="ebtn" data-form="part">+ Part</button> to add parts, then connect their ports here.` : ""}</div>`
     : `<div class="empty">No subsystems yet.${SERVED ? ` <span class="xref" onclick="go('setup')">Open Setup</span> to add them.` : ""}</div>`; return; }
   // pass 1: let ELK choose the port order that avoids crossings; pass 2: pin ports under the title
   const first = await elk.layout(JSON.parse(JSON.stringify(graph)));
@@ -601,7 +601,7 @@ async function drawParts(kinds, title, lead) {
 async function drawSystem() {
   const cv = canvasShell("System", "Subsystems and everything that crosses between them. Click a subsystem for its interfaces, requirements and faults.",
     `<div class="legend">${["Signal", "Power", "Mechanical"].map(k => `<span><i style="border-color:${KCOL[k]}${k === "Mechanical" ? ";border-top-style:dashed" : ""}"></i>${k}</span>`).join("")}</div>`,
-    "Editing. Add parts here; connect their ports in Electrical, Power or Mechanical (Edit there too). Subsystems are added in Setup.");
+    "+ Part adds a part to a subsystem; connect its ports in Electrical or Power. Subsystems are added in Setup.");
   if (!M.subsystems.length) { cv.innerHTML = `<div class="empty">No subsystems yet.${SERVED ? `<br><br><button class="ebtn" onclick="go('setup')">Open Setup</button> to add them: they become the boxes here and the prefixes of requirement IDs.` : ""}</div>`; return; }
   const {graph} = buildSystem(); const out = await elk.layout(graph); const abs = absMap(out);
   const svg = el("svg", {}, cv), root = el("g", {}, svg);
@@ -616,7 +616,7 @@ async function drawSystem() {
     const rs = partReqs(n.id), v = rs.filter(r => r.status === "Verified").length, f = rs.filter(r => r.status === "Failed").length;
     el("text", {x: n.width - 12, y: 24, class: "ty", "text-anchor": "end"}, g).textContent = rs.length ? `${v}/${rs.length} ✓${f ? ` · ${f} ✕` : ""}` : "no reqs";
     src.kids.forEach((k, i) => { el("text", {x: 14, y: 46 + y0 + i * 17, class: "ty"}, g).textContent = M.parts[k].name + (M.parts[k].type ? ` : ${M.parts[k].type}` : M.parts[k].doc ? ` · ${M.parts[k].doc.slice(0, 28)}` : ""); });
-    if (editing) { const ph = el("g", {class: "addph", transform: `translate(14,${46 + y0 + src.kids.length * 17})`}, g); el("rect", {x: -6, y: -14, width: 62, height: 20, rx: 6}, ph); el("text", {x: 0, y: 0}, ph).textContent = "+ Part";
+    if (editing) { const ph = el("g", {class: "addph", transform: `translate(14,${54 + y0 + src.kids.length * 17})`}, g); el("rect", {x: -6, y: -14, width: 62, height: 20, rx: 6}, ph); el("text", {x: 0, y: 0}, ph).textContent = "+ Part";
       ph.addEventListener("click", ev => { ev.stopPropagation(); openForm("part", {parent: n.id}); }); }
     const oi = issuesFor(s.name, []).filter(i => i.state === "open").length;
     if (oi) { const b = el("g", {transform: `translate(${n.width - 12},${n.height - 10})`}, g); el("text", {x: 0, y: 0, "text-anchor": "end", style: "font-size:11px;fill:var(--accent)"}, b).textContent = `${oi} open issue${oi > 1 ? "s" : ""}`; }
@@ -627,19 +627,19 @@ async function drawSystem() {
 }
 async function drawSoftware() {
   const cv = canvasShell("Software (ROS2)", "Nodes and topics found in the code (robot does not need to be on), grouped by the computer each node runs on.",
-    `<div class="legend"><span><i class="box" style="background:var(--sunk);border:1px solid var(--faint);border-radius:6px;width:16px"></i>topic</span><span><i class="box" style="background:var(--surface);border:1px solid var(--faint)"></i>node</span><span><i style="border-color:var(--sig)"></i>publish → subscribe</span></div>`);
+    `<div class="legend"><span><i class="box" style="background:var(--sunk);border:1px solid var(--faint);border-radius:6px;width:16px"></i>topic</span><span><i class="box" style="background:var(--surface);border:1px solid var(--faint)"></i>node</span><span><i style="border-color:var(--muted)"></i>publish → subscribe</span><span><i class="box" style="border:1px dashed var(--faint);border-radius:6px;width:16px"></i>only one side found</span></div>`);
   if (!M.nodes.length) { cv.innerHTML = `<div class="empty">No ROS2 code found.${SERVED ? ` Add the folders with your ROS2 / micro-ROS code in <span class="xref" onclick="go('setup')">Setup</span>.` : " Add ROS2 code folders in Setup (doc serve)."}</div>`; return; }
   const {graph} = buildSoftware(); const out = await elk.layout(graph); const abs = absMap(out);
   const svg = el("svg", {}, cv), root = el("g", {}, svg);
   out.children.filter(c => c.id.startsWith("h:")).forEach(c => { const src = graph.children.find(x => x.id === c.id);
-    const g = el("g", {class: "cont", transform: `translate(${c.x},${c.y})`}, root); el("rect", {width: c.width, height: c.height, rx: 12, style: src.none ? "stroke:var(--warn)" : ""}, g);
-    el("text", {x: 14, y: 24, class: "t", style: src.none ? "fill:var(--warn-ink)" : ""}, g).textContent = src.label;
+    const g = el("g", {class: "cont", transform: `translate(${c.x},${c.y})`}, root); el("rect", {width: c.width, height: c.height, rx: 12, style: src.none ? "stroke-dasharray:5 4" : ""}, g);
+    el("text", {x: 14, y: 24, class: "t", style: src.none ? "fill:var(--muted)" : ""}, g).textContent = src.label;
     if (!src.none) { g.style.cursor = "pointer"; g.addEventListener("click", ev => { if (!ev.target.closest(".rosnode")) showPart(c.id.slice(2)); }); } });
   allEdges(out).forEach(([e, cont]) => { const off = abs[e.container || cont.id] || {x: 0, y: 0};
     (e.sections || []).forEach(s => { const pts = [s.startPoint, ...(s.bendPoints || []), s.endPoint]; const d = "M" + pts.map(p => `${p.x + off.x},${p.y + off.y}`).join(" L");
       el("path", {d, class: "rosedge", "marker-end": "url(#arr)"}, root); }); });
   const defs = el("defs", {}, svg); const mk = el("marker", {id: "arr", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse"}, defs);
-  el("path", {d: "M0,0 L10,5 L0,10 z", fill: "var(--sig)"}, mk);
+  el("path", {d: "M0,0 L10,5 L0,10 z", fill: "var(--muted)"}, mk);
   Object.values(abs).forEach(({x, y, n}) => {
     if (n.id.startsWith("n:")) { const nd = graph.children.flatMap(c => c.children || []).find(z => z.id === n.id).n;
       const g = el("g", {class: "rosnode", transform: `translate(${x},${y})`}, root); el("rect", {class: "b", width: n.width, height: n.height, rx: 8}, g);
@@ -647,7 +647,7 @@ async function drawSoftware() {
       el("text", {x: 12, y: 36, style: "font-size:10.5px;fill:var(--muted)"}, g).textContent = nd.file.split("/").pop() + (nd.lang === "c" ? " · micro-ROS" : "");
       g.addEventListener("click", ev => { ev.stopPropagation(); showNode(nd.name); }); }
     if (n.id.startsWith("t:")) { const t = graph.children.find(z => z.id === n.id).t; const lonely = !t.pub.length || !t.sub.length;
-      const g = el("g", {class: "topic", transform: `translate(${x},${y})`}, root); el("rect", {width: n.width, height: n.height, rx: 19, style: lonely ? "stroke:var(--warn)" : ""}, g);
+      const g = el("g", {class: "topic", transform: `translate(${x},${y})`}, root); el("rect", {width: n.width, height: n.height, rx: 19, style: lonely ? "stroke-dasharray:4 3" : ""}, g);
       el("text", {x: 12, y: 16, class: "mono", style: "font-size:11.5px"}, g).textContent = t.topic;
       el("text", {x: 12, y: 30, class: "ty"}, g).textContent = t.types.join(", ").split("/").pop();
       g.addEventListener("click", ev => { ev.stopPropagation(); showTopic(t.topic); }); }
