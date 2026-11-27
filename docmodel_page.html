@@ -12,7 +12,7 @@
 --good:#2fd27a;--good-ink:#4fe08f;--crit:#ff4d4f;--crit-ink:#ff6b6d;--warn:#f5b81c;--warn-ink:#f7c84a;--appr:#8d9399;
 --sev1:#5d6268;--sev2:#f5b81c;--sev3:#ff8a3d;--sev4:#ff4d4f;--shadow:none;--mono:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace}
 /* tactical: square, hairlines, colour only where it means something */
-*:not(.dot):not(.av):not(.pill>i):not(.ti .ic){border-radius:2px!important}*{box-shadow:none!important}
+*:not(.dot):not(.av):not(.pill>i):not(.ti .ic):not(.lab){border-radius:2px!important}.lab{border-radius:999px!important;padding:0 9px!important}*{box-shadow:none!important}
 header,nav,aside{background:var(--sunk)!important}header{border-bottom:1px solid var(--hair)}nav{border-right:1px solid var(--hair)}
 .panel,.tile,.rcard,.fcard,.dcard,.icard,.menu,.toast,.modal .box,.kvbox{border:1px solid var(--hair)!important;background:var(--surface)}
 .panel h3,.page h3,aside h4,nav .grp,.modal h4,.stab th,.ptab th,.mh{font-size:11px!important;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)!important}
@@ -982,7 +982,7 @@ function ago(d) { if (!d) return ""; const s = (Date.now() - new Date(d)) / 1000
   if (s < 86400) return `${Math.round(s / 3600)} h ago`; if (s < 30 * 86400) return `${Math.round(s / 86400)} d ago`; return new Date(d).toISOString().slice(0, 10); }
 const tm = d => `<time data-t="${H(d || "")}" title="${H((d || "").replace("T", " ").replace("Z", " UTC"))}">${ago(d)}</time>`;
 setInterval(() => document.querySelectorAll("time[data-t]").forEach(e => { e.textContent = ago(e.dataset.t); }), 20000);
-const labChip = (l, col) => { const c = null;
+const labChip = (l, col) => { const c = col && /^[0-9a-f]{6}$/i.test(col) ? "#" + col : null;
   return `<span class="lab ${l === "bug" ? "bug" : l === "idea" ? "idea" : ""}" ${c ? `style="border-color:color-mix(in srgb,${c} 60%,transparent);background:color-mix(in srgb,${c} 18%,transparent);color:color-mix(in srgb,${c} 55%,var(--ink))"` : ""}>${H(l)}</span>`; };
 const avatar = (who, url) => `<img class="av" alt="" src="${H(url || (who && who !== "you" ? `https://github.com/${encodeURIComponent(who)}.png?size=48` : ""))}" onerror="this.style.visibility='hidden'">`;
 let ist = "active", ikind = "all", isub = "", iq = "";
