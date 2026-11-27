@@ -1269,6 +1269,8 @@ def issue_status(i):
         if any(l["name"] == "duplicate" for l in i.get("labels", [])) and (i.get("stateReason") or "").upper() != "COMPLETED":
             return "duplicate"
         return ISSUE_CLOSED.get((i.get("stateReason") or "COMPLETED").upper(), "done")
+    if (i.get("ghStatus") or "") in ISSUE_OPEN:
+        return i["ghStatus"]
     for p in i.get("projectItems") or []:  # the Status column of a GitHub Project wins (what github.com shows)
         name = str(((p or {}).get("status") or {}).get("name") or "").strip().lower()
         if name in ISSUE_OPEN:
@@ -1324,6 +1326,18 @@ def fetch_issues(root):
         return [], "GitHub CLI (gh) not installed"
     out = []
     fields = "number,title,labels,url,updatedAt,createdAt,closedAt,author,body,state,stateReason"
+    gh_status = {}  # GitHub's own issue status (Backlog, Todo, In progress, In review…; a preview feature), when the API gives it
+    r = subprocess.run(["gh", "api", "-H", "X-GitHub-Api-Version: 2026-03-10", "repos/{owner}/{repo}/issues?state=open&per_page=100"],
+                       cwd=root, capture_output=True, text=True, timeout=30)
+    if r.returncode == 0:
+        try:
+            for i in json.loads(r.stdout or "[]"):
+                st = i.get("status")
+                name = (st.get("name") if isinstance(st, dict) else st) or ""
+                if name:
+                    gh_status[i["number"]] = str(name).strip().lower()
+        except ValueError:
+            pass
     for state, limit in (("open", 200), ("closed", 30)):
         r = subprocess.run(["gh", "issue", "list", "--state", state, "--limit", str(limit), "--json", fields + ",projectItems"],
                            cwd=root, capture_output=True, text=True, timeout=30)
@@ -1333,6 +1347,8 @@ def fetch_issues(root):
         if r.returncode != 0:
             return [], (r.stderr.strip().splitlines() or ["gh failed"])[-1]
         for i in json.loads(r.stdout or "[]"):
+            if i["number"] in gh_status and i["state"].upper() == "OPEN":
+                i["ghStatus"] = gh_status[i["number"]]
             out.append({"number": i["number"], "title": i["title"], "url": i["url"], "state": i["state"].lower(),
                         "labels": [l["name"] for l in i.get("labels", [])], "updated": i.get("updatedAt", ""),
                         "created": i.get("createdAt", ""), "author": (i.get("author") or {}).get("login", ""),

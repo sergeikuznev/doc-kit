@@ -423,6 +423,18 @@ class Server:
             except Exception:
                 pass
 
+        def set_gh_status(st):
+            """GitHub's own issue status (preview): set it by its id from the repo's planning statuses. True when it worked."""
+            try:
+                sts = json.loads(self.gh("api", "-H", "X-GitHub-Api-Version: 2026-03-10", "repos/{owner}/{repo}/planning-statuses"))
+                sid = next((x["id"] for x in sts if str(x.get("name", "")).strip().lower() == st), None)
+                if sid is None:
+                    return False
+                self.gh("api", "-X", "PATCH", "-H", "X-GitHub-Api-Version: 2026-03-10", api, "-F", f"status_id={sid}")
+                return True
+            except Exception:
+                return False
+
         def set_status(st):
             set_project_status(st)
             cur = next((i for i in self.issues if i["number"] == n), iss)
@@ -431,7 +443,8 @@ class Server:
                 if cur.get("gh_state", cur["state"]) == "closed":
                     self.gh("api", "-X", "PATCH", api, "-f", "state=open")
                 cur["gh_state"] = "open"
-                new = [] if st == "backlog" else [f"status: {st}"]
+                native = set_gh_status(st)
+                new = [] if st == "backlog" or native else [f"status: {st}"]
                 doc.ensure_labels(new)
                 args = [x for l in labels if l not in new for x in ("--remove-label", l)] + [x for l in new if l not in labels for x in ("--add-label", l)]
                 if args:
