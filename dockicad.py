@@ -149,7 +149,7 @@ def preview(root, rel, model):
     for n in nets:
         for x in n["nodes"]:
             used[x["ref"]] = used.get(x["ref"], 0) + 1
-    out = []
+    out, taken = [], set()
     for c in comps:
         target = by_ref.get(c["ref"], "")
         if not target and c["value"] and not PASSIVE.match(c["ref"]):  # a part already on the page with this part number
@@ -164,7 +164,9 @@ def preview(root, rel, model):
         sub = next((s for s in subs if s.lower() in (c["sheet"].lower(), c["ref"].lower())), "")
         if not sub and c["sheet"]:
             sub = next((s for s in subs if s.lower() in c["sheet"].lower()), "")
-        name = ident((c["value"] or c["ref"]).lower().split(" ")[0])[:24] if not PASSIVE.match(c["ref"]) else ident(c["ref"].lower())
+        name = ident(c["value"].lower())[:28].strip("_") if c["value"] and not PASSIVE.match(c["ref"]) else ident(c["ref"].lower())
+        name = name if name not in taken else f"{name}_{c['ref'].lower()}"
+        taken.add(name)
         out.append({**c, "include": not PASSIVE.match(c["ref"]) and used.get(c["ref"], 0) > 0, "target": target,
                     "subsystem": sub, "name": name, "pins": used.get(c["ref"], 0)})
     return {"file": rel, "components": out, "nets": len(nets), "power_nets": sum(1 for n in nets if is_power(n["name"]))}
