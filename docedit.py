@@ -954,7 +954,29 @@ def library_info(root):
                         pass
         folders.append({"path": p, "full": full, "exists": os.path.isdir(full), "in_repo": _in_repo(root, full),
                         "default": p == s["default"], "templates": temps})
-    return {"folders": folders, "default": s["default"], "settings": settings_path()}
+    return {"folders": folders, "default": s["default"], "settings": settings_path(), "suggest": _folder_suggestions(root)}
+
+
+def _folder_suggestions(root):
+    """Folders you might keep parts in: this project's folders (two levels) and the top of your home folder."""
+    out = ["docs/model/parts"]
+    skip = {".git", "node_modules", "__pycache__", "build", "install", "log", "tools"}
+    for base, depth in ((root, 2), (os.path.expanduser("~"), 1)):
+        stack = [(base, 0)]
+        while stack:
+            cur, lv = stack.pop()
+            try:
+                names = sorted(os.listdir(cur))
+            except OSError:
+                continue
+            for n in names:
+                full = os.path.join(cur, n)
+                if n.startswith(".") or n in skip or not os.path.isdir(full):
+                    continue
+                out.append(os.path.relpath(full, root) if base == root else "~/" + os.path.relpath(full, base))
+                if lv + 1 < depth:
+                    stack.append((full, lv + 1))
+    return list(dict.fromkeys(out))[:200]
 
 
 def run_library(op, root, f):
@@ -970,8 +992,6 @@ def run_library(op, root, f):
             raise EditError("Folder is required, e.g. ~/robotics/parts or docs/model/parts")
         full = lib_abs(root, p)
         if not os.path.isdir(full):
-            if not f.get("create"):
-                raise EditError(f"{full} does not exist (tick 'create it')")
             writes.append((os.path.join(full, ".keep"), ""))
         if p not in s["libraries"]:
             s["libraries"].append(p)
@@ -997,9 +1017,15 @@ def run_library(op, root, f):
         save_settings()
         return writes, f"default part library {f['path']}", notes
     if op == "template_save":
-        folder = f.get("folder") or s["default"]
+        folder = str(f.get("folder") or s["default"] or "").strip()
+        if not folder:
+            raise EditError("Folder is required, e.g. docs/model/parts or ~/robotics/parts")
         if folder not in s["libraries"]:
-            raise EditError("Pick a library folder (add one in Setup > Part library)")
+            s["libraries"].append(folder)
+            if not s["default"]:
+                s["default"] = folder
+            save_settings()
+            notes.append(f"new parts folder {folder}")
         name = str(f.get("name") or "").strip()
         if not name:
             raise EditError("Template name is required, e.g. ICM-42688-P")
@@ -1016,13 +1042,13 @@ def run_library(op, root, f):
         elif os.path.exists(full) and not orig:
             raise EditError(f"{fn} already exists in {folder}; edit that template instead")
         writes.append((full, json.dumps(t, indent=2, ensure_ascii=False) + "\n"))
-        return writes, f"part template {name}", notes
+        return writes, f"parts library: {name}", notes
     if op == "template_delete":
         full = os.path.join(lib_abs(root, f.get("folder")), os.path.basename(str(f.get("file") or "")))
         if not os.path.exists(full):
             raise EditError("no such template")
         writes.append((full, None))
-        return writes, f"delete part template {f.get('file')}", notes
+        return writes, f"parts library: delete {f.get('file')}", notes
     raise EditError(f"unknown library operation {op}")
 
 

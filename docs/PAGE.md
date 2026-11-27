@@ -118,29 +118,24 @@ say where your ROS2 code is.
    Ethernet, WiFi, radio link, power, mechanical). Add your own when you want a
    check to be stricter, e.g. `Power5V` so a 12 V output cannot be wired to a 5 V input.
 
-### Part library
+### Parts library
 
 Reusable parts (an IMU, an encoder, a motor driver, a radio) with their
-details and ports, so you build each module once and use it in every project.
+details and ports, so you describe each module once and use it in every project.
 
-- **+ Folder** adds a library folder. A folder **inside the project** (e.g.
-  `docs/model/parts`) is committed and shared with the team. A folder
-  **outside** (e.g. `~/robotics/parts`, or its own git repo) serves all your
-  projects on this computer; it is written but never committed. The folder
-  list and the **default** folder are remembered per computer, in
+- **+ Folder** adds a parts folder: type a path or pick one from the list
+  (folders of this project and of your home folder). It is created if it
+  does not exist. A folder **inside the project** (e.g. `docs/model/parts`)
+  is committed and shared with the team. A folder **outside** (e.g.
+  `~/robotics/parts`, or its own git repo) serves all your projects on this
+  computer; it is written but never committed. The folder list and the
+  **default** folder are remembered per computer, in
   `~/.config/doc-kit/settings.json`.
-- **Save as template** in a part's panel stores that part; pick the folder
-  (the default is preselected). **+ Template**, **Edit** and **Delete** manage them here.
-- **+ Part** can **start from a template**: it fills in the description, details and ports.
-
-### Publishing a read-only page
-
-**Publish a read-only page → Set up** adds a GitHub Actions workflow
-(`.github/workflows/doc-kit-pages.yml`). After you enable it once (repo
-Settings › Pages › Source: GitHub Actions), GitHub rebuilds the page on every
-push and publishes it: no forms, no server, always current. Good as a
-portfolio link. The published page is **public**, even when the repo is
-private, and Pages on a private repo needs a paid GitHub plan.
+- **Save to parts library** in a part's panel, or **+ Part** here, stores a
+  part. Its **Folder** field takes any folder, typed or picked; a new one is
+  created and remembered. **Edit** and **Delete** manage them here.
+- A new part can **start from the parts library**: it fills in the
+  description, details and ports.
 
 ### Choosing subsystems
 
@@ -257,14 +252,6 @@ In edit mode, click a wire for its **wire details** (gauge, length, connector,
 cable…) or to remove it. The connect form has the same fields, folded away.
 In a part's panel, **wire** next to each connection opens them; the details
 show under the connection, in the Interfaces table and in the BOM.
-
-### Assemblies: parts inside parts
-
-A part can hold other parts: pick it under **Inside** in the part form. An arm
-can be one part holding its joints, servos and encoders. Assemblies are drawn
-as shaded boxes inside their subsystem; wires go to the parts inside.
-
-![An assembly](images/page-35-assembly.png)
 
 ### Which computer runs a ROS node
 
@@ -714,8 +701,7 @@ from a form. Wiring is easier on a laptop: the ports are small on a phone screen
 **It writes** your records (requirements, tests, faults, decisions, procedures,
 checklist lines, devlog), the model (`docs/model/model.toml` and the arch
 file), the generated subsystem table and issue-form lists, GitHub issues,
-files you upload into `docs/media/`, part templates in your library folders,
-and the Pages workflow when you set it up. It regenerates `<name>_facts.sysml` with
+files you upload into `docs/media/`, and parts in your parts library folders. It regenerates `<name>_facts.sysml` with
 each commit.
 
 **It never writes** the `.ioc` (CubeMX owns it) or your code. It never deletes a
