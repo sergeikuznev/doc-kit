@@ -42,7 +42,7 @@ only shows what your files say, and only writes what you typed.
 
 | | |
 |---|---|
-| ![Setup](docs/images/page-24-setup.png) | ![Wiring in edit mode](docs/images/page-29-edit-mode.png) |
+| ![Setup](docs/images/page-24-setup.png) | ![Wiring in Electrical](docs/images/page-29-edit-mode.png) |
 | Setup: your subsystems, boards and code | Wiring: click a pin, then the module |
 | ![Electrical view with a part open](docs/images/page-05-part-panel.png) | ![Recording a test](docs/images/page-18-form.png) |
 | Click a part: every pin, setting and link | Record a test, with the photo |

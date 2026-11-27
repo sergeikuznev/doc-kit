@@ -234,6 +234,9 @@ tr.row:hover td,.rcard:hover,.icard:hover,.dcard:hover,.fcard:hover{background:c
 .cmenu{position:fixed;z-index:90;max-height:300px;overflow:auto;background:var(--surface);border:1px solid color-mix(in srgb,var(--accent) 35%,var(--hair));border-radius:6px;padding:4px;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
 .cmenu .ci{padding:6px 10px 6px 12px;border-radius:4px;cursor:pointer;white-space:nowrap;border-left:2px solid transparent}
 .cmenu .ci:hover,.cmenu .ci.kb{background:var(--accent-soft)}.cmenu .ci.on{color:var(--accent);border-left-color:var(--accent);font-weight:550}.cmenu .ci.dis{color:var(--faint);cursor:default;background:none}
+.mmd{overflow:auto;margin:14px 0;padding:12px;border:1px solid var(--hair);background:var(--sunk);border-radius:8px}.mmd svg{display:block}
+.mmn{fill:var(--surface);stroke:var(--ring);stroke-width:1.2;rx:4}.mmt{font-size:12.5px;font-weight:600;fill:var(--ink)}.mmt2{font-size:11.5px;fill:var(--muted)}
+.mme{fill:none;stroke:var(--muted);stroke-width:1.3}.mme.dash{stroke-dasharray:4 3}.mml{fill:var(--sunk);stroke:var(--hair)}.mmlt{font-size:10.5px;fill:var(--muted)}
 .udg{display:inline-flex;gap:0}.udg .btn{border-radius:0;margin-left:-1px;padding-left:11px;padding-right:11px}.udg .btn:first-child{border-radius:8px 0 0 8px}.udg .btn:last-child{border-radius:0 8px 8px 0}.udg .btn:disabled{opacity:.4;cursor:default}
 .hmenu{max-height:70vh;overflow:auto;min-width:320px;max-width:460px}.hmenu .mh{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:8px 10px 4px}.hmenu .mh.now{color:var(--accent)}.hmenu button{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .menu button{display:block;width:100%;text-align:left;border:0;background:none;font:inherit;color:var(--ink);padding:7px 10px;border-radius:6px;cursor:pointer}.menu button:hover{background:var(--sunk)}
@@ -1135,6 +1138,33 @@ function showIssue(n) { setTimeout(() => reopen = () => showIssue(n), 0); if (!n
 const pendingComments = {};
 
 let curDoc = 0;
+
+// Mermaid flowcharts in the docs (GitHub draws them too): drawn here with the same layout engine as the diagrams
+async function drawMermaid(pre) {
+  const lines = pre.textContent.split("\n").map(l => l.trim()).filter(l => l && !l.startsWith("%%"));
+  const head = (lines.shift() || "").match(/^(?:flowchart|graph)\s+(LR|RL|TD|TB|BT)/i); if (!head) return;
+  const nodes = {}, edges = [], dir = {LR: "RIGHT", RL: "LEFT", TD: "DOWN", TB: "DOWN", BT: "UP"}[head[1].toUpperCase()];
+  const NODE = /^([A-Za-z_][\w-]*)\s*(?:\[\s*"?([^"\]]*)"?\s*\]|\(\s*"?([^")]*)"?\s*\)|\{\s*"?([^"}]*)"?\s*\})?/;
+  const node = str => { const m = str.match(NODE); if (!m) return null; const id = m[1], lab = m[2] ?? m[3] ?? m[4];
+    if (!nodes[id]) nodes[id] = {id, label: id}; if (lab !== undefined) nodes[id].label = lab; return [id, str.slice(m[0].length).trim()]; };
+  for (const l of lines) { let r = node(l); if (!r) continue; let [a, rest] = r;
+    while (rest) { const e = rest.match(/^(-->|---|-\.->|==>)\s*(?:\|([^|]*)\|)?\s*/); if (!e) break; const n = node(rest.slice(e[0].length)); if (!n) break;
+      edges.push({a, b: n[0], label: (e[2] || "").trim(), dash: e[1] === "-.->"}); a = n[0]; rest = n[1]; } }
+  const txt = t => String(t).split(/<br\s*\/?>/i);
+  const graph = {id: "root", layoutOptions: {"elk.algorithm": "layered", "elk.direction": dir, "elk.edgeRouting": "ORTHOGONAL", "elk.layered.spacing.nodeNodeBetweenLayers": "46", "elk.spacing.nodeNode": "22", "elk.edgeLabels.inline": "true"},
+    children: Object.values(nodes).map(n => { const t = txt(n.label); return {id: n.id, width: Math.max(...t.map(x => x.length)) * 7.2 + 28, height: t.length * 17 + 16}; }),
+    edges: edges.map((e, i) => ({id: "m" + i, sources: [e.a], targets: [e.b], labels: e.label ? [{text: e.label, width: e.label.length * 6.4 + 12, height: 16}] : []}))};
+  let out; try { out = await lay(graph); } catch (err) { return; }
+  const box = document.createElement("div"); box.className = "mmd"; const svg = el("svg", {viewBox: `-8 -8 ${out.width + 16} ${out.height + 16}`, width: out.width + 16, height: out.height + 16}, box);
+  const AID = "ma" + Math.random().toString(36).slice(2, 7), defs = el("defs", {}, svg), mk = el("marker", {id: AID, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse"}, defs);
+  el("path", {d: "M0,0 L10,5 L0,10 z", fill: "var(--muted)"}, mk);
+  (out.edges || []).forEach((e, i) => (e.sections || []).forEach(sc => { const pts = [sc.startPoint, ...(sc.bendPoints || []), sc.endPoint];
+    el("path", {d: "M" + pts.map(p => `${p.x},${p.y}`).join(" L"), class: "mme" + (edges[i].dash ? " dash" : ""), "marker-end": `url(#${AID})`}, svg);
+    (e.labels || []).forEach(l => { const g = el("g", {transform: `translate(${l.x},${l.y})`}, svg); el("rect", {width: l.width, height: l.height, class: "mml"}, g); el("text", {x: l.width / 2, y: 11.5, "text-anchor": "middle", class: "mmlt"}, g).textContent = l.text; }); }));
+  out.children.forEach(n => { const g = el("g", {transform: `translate(${n.x},${n.y})`}, svg); el("rect", {width: n.width, height: n.height, class: "mmn"}, g);
+    txt(nodes[n.id].label).forEach((t, k, all) => { el("text", {x: n.width / 2, y: n.height / 2 + (k - (all.length - 1) / 2) * 17 + 4.5, "text-anchor": "middle", class: k ? "mmt2" : "mmt"}, g).textContent = t; }); });
+  pre.replaceWith(box);
+}
 function docsPage() {
   const ds = M.docs || [];
   if (!ds.length) return page(`<h2>Docs</h2><div class="empty">No Markdown docs found.</div>`);
@@ -1145,6 +1175,7 @@ function docsPage() {
     <div><div class="dsub mono" style="margin-bottom:8px">${H(d.file)}</div><div class="prose" id="prose">${d.html}</div></div></div>`);
   document.querySelectorAll("[data-doc]").forEach(b => b.onclick = () => { curDoc = +b.dataset.doc; docsPage(); $("#main").scrollTop = 0; });
   document.querySelectorAll("[data-anchor]").forEach(a => a.onclick = ev => { ev.preventDefault(); document.getElementById(a.dataset.anchor)?.scrollIntoView({behavior: "smooth"}); });
+  document.querySelectorAll("#prose pre.code.mermaid").forEach(drawMermaid);
   // requirement and fault IDs in the text become links
   const ids = new Set([...M.requirements.map(r => r.id), ...M.faults.map(f => f.id)]);
   const walker = document.createTreeWalker($("#prose"), NodeFilter.SHOW_TEXT), nodes = [];

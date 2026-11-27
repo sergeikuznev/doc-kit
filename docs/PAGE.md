@@ -8,9 +8,11 @@ files in your repo, commits and pushes it; **↶ / ↷** undo and redo, any numb
 
 The page follows your system's light or dark setting. Dark is a strict,
 square "operations" look: black canvas, hairlines, monospace for IDs and
-values, and colour only where it means something (amber: selected and
-primary actions, green: OK and add, red: problems and delete, blue: signal,
-orange: power, violet: ROS and your parts, cyan: boards).
+values, and colour only where it means something (cyan: selected, links and
+MCUs; green: OK and add; red: problems and delete; amber: gaps and warnings;
+grey: signal wires; orange: power; violet: ROS). Everything clickable shows a
+pointing hand and lights up on hover. Dropdowns are the page's own: ↑ / ↓,
+Enter and Esc work in them.
 
 Concepts (what a requirement is, what makes a good fault row) are in the
 [handbook](HANDBOOK.md). The few terminal commands (install, hooks, CI) are in
@@ -195,7 +197,7 @@ Parts are added in the **Electrical** view (**+ Part**); wires are drawn in
 Electrical and Power. There is no separate edit mode: every part and every
 port of the view's kind is drawn, connected or not.
 
-![Edit mode](images/page-29-edit-mode.png)
+![Wiring in Electrical](images/page-29-edit-mode.png)
 
 1. **The hint** under the title says what clicks do.
 2. **+ Part** adds a module, sensor, driver, battery or computer.
@@ -324,7 +326,8 @@ anywhere else shows it, without the editing buttons. The one shortcut kept:
    no arrow: a wire carries data both ways.
 3. **Open issues** placed in this subsystem.
 4. **Requirement progress**: verified out of total, and how many failed.
-5. **Legend.** Blue is signal, amber is power, dashed purple is mechanical.
+5. **Legend.** Signal and power lines; mounts are dashed. Clicking **N open
+   issues** on a box opens Issues filtered to that subsystem.
 6. **Zoom.** − / + / Fit. On a laptop, scroll to zoom and drag to pan.
 
 Clicking empty space closes the panel.
@@ -377,7 +380,7 @@ photos that belong to this part, and any gap that names it.
 ### Power
 
 The same parts with only their **power ports**: battery outputs, regulator
-inputs and outputs, supply pins of boards and modules. Amber lines are power.
+inputs and outputs, supply pins of boards and modules. Orange lines are power.
 
 1. **A power port.** Wire a source (battery `out`, buck `vout`) to each
    device's input (`vin`, `vcc`) the same way as in Electrical: click one port,
@@ -547,7 +550,7 @@ The bill of materials is built from the model: parts grouped by part number
 (or description), wires totalled by gauge from their lengths, connectors
 counted from the wires, plus **+ Item** for things that are not parts in the
 diagram (screws, heat-shrink, zip ties). Columns: quantity, item, part number,
-manufacturer, supplier, link, unit cost, total, where. **Columns** adds your own;
+manufacturer, supplier, link, unit cost, total, where. **+ Column** adds your own;
 a part fills a column from its detail of the same name. Export as **Excel**
 (`.xlsx`), **PNG** or **PDF**. Without a server, Excel becomes a CSV.
 
@@ -583,9 +586,15 @@ print window opens instead: choose **Save as PDF** there.
 (kept as a `status: …` label on GitHub), or Done, Not planned, Duplicate
 (GitHub's close reasons). Click it to change it.
 
-The list shows open issues first, then closed ones under **Closed**, the most
-recently closed first (*open + done* is the default filter; *closed* and *all*
-also show not planned and duplicates).
+The tabs split issues by status: **Open** (Backlog, Todo), **Active** (In
+progress, In review), **Closed** (Done, Not planned, Duplicate) and **All**, each
+with its count. **Type** and **Subsystem** narrow the list. Every card has
+**Delete** (asks first; deletes it on GitHub too, needs admin rights).
+
+If the repo uses a **GitHub Project** with a Status column, that status is
+what the page shows and changes (run `gh auth refresh -s project` once so
+`gh` may read and move project items); without one, the status is a
+`status: …` label.
 
 **An issue's panel** (click its title) shows the description, its activity
 (comments, labels added, closed as…, reopened), and a comment box like
@@ -608,6 +617,8 @@ Issues need the GitHub CLI (`gh auth login`) on the machine running `doc serve`.
 3. **Requirement and fault IDs** in the text are links.
 
 Links between docs open inside the page; links to anything else open in a new tab.
+Mermaid flowcharts (a ```` ```mermaid ```` block with `flowchart LR` or `TD`, as
+GitHub draws them) are drawn as diagrams here too.
 
 ### Media
 

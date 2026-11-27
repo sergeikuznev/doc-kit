@@ -139,10 +139,6 @@ them directly.
 
 ---
 
-Publishing a read-only page: **Setup → Publish a read-only page** writes
-`.github/workflows/doc-kit-pages.yml`, which runs `doc model` on every push and
-deploys `docs/system.html` and `docs/media/` to GitHub Pages.
-
 Per-computer settings (the part library folders and the default one) are in
 `~/.config/doc-kit/settings.json`.
 
@@ -178,6 +174,6 @@ on the page, writing the same files:
 | `doc test ID` | **Record test** on the requirement |
 | `doc update ID` | **Edit**, **Mark deleted**, **Change status** on the record |
 | `doc model setup` | **Setup**: subsystems, boards, ROS2 code folders |
-| writing `<name>_arch.sysml` by hand | **Edit** in the System, Electrical, Power and Mechanical views |
+| writing `<name>_arch.sysml` by hand | **+ Part** and wiring in Electrical and Power; ROS plans in Software |
 | editing the subsystem lists in `docs/README.md` and the issue forms | **Setup → Subsystems** |
 | `doc tidy` | not needed: requirements are always written into their subsystem's section |
