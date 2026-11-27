@@ -29,7 +29,7 @@ nav button.on{background:var(--accent-soft)!important;color:var(--accent)!import
 body,button,input,select,textarea,svg text,.lead,.dsub,h1,h2,h3,h4,.page,.drawer,aside,nav,header{font-family:"Inter","SF Pro Text",-apple-system,"Segoe UI",Roboto,sans-serif!important}
 body{font-size:13px;-webkit-font-smoothing:antialiased}b,strong,.dh,.t,h2,h3{font-weight:600!important}.dtool h2,.page h2{font-weight:600!important;font-size:13px}
 .mono,.mono *,code,.id,.ev,time,.n,.chip,.counter b,.plab,.elab text,.topic text.mono,.kv .mono{font-family:var(--mono)!important}
-.navi path{stroke-linecap:square;stroke-linejoin:miter;stroke-width:1.4;stroke:var(--accent)!important}
+.navi path{stroke-linecap:square;stroke-linejoin:miter;stroke-width:1.4}
 nav button{color:var(--muted);font-size:12.5px;gap:10px;font-weight:450}nav button.on{font-weight:550}.roslink{stroke:var(--facts)}nav button:hover{color:var(--ink)}
 .counter.gap{border-color:var(--warn)!important;color:var(--warn)}.gapsp{background:color-mix(in srgb,var(--warn) 6%,var(--surface))!important;border-left:3px solid var(--warn)!important}
 }
@@ -217,6 +217,7 @@ nav button .lbl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-
 .dtool{flex-direction:column;align-items:stretch!important;gap:8px!important}.dtool>div:first-child{flex:none!important;width:100%}
 .dbtns{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.dleg{padding:6px 18px;border-bottom:1px solid var(--hair);background:var(--surface)}.dleg .legend{flex-wrap:wrap;gap:6px 16px}
 .cont.sel>rect{stroke:var(--accent)!important;stroke-width:2!important;stroke-dasharray:none!important}
+.navi path{stroke:var(--muted)!important}
 .udg{display:inline-flex;gap:0}.udg .btn{border-radius:0;margin-left:-1px;padding-left:11px;padding-right:11px}.udg .btn:first-child{border-radius:8px 0 0 8px}.udg .btn:last-child{border-radius:0 8px 8px 0}.udg .btn:disabled{opacity:.4;cursor:default}
 .hmenu{max-height:70vh;overflow:auto;min-width:320px;max-width:460px}.hmenu .mh{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:8px 10px 4px}.hmenu .mh.now{color:var(--accent)}.hmenu button{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .menu button{display:block;width:100%;text-align:left;border:0;background:none;font:inherit;color:var(--ink);padding:7px 10px;border-radius:6px;cursor:pointer}.menu button:hover{background:var(--sunk)}
@@ -458,7 +459,7 @@ function showTopic(t) { setTimeout(() => reopen = () => showTopic(t), 0);
     ${SERVED && view === "software" ? (x.planned ? `<div class="links" style="margin-top:12px"><button class="act" data-form="ros_topic_edit" data-topic="${H(t)}">Rename / change type</button><button class="act dz" onclick="rsel={type:'topic',topic:'${H(t)}'};rosDelete()">Delete</button></div>` : `<div class="dsub" style="margin-top:12px">Used in the code: rename or remove it there.</div>`) : ""}`);
 }
 function markSel() { document.querySelectorAll(".leaf").forEach(g => g.classList.toggle("sel", g.dataset.part === selected));
-  document.querySelectorAll(".cont[data-mv],.cont[data-chain]").forEach(g => g.classList.toggle("sel", (g.dataset.mv || g.dataset.chain.split(" ")[0]) === selected)); hot(selected); }
+  document.querySelectorAll(".cont[data-mv],.cont[data-chain]").forEach(g => g.classList.toggle("sel", (g.dataset.host || g.dataset.mv || g.dataset.chain.split(" ")[0]) === selected)); hot(selected); }
 
 // ------------------------------------------------------------------ diagrams
 const elk = new ELK();
@@ -766,13 +767,13 @@ async function drawSoftware() {
     el("rect", {width: c.width, height: c.height, rx: 12}, g);
     el("text", {x: 14, y: 24, class: "t", style: src.none ? "fill:var(--muted)" : ""}, g).textContent = src.label;
     if (!src.none) g.addEventListener("click", ev => { if (!ev.target.closest(".rosnode") && !dragged) showPart(src.host); }); });
-  const defs = el("defs", {}, svg); const mk = el("marker", {id: "arr", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse"}, defs);
+  const defs = el("defs", {}, svg); const AID = "arr" + Math.random().toString(36).slice(2, 7); const mk = el("marker", {id: AID, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse"}, defs);
   el("path", {d: "M0,0 L10,5 L0,10 z", fill: "var(--muted)"}, mk);
   allEdges(out).forEach(([e, cont]) => { const off = abs[e.container || cont.id] || {x: 0, y: 0};
     (e.sections || []).forEach(s => { const r = routePts(e, cont, abs, s); const d = "M" + r.pts.map(p => `${p.x},${p.y}`).join(" L");
       if (e.link) { const p = el("path", {d, class: "roslink"}, root); el("title", {}, p).textContent = `${e.link.wire}: ${e.link.via} (set in the wire's details, Electrical view)`; return; }
       const pub = e.id.startsWith("p:"), nn = e.id.split(":")[1], tp = e.e.topic;
-      const p = el("path", {d, class: "rosedge" + (e.e.planned ? " plan" : ""), "marker-end": "url(#arr)"}, root); p.dataset.redge = `${nn}|${tp}|${pub ? "out" : "in"}`;
+      const p = el("path", {d, class: "rosedge" + (e.e.planned ? " plan" : ""), "marker-end": `url(#${AID})`}, root); p.dataset.redge = `${nn}|${tp}|${pub ? "out" : "in"}`;
       if (SERVED) { const hit = el("path", {d, class: "rhit"}, root); el("title", {}, hit).textContent = `${pub ? `${nn} publishes ${tp}` : `${nn} subscribes to ${tp}`}${e.e.planned ? " (planned)" : ` (in the code, ${M.nodes.find(x => x.name === nn)?.file || ""}:${e.e.line})`}. Click, then Delete to remove.`;
         hit.addEventListener("click", ev => { ev.stopPropagation(); rsel = {type: "edge", node: nn, topic: tp, io: pub ? "out" : "in", planned: !!e.e.planned}; markR(); }); } });
     (e.labels || []).forEach(l => { const g = el("g", {class: "elab", transform: `translate(${l.x + off.x},${l.y + off.y})`}, root);
