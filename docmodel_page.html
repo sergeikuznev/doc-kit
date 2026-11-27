@@ -8,7 +8,7 @@
 --good:#0f9b2c;--good-ink:#0b7a22;--crit:#d23b3b;--crit-ink:#b02626;--warn:#e0a000;--warn-ink:#8a6200;--appr:#8a8a84;
 --sev1:#9a9a93;--sev2:#e0a000;--sev3:#e0642b;--sev4:#d23b3b;--shadow:0 1px 2px rgba(0,0,0,.04),0 4px 16px rgba(0,0,0,.05)}
 @media (prefers-color-scheme:dark){:root{--bg:#050607;--surface:#121416;--sunk:#0b0c0d;--ink:#e9ebec;--muted:#8d9399;--faint:#5d6268;--hair:#24272a;
---ring:rgba(255,255,255,.08);--accent:#f5b81c;--accent-soft:rgba(245,184,28,.13);--sig:#4f8dff;--pwr:#ff8a3d;--mech:#9aa3ad;--facts:#22d3ee;--arch:#a98bff;
+--ring:rgba(255,255,255,.08);--accent:#5ac8f5;--accent-soft:rgba(90,200,245,.13);--sig:#4f8dff;--pwr:#ff8a3d;--mech:#9aa3ad;--facts:#2dd4bf;--arch:#a98bff;
 --good:#2fd27a;--good-ink:#4fe08f;--crit:#ff4d4f;--crit-ink:#ff6b6d;--warn:#f5b81c;--warn-ink:#f7c84a;--appr:#8d9399;
 --sev1:#5d6268;--sev2:#f5b81c;--sev3:#ff8a3d;--sev4:#ff4d4f;--shadow:none;--mono:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace}
 /* tactical: square, hairlines, colour only where it means something */
@@ -23,7 +23,7 @@ header,nav,aside{background:var(--sunk)!important}header{border-bottom:1px solid
 .pill{border-radius:2px!important;text-transform:uppercase;font-size:10.5px;letter-spacing:.07em;background:none!important;border:1px solid currentColor}
 nav button.on{background:var(--accent-soft)!important;color:var(--accent)!important;box-shadow:inset 2px 0 0 var(--accent)!important}
 .newbtn,.ebtn.on,.btn.on,.fchip.on{color:#0b0b0b!important}.newbtn.addb{background:var(--good)!important;border-color:var(--good)!important;color:#03140a!important}
-.act,.btn,.ebtn,.fchip,input,select,textarea{background:var(--sunk)}input:focus,select:focus,textarea:focus{outline:1px solid var(--accent);border-color:var(--accent)!important}
+.act,.btn,.ebtn,.fchip{background:var(--sunk)}input,select,textarea{background:#0e1012!important;border-color:#2a2e32!important}.modal input,.modal select,.modal textarea,aside input,aside select,aside textarea{background:#0f1114!important}input:focus,select:focus,textarea:focus{outline:1px solid var(--accent);border-color:var(--accent)!important}
 .canvas{background-color:#000}svg .leaf rect,svg .cont>rect,.rosnode rect.b,.sysnode rect,.elab rect,.addph rect,.roshost>rect{rx:2px;ry:2px}.topic>rect{rx:3px;ry:3px}
 .elab rect{fill:#0b0c0d}.elab text{font-family:var(--mono);font-size:10px}
 body,button,input,select,textarea,svg text,.lead,.dsub,h1,h2,h3,h4,.page,.drawer,aside,nav,header{font-family:"Inter","SF Pro Text",-apple-system,"Segoe UI",Roboto,sans-serif!important}
@@ -216,6 +216,7 @@ aside .in{position:relative}aside .dsub:first-of-type{padding-right:40px}.lightb
 nav button .lbl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}nav button .n{flex:none;width:24px;text-align:right;margin-left:6px;font-variant-numeric:tabular-nums;font-size:11px}
 .dtool{flex-direction:column;align-items:stretch!important;gap:8px!important}.dtool>div:first-child{flex:none!important;width:100%}
 .dbtns{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.dleg{padding:6px 18px;border-bottom:1px solid var(--hair);background:var(--surface)}.dleg .legend{flex-wrap:wrap;gap:6px 16px}
+.cont.sel>rect{stroke:var(--accent)!important;stroke-width:2!important;stroke-dasharray:none!important}
 .udg{display:inline-flex;gap:0}.udg .btn{border-radius:0;margin-left:-1px;padding-left:11px;padding-right:11px}.udg .btn:first-child{border-radius:8px 0 0 8px}.udg .btn:last-child{border-radius:0 8px 8px 0}.udg .btn:disabled{opacity:.4;cursor:default}
 .hmenu{max-height:70vh;overflow:auto;min-width:320px;max-width:460px}.hmenu .mh{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:8px 10px 4px}.hmenu .mh.now{color:var(--accent)}.hmenu button{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .menu button{display:block;width:100%;text-align:left;border:0;background:none;font:inherit;color:var(--ink);padding:7px 10px;border-radius:6px;cursor:pointer}.menu button:hover{background:var(--sunk)}
@@ -374,7 +375,7 @@ function showPart(path) { setTimeout(() => reopen = () => showPart(path), 0);
   let h = `<div class="dsub">${p.depth === 1 ? "Subsystem" : p.depth === 0 ? "System" : `Part in <span class="lnk" data-part="${M.top}.${p.subsystem}">${H(p.subsystem)}</span>`}${p.type ? ` · <span class="mono">${H(p.type)}</span>` : ""}</div>
     <div class="dh">${H(p.name)}${p.depth === 1 && (M.prefix_names || {})[p.name] ? ` <span style="font-weight:400;color:var(--muted)">${H(M.prefix_names[p.name])}</span>` : ""}</div>`;
   h += `<div class="links" style="margin:6px 0 4px"><span class="chip" style="color:var(--${p.source})">${p.source === "facts" ? "board, from its .ioc" : p.depth === 1 ? "subsystem" : "part"}</span>${p.depth === 1 ? `<span class="chip focus" data-focus="${H(p.name)}">Open in Electrical</span>` : ""}</div>`;
-  if (SERVED && p.depth === 1) h += `<div class="links" style="margin:10px 0"><button class="act" data-form="part" data-parent="${H(path)}">+ Part here</button><button class="act" onclick="go('setup')">Edit in Setup</button></div>`;
+  if (SERVED && p.depth === 1 && view === "system") h += `<div class="links" style="margin:10px 0"><button class="act" data-form="part" data-parent="${H(path)}">+ Part here</button><button class="act" onclick="go('setup')">Edit in Setup</button></div>`;
   if (SERVED && p.depth >= 2 && view === "electrical") h += `<div class="links" style="margin:10px 0"><button class="act" data-form="part" data-orig="${H(path)}">Edit part</button><button class="act" data-focus="${H(p.subsystem)}" data-view="electrical" data-edit="1">Connect ports…</button><button class="act" data-form="template" data-from="${H(path)}">Save to parts library</button><button class="act dz" data-form="part_delete" data-path="${H(path)}">Delete</button></div>`;
   if (p.doc) h += `<p>${H(p.doc)}</p>`;
   if (Object.keys(p.attrs || {}).length) h += `<h4>Details</h4><div class="kv">${attrsKv(p.attrs)}</div>`;
@@ -456,7 +457,8 @@ function showTopic(t) { setTimeout(() => reopen = () => showTopic(t), 0);
     <h4>Subscribed by</h4><div class="links">${x.sub.map(n => `<span class="chip" data-node="${H(n)}">${H(n)}</span>`).join("") || `<span class="warnline">nobody</span>`}</div>
     ${SERVED && view === "software" ? (x.planned ? `<div class="links" style="margin-top:12px"><button class="act" data-form="ros_topic_edit" data-topic="${H(t)}">Rename / change type</button><button class="act dz" onclick="rsel={type:'topic',topic:'${H(t)}'};rosDelete()">Delete</button></div>` : `<div class="dsub" style="margin-top:12px">Used in the code: rename or remove it there.</div>`) : ""}`);
 }
-function markSel() { document.querySelectorAll(".leaf").forEach(g => g.classList.toggle("sel", g.dataset.part === selected)); hot(selected); }
+function markSel() { document.querySelectorAll(".leaf").forEach(g => g.classList.toggle("sel", g.dataset.part === selected));
+  document.querySelectorAll(".cont[data-mv],.cont[data-chain]").forEach(g => g.classList.toggle("sel", (g.dataset.mv || g.dataset.chain.split(" ")[0]) === selected)); hot(selected); }
 
 // ------------------------------------------------------------------ diagrams
 const elk = new ELK();
@@ -646,7 +648,7 @@ function hot(path) { document.querySelectorAll("path.edge").forEach(p => { const
 async function drawParts(kinds, title, lead) {
   const extra = `<div class="legend">${kinds.map(k => `<span><i style="border-color:${KCOL[k]}${k === "Mechanical" ? ";border-top-style:dashed" : ""}"></i>${k}</span>`).join("")}${[...new Set(Object.values(M.parts).filter(p => p.depth >= 2).map(partKind))].map(k => `<span><i class="box" style="background:${kindCol(k)}"></i>${H(k)}</span>`).join("")}</div>` +
     (focus ? `<span class="chip focus" id="unfocus">Focus: ${H(focus)} ✕</span>` : "");
-  const cv = canvasShell(title, lead, extra, EDIT_HINT);
+  const cv = canvasShell(title, lead, extra, view === "electrical" ? EDIT_HINT : "Click a port, then the port at the other end to connect. Click a wire for its details or to remove it. Parts are added and edited in Electrical.");
   if ($("#unfocus")) $("#unfocus").onclick = () => { focus = null; render(); };
   const {graph} = buildElectrical(kinds);
   if (!graph.children.length) { cv.innerHTML = M.subsystems.length ? `<div class="empty">Nothing of this kind is wired yet.${SERVED ? `<br><br>${view === "electrical" ? `<button class="ebtn" data-form="part">+ Part</button> to add parts, then connect their ports here.` : `Add parts in the <span class="xref" onclick="go('electrical')">Electrical</span> view first.`}` : ""}</div>`
@@ -1000,7 +1002,7 @@ function issuesPage() {
       <label class="dd">Type<select id="ik"><option value="all">all</option><option value="idea" ${ikind === "idea" ? "selected" : ""}>idea</option><option value="bug" ${ikind === "bug" ? "selected" : ""}>bug</option></select></label>
       <label class="dd">Subsystem<select id="isub"><option value="">all</option>${LABELS().map(([v]) => v.toUpperCase()).map(x => `<option value="${x}" ${x === isub ? "selected" : ""}>${x}${(M.prefix_names || {})[x] ? ` · ${H(M.prefix_names[x])}` : ""}</option>`).join("")}</select></label></div>
     ${vis.map((i, k) => `${i.state === "closed" && (k === 0 || vis[k - 1].state !== "closed") ? `<div class="sgroup"><h3>Closed</h3><span class="c">most recently closed first</span></div>` : ""}<div class="icard ${i.state === "closed" ? "isdone" : ""}" id="i${i.number}"><div class="top">${stPill(i)}<span class="num">${i.number ? "#" + i.number : "#…"}</span><span class="t ilink" data-iss="${i.number}">${H(i.title)}</span>
-      ${i.labels.filter(l => !l.startsWith("status: ")).map(l => labChip(l, (i.colors || {})[l])).join("")}<span class="meta">${H(i.author)} · ${i.state === "closed" && i.closed ? "closed " + tm(i.closed) : tm(i.updated)} · <a href="${H(i.url)}" target="_blank">GitHub ↗</a></span></div>
+      ${i.labels.filter(l => !l.startsWith("status: ")).map(l => labChip(l, (i.colors || {})[l])).join("")}<span class="meta">${H(i.author)} · ${i.state === "closed" && i.closed ? "closed " + tm(i.closed) : tm(i.updated)} · <a href="${H(i.url)}" target="_blank">GitHub ↗</a>${SERVED && i.number ? ` <button class="act dz" style="padding:0 7px;margin-left:6px" data-form="issue_delete" data-number="${i.number}" title="Delete this issue here and on GitHub">Delete</button>` : ""}</span></div>
       <div class="links" style="margin-top:6px">${i.subsystems.map(s => `<span class="chip" data-part="${M.top}.${s}">${H(s)}</span>`).join("")}${i.reqs.map(r => reqChip(reqById[r])).join("")}</div>
       ${i.body ? `<details><summary>Details</summary><div class="body">${mdLite(i.body)}</div></details>` : ""}</div>`).join("") || `<div class="empty">No issues match.</div>`}`);
   document.querySelectorAll("[data-iss]").forEach(e => e.onclick = () => showIssue(+e.dataset.iss));
