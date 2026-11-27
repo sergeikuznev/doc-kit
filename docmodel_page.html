@@ -238,6 +238,12 @@ tr.row:hover td,.rcard:hover,.icard:hover,.dcard:hover,.fcard:hover{background:c
 .mmd{overflow:auto;margin:14px 0;padding:12px;border:1px solid var(--hair);background:var(--sunk);border-radius:8px}.mmd svg{display:block}
 .mmn{fill:var(--surface);stroke:var(--ring);stroke-width:1.2;rx:4}.mmt{font-size:12.5px;font-weight:600;fill:var(--ink)}.mmt2{font-size:11.5px;fill:var(--muted)}
 .mme{fill:none;stroke:var(--muted);stroke-width:1.3}.mme.dash{stroke-dasharray:4 3}.mml{fill:var(--sunk);stroke:var(--hair)}.mmlt{font-size:10.5px;fill:var(--muted)}
+.sbtn{color:var(--muted)}.kbd{font-family:var(--mono,monospace);font-size:10.5px;border:1px solid var(--hair);border-radius:4px;padding:0 5px;margin-left:6px;color:var(--faint)}
+.srch{align-items:flex-start!important;padding-top:12vh}.srch .box{width:min(680px,94vw);padding:0!important;overflow:hidden}
+.srch input{width:100%;border:0!important;border-bottom:1px solid var(--hair)!important;border-radius:0!important;padding:16px 18px;font-size:15px;background:transparent!important;color:var(--ink);outline:none!important}
+.sres{max-height:52vh;overflow:auto;padding:6px}.sr{display:grid;grid-template-columns:96px minmax(0,auto) 1fr;gap:12px;align-items:baseline;padding:8px 12px;border-radius:6px;cursor:pointer;border-left:2px solid transparent}
+.sr.on{background:var(--accent-soft);border-left-color:var(--accent)}.sk{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--faint)}.st{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ss{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.shint{padding:8px 16px;border-top:1px solid var(--hair)}
 .udg{display:inline-flex;gap:0}.udg .btn{border-radius:0;margin-left:-1px;padding-left:11px;padding-right:11px}.udg .btn:first-child{border-radius:8px 0 0 8px}.udg .btn:last-child{border-radius:0 8px 8px 0}.udg .btn:disabled{opacity:.4;cursor:default}
 .hmenu{max-height:70vh;overflow:auto;min-width:320px;max-width:460px}.hmenu .mh{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:8px 10px 4px}.hmenu .mh.now{color:var(--accent)}.hmenu button{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .menu button{display:block;width:100%;text-align:left;border:0;background:none;font:inherit;color:var(--ink);padding:7px 10px;border-radius:6px;cursor:pointer}.menu button:hover{background:var(--sunk)}
@@ -337,8 +343,9 @@ function chrome() {
     <span class="counter" data-go="requirements"><b>${verified}/${M.requirements.length}</b> verified</span>
     <button class="btn" id="review" title="Design review pack: print or save as PDF">Review pack</button>
     ${SERVED ? (h => `<span class="udg"><button class="btn" id="undob" ${h.undo.length ? "" : "disabled"} title="${h.undo.length ? "Undo: " + H(h.undo[0]) : "Nothing to undo"}">↶</button><button class="btn" id="redob" ${h.redo.length ? "" : "disabled"} title="${h.redo.length ? "Redo: " + H(h.redo[0]) : "Nothing to redo"}">↷</button><button class="btn" id="histb" ${h.undo.length || h.redo.length ? "" : "disabled"} title="History: go back or forward several steps">▾</button></span>`)(S_.history || {undo: [], redo: []}) : ""}
+    <button class="btn sbtn" id="srchb" title="Search everything (${/Mac/.test(navigator.platform) ? "⌘" : "Ctrl+"}K)">Search <span class="kbd">${/Mac/.test(navigator.platform) ? "⌘K" : "Ctrl K"}</span></button>
     ${SERVED ? `<button class="newbtn" id="newbtn">+ New</button>` : ""}`;
-  $("#review").onclick = reviewPack; wire($("#counters"));
+  $("#review").onclick = reviewPack; $("#srchb").onclick = openSearch; wire($("#counters"));
   if (SERVED) $("#newbtn").onclick = ev => { ev.stopPropagation(); newMenu(); };
   if ($("#undob")) { $("#undob").onclick = () => steps("undo", 1); $("#redob").onclick = () => steps("redo", 1); $("#histb").onclick = ev => { ev.stopPropagation(); histMenu(); }; }
   document.querySelectorAll("[data-go]").forEach(b => b.onclick = () => go(b.dataset.go));
@@ -559,9 +566,16 @@ function buildSystem() {
   return {graph: {id: "root", layoutOptions: {"elk.algorithm": "layered", "elk.direction": "RIGHT", "elk.edgeRouting": "ORTHOGONAL", "elk.layered.spacing.nodeNodeBetweenLayers": "120",
     "elk.spacing.nodeNode": "40", "elk.spacing.edgeLabel": "4", "elk.edgeLabels.inline": "true", "elk.layered.spacing.edgeEdgeBetweenLayers": "16"}, children: nodes, edges}};
 }
-let LAYOUT = {}; try { LAYOUT = JSON.parse(localStorage.getItem("doc-kit-layout:" + M.name) || "{}"); } catch (e) {}
-const curOff = () => (LAYOUT[view + (focus ? ":" + focus : "")] ||= {});
-const saveLayout = () => { try { localStorage.setItem("doc-kit-layout:" + M.name, JSON.stringify(LAYOUT)); } catch (e) {} };
+let LAYOUT = {}; try { LAYOUT = SERVED ? JSON.parse(JSON.stringify(M.layout || {})) : JSON.parse(localStorage.getItem("doc-kit-layout:" + M.name) || "{}"); } catch (e) {}
+const lkey = () => view + (focus ? ":" + focus : "");
+const curOff = () => (LAYOUT[lkey()] ||= {});
+let layoutTimer = null, layoutDirty = new Set();
+const saveLayout = () => {
+  if (!SERVED) { try { localStorage.setItem("doc-kit-layout:" + M.name, JSON.stringify(LAYOUT)); } catch (e) {} return; }
+  layoutDirty.add(lkey()); clearTimeout(layoutTimer);
+  layoutTimer = setTimeout(async () => { const keys = [...layoutDirty]; layoutDirty.clear(); layoutTimer = null;
+    for (const k of keys) { try { await post("api/apply/layout", {view: k, pos: LAYOUT[k] || {}}); } catch (e) { if (!/No change/.test(e.message)) toast(e.message, true); } }
+    if (window.syncNow) syncNow(); }, 1500); };
 function absMap(n, ox = 0, oy = 0, out = {}, par = null, cx = 0, cy = 0) {
   const o = curOff()[n.id] || {x: 0, y: 0}, X = cx + o.x, Y = cy + o.y;
   out[n.id] = {x: ox + (n.x || 0) + o.x, y: oy + (n.y || 0) + o.y, n, p: par, cx: X, cy: Y};
@@ -1221,7 +1235,7 @@ function derive() { reqById = Object.fromEntries(M.requirements.map(r => [r.id, 
 // new data replaces the old in place: same view, same scroll, same panel; nothing reloads
 async function refreshModel() {
   try { const r = await fetch("api/model", {cache: "no-store"}); if (!r.ok) return; const data = await r.json(); if (!data.parts) return;
-    M = data; applyIssueWants(); derive(); } catch (e) { return; }
+    M = data; applyIssueWants(); derive(); if (!layoutTimer && SERVED) LAYOUT = JSON.parse(JSON.stringify(M.layout || {})); } catch (e) { return; }
   const again = reopen, top = $("#main").scrollTop;
   chrome(); render(); $("#main").scrollTop = top; if (again) again(); else markSel && markSel();
 }
@@ -1532,6 +1546,43 @@ function cselOpen(sel, w) {
 }
 new MutationObserver(ms => ms.forEach(mu => mu.addedNodes.forEach(n => { if (n.nodeType !== 1) return; if (n.tagName === "SELECT") enhanceSelect(n); else n.querySelectorAll && n.querySelectorAll("select").forEach(enhanceSelect); }))).observe(document.documentElement, {childList: true, subtree: true});
 document.addEventListener("DOMContentLoaded", () => document.querySelectorAll("select").forEach(enhanceSelect));
+
+// ------------------------------------------------------------------ search everything (Cmd/Ctrl+K)
+function searchIndex() {
+  const out = [], add = (kind, title, sub, act) => out.push({kind, title, sub: sub || "", act, hay: (title + " " + (sub || "")).toLowerCase()});
+  const after = (v, f) => () => { go(v); setTimeout(f, 450); };
+  VIEWS.flatMap(g => g[1]).forEach(([id, label]) => add("view", label, "page", () => go(id)));
+  Object.values(M.parts).forEach(p => { if (p.depth === 1) add("subsystem", p.name, (M.prefix_names || {})[p.name] || "", after("system", () => showPart(p.path)));
+    else if (p.depth >= 2) { add("part", short(p.path), [p.type, p.doc, (p.attrs || {}).part_number].filter(Boolean).join(" · "), after("electrical", () => showPart(p.path)));
+      (p.ports || []).forEach(q => { if (!q.missing) add("pin", `${short(p.path)}.${q.name}`, [q.meaning || q.type, (q.pins || []).map(x => x[0]).join(" ")].filter(Boolean).join(" · "), after(q.kind === "Power" ? "power" : "electrical", () => showPart(p.path))); }); } });
+  M.nodes.forEach(n => add("ROS node", n.name, [n.file || "planned", n.host ? "on " + short(n.host) : ""].filter(Boolean).join(" · "), after("software", () => showNode(n.name))));
+  M.topics.forEach(t => add("topic", t.topic, t.types.join(", "), after("software", () => showTopic(t.topic))));
+  M.requirements.forEach(r => add("requirement", r.id, `${r.status} · ${r.text}`, after("requirements", () => showReq(r.id))));
+  M.faults.forEach(f => add("fault", f.id, f.failure || "", after("faults", () => showFault(f.id))));
+  M.decisions.forEach(d => add("decision", `${d.num} ${d.title}`, d.status, () => { go("decisions"); setTimeout(() => document.getElementById("d" + d.num)?.scrollIntoView({behavior: "smooth"}), 300); }));
+  (M.issues || []).forEach(i => add("issue", `#${i.number} ${i.title}`, `${(ST[i.status] || [i.status])[0]} · ${i.labels.filter(l => !l.startsWith("status: ")).join(", ")}`, after("issues", () => showIssue(i.number))));
+  (M.docs || []).forEach((d, k) => add("doc", d.title, d.file, () => { curDoc = k; go("docs"); }));
+  return out;
+}
+function openSearch() {
+  if ($("#srch")) return $("#srch input").focus();
+  const idx = searchIndex(), m = document.createElement("div"); m.className = "modal srch"; m.id = "srch";
+  m.innerHTML = `<div class="box"><input placeholder="Search parts, pins, nodes, topics, requirements, issues, docs…" autocomplete="off" spellcheck="false"><div class="sres"></div><div class="dsub shint">↑ ↓ to move · Enter to open · Esc to close</div></div>`;
+  document.body.appendChild(m); closeOnBackdrop(m);
+  const inp = m.querySelector("input"), res = m.querySelector(".sres"); let hits = [], k = 0;
+  const score = (x, q) => { const t = x.title.toLowerCase(); if (t === q) return 0; if (t.startsWith(q)) return 1; if (t.includes(q)) return 2; return q.split(/\s+/).every(w => x.hay.includes(w)) ? 3 : 9; };
+  const draw = () => { const q = inp.value.trim().toLowerCase();
+    hits = q ? idx.map(x => [score(x, q), x]).filter(([s]) => s < 9).sort((a, b) => a[0] - b[0] || a[1].title.length - b[1].title.length).slice(0, 40).map(([, x]) => x) : idx.filter(x => x.kind === "view");
+    k = Math.min(k, Math.max(0, hits.length - 1));
+    res.innerHTML = hits.map((x, i) => `<div class="sr${i === k ? " on" : ""}" data-i="${i}"><span class="sk">${H(x.kind)}</span><span class="st">${H(x.title)}</span><span class="ss">${H(x.sub.slice(0, 90))}</span></div>`).join("") || `<div class="dsub" style="padding:14px">Nothing found.</div>`;
+    res.querySelectorAll(".sr").forEach(r => { r.onclick = () => pick(+r.dataset.i); r.onmousemove = () => { if (k !== +r.dataset.i) { k = +r.dataset.i; res.querySelectorAll(".sr").forEach((y, j) => y.classList.toggle("on", j === k)); } }; }); };
+  const pick = i => { const x = hits[i]; if (!x) return; m.remove(); x.act(); };
+  inp.oninput = () => { k = 0; draw(); };
+  inp.onkeydown = ev => { if (ev.key === "ArrowDown" || ev.key === "ArrowUp") { ev.preventDefault(); k = Math.max(0, Math.min(hits.length - 1, k + (ev.key === "ArrowDown" ? 1 : -1))); draw(); res.querySelector(".sr.on")?.scrollIntoView({block: "nearest"}); }
+    else if (ev.key === "Enter") { ev.preventDefault(); pick(k); } else if (ev.key === "Escape") { ev.preventDefault(); m.remove(); } };
+  draw(); inp.focus();
+}
+document.addEventListener("keydown", e => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); openSearch(); } });
 let parked = null;
 function parkModal() { parked = document.querySelector(".modal"); parked.remove(); openForm("port_type"); }
 function refreshTypeSelects(root) { root.querySelectorAll("select[data-pt]").forEach(x => { const v = x.value; x.innerHTML = `<option value="">select…</option>${typeOpts(v)}`; x.value = v; }); }

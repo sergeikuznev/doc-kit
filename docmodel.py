@@ -1457,6 +1457,10 @@ MEDIA_KIND = {".jpg": "image", ".jpeg": "image", ".png": "image", ".gif": "image
 def collect_extras(root, m, with_issues=True):
     """Docs pages, media files and GitHub issues, linked to the model where the text names them."""
     import datetime
+    try:
+        m["layout"] = json.load(open(os.path.join(root, "docs", "model", "layout.json"), encoding="utf-8"))
+    except (OSError, ValueError):
+        m["layout"] = {}
     docs = []
     here = os.path.dirname(os.path.abspath(__file__))
     groups = [("Project", os.path.join(root, "docs"), ["README.md", "requirements.md", "fdir.md", "devlog.md"]),

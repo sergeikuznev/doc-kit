@@ -6,6 +6,11 @@ where you change it: subsystems and boards, parts and wires, test results with
 a photo, ideas, decisions, procedures. **Save** writes the change to plain
 files in your repo, commits and pushes it; **↶ / ↷** undo and redo, any number of steps.
 
+**Search** (top right, or **⌘K** / **Ctrl K** anywhere) finds parts, pins,
+subsystems, ROS nodes and topics, requirements, faults, decisions, issues,
+docs and views as you type; ↑ / ↓ and Enter open the one you want in its own
+view, with its panel.
+
 The page follows your system's light or dark setting. Dark is a strict,
 square "operations" look: black canvas, hairlines, monospace for IDs and
 values, and colour only where it means something (cyan: selected, links and
@@ -305,9 +310,10 @@ layout (and drops `//` comments) on its next change.
 **Moving blocks.** In every view you can drag the outer boxes where you
 want them (subsystem boxes in System, Electrical and Power; computers and
 topics in Software) and the wires follow. Parts inside a subsystem box move
-with it, not on their own. The layout is remembered per view in
-this browser; **Auto layout** (toolbar) forgets it and lets the page arrange
-the view again.
+with it, not on their own. The layout is saved per view in
+`docs/model/layout.json` and committed (`doc: layout: …`), so the whole team
+sees the same arrangement, and **↶** can undo a move. **Auto layout**
+(toolbar) forgets it and lets the page arrange the view again.
 
 **Each thing is edited in its own view.** Parts are edited, connected,
 deleted and saved to the parts library in **Electrical**; wires in

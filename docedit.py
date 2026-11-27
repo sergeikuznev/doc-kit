@@ -1057,7 +1057,27 @@ def op_ros_link(cfg, A, f, ctx):
     raise EditError("no such wire; connect the two in the Electrical view first")
 
 
-OPS = {"ros_topic_edit": op_ros_topic_edit, "ros_topic_delete": op_ros_topic_delete, "ros_node": op_ros_node, "ros_node_delete": op_ros_node_delete, "ros_topic": op_ros_topic, "ros_unplan": op_ros_unplan, "ros_link": op_ros_link,
+def op_layout(cfg, A, f, ctx):
+    """Where blocks were moved by hand, per view; committed so the whole team sees the same arrangement."""
+    path = os.path.join(ctx["root"], "docs", "model", "layout.json")
+    try:
+        data = json.load(open(path, encoding="utf-8"))
+    except (OSError, ValueError):
+        data = {}
+    v = str(f.get("view") or "")
+    if not v:
+        raise EditError("which view?")
+    pos = {str(k): {"x": round(float(p.get("x", 0)), 1), "y": round(float(p.get("y", 0)), 1)} for k, p in (f.get("pos") or {}).items()
+           if isinstance(p, dict) and (abs(float(p.get("x", 0))) > .5 or abs(float(p.get("y", 0))) > .5)}
+    if pos:
+        data[v] = pos
+    else:
+        data.pop(v, None)
+    ctx["extra"].append((path, json.dumps(data, indent=1, sort_keys=True) + "\n"))
+    return f"layout: {v.split(':')[0]}" + ("" if pos else " (automatic again)"), []
+
+
+OPS = {"layout": op_layout, "ros_topic_edit": op_ros_topic_edit, "ros_topic_delete": op_ros_topic_delete, "ros_node": op_ros_node, "ros_node_delete": op_ros_node_delete, "ros_topic": op_ros_topic, "ros_unplan": op_ros_unplan, "ros_link": op_ros_link,
        "subsystem": op_subsystem, "subsystem_delete": op_subsystem_delete, "subsystem_restore": op_subsystem_restore,
        "subsystem_move": op_subsystem_move, "board": op_board, "board_remove": op_board_remove, "ros_paths": op_ros_paths,
        "port_type": op_port_type, "port_type_delete": op_port_type_delete, "part": op_part, "part_delete": op_part_delete,

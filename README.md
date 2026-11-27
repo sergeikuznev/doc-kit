@@ -27,7 +27,7 @@ on it. Every change becomes a git commit.
   and I²C address checks, a bill of materials (Excel, PNG, PDF) with wire
   lengths per gauge, and a design review pack as a PDF.
 - **Reuse.** A parts library shared between projects, and launch files read
-  for which computer runs what. Undo and redo any number of steps.
+  for which computer runs what. Undo and redo any number of steps; ⌘K searches everything.
 - **Record what happens, where it happens.** At the bench, on your phone:
   pick the requirement, Passed, what you measured, take the photo, *Write it*.
   Every change becomes a git commit.
