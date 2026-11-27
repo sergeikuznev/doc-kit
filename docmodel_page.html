@@ -494,6 +494,7 @@ function portClick(part, q) {
   if (!pend) { pend = {full, part, q}; document.querySelectorAll(`.port[data-full="${CSS.escape(full)}"]`).forEach(r => r.classList.add("pend"));
     $("#hint").innerHTML = `From <b class="mono">${H(short(full))}</b> (${H(q.meaning || q.type)}). Now click the other end: a port of the same type, or a part to add a new port there. Click anywhere else to cancel.`; $("#hint").style.display = ""; return; }
   if (pend.full === full) return cancelPend();
+  if (pend.part === part) { cancelPend(); return portClick(part, q); }
   const a = pend.full; cancelPend(); openForm("connect", {a, bpart: part, bport: q.name});
 }
 function cancelPend() { pend = null; document.querySelectorAll(".port.pend").forEach(r => r.classList.remove("pend")); if ($("#hint")) $("#hint").style.display = "none"; }
@@ -525,10 +526,12 @@ function drawEdges(root, out, abs, cls) {
     const off = abs[e.container || cont.id] || {x: 0, y: 0};
     (e.sections || []).forEach(s => {
       const pts = [s.startPoint, ...(s.bendPoints || []), s.endPoint].map(p => `${p.x + off.x},${p.y + off.y}`);
-      if (editing && e.c && e.c.ok !== undefined) { const hit = el("path", {d: "M" + pts.join(" L"), class: "ehit"}, root);
+      let hit = null;
+      if (editing && e.c && e.c.ok !== undefined) { hit = el("path", {d: "M" + pts.join(" L"), class: "ehit"}, root);
         el("title", {}, hit).textContent = e.c.ok ? "Click for wire details, or to remove it" : "Click to remove this broken connection";
         hit.addEventListener("click", ev => { ev.stopPropagation(); openForm(e.c.ok ? "wire" : "disconnect", {a: e.c.a.join("."), b: e.c.b.join(".")}); }); }
       const path = el("path", {d: "M" + pts.join(" L"), class: cls(e)}, root);
+      if (hit) root.appendChild(hit);
       path.dataset.ends = e.c ? `${e.c.a[0]}|${e.c.b[0]}` : (e.a ? `${M.top}.${e.a.s}|${M.top}.${e.a.t}` : `${e.sources[0]}|${e.targets[0]}`);
       if (e.c) el("title", {}, path).textContent = `${short(e.c.a.join("."))} → ${short(e.c.b.join("."))} (${e.c.type})`;
     });
@@ -1229,6 +1232,7 @@ function openForm(kind, data = {}) {
   if (kind === "check") frm.section.onchange = () => { $("#newsec").style.display = frm.section.value === "+new" ? "" : "none"; };
   if (kind === "check" && frm.section.value === "+new") $("#newsec").style.display = "";
   if (kind === "connect") { const fill = () => { const [ap, aq] = [frm.a.value.split(".").slice(0, -1).join("."), frm.a.value.split(".").pop()];
+      [...frm.b_part.options].forEach(o => { o.hidden = o.disabled = !!o.value && o.value === ap; }); if (frm.b_part.value === ap) frm.b_part.value = "";
       const qa = (M.parts[ap] || {ports: []}).ports.find(q => q.name === aq); const bp = M.parts[frm.b_part.value];
       if (!qa || !bp) { frm.b_port.innerHTML = ""; $("#bnew").style.display = "none"; return; }
       const fits = bp.ports.filter(q => q.type === qa.type && !q.missing);
@@ -1275,7 +1279,7 @@ function openForm(kind, data = {}) {
       m.remove(); toast(r.message + (r.url ? " " + r.url : ""));
       (r.warnings || []).filter(w => /^new model problem|^the model would not/.test(w)).forEach((w, i) => setTimeout(() => toast("⚠ " + w, true), 400 + i * 200));
       await refreshModel(); if (window.syncNow) syncNow();
-    } catch (e) { $("#fgo").disabled = false; $("#fmsg").textContent = ""; toast(e.message, true); }
+    } catch (e) { if (/^No change\.?$/.test(e.message)) { m.remove(); return; } $("#fgo").disabled = false; $("#fmsg").textContent = ""; toast(e.message, true); }
   };
 }
 
