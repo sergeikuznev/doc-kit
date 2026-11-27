@@ -735,7 +735,7 @@ async function drawSystem() {
     if (false) { const ph = el("g", {class: "addph", transform: `translate(14,${54 + y0 + src.kids.length * 17})`}, g); el("rect", {x: -6, y: -14, width: 62, height: 20, rx: 6}, ph); el("text", {x: 0, y: 0}, ph).textContent = "+ Part";
       ph.addEventListener("click", ev => { ev.stopPropagation(); openForm("part", {parent: n.id}); }); }
     const oi = issuesFor(s.name, []).filter(i => i.state === "open").length;
-    if (oi) { const b = el("g", {transform: `translate(${n.width - 12},${n.height - 10})`}, g); el("text", {x: 0, y: 0, "text-anchor": "end", style: "font-size:11px;fill:var(--accent)"}, b); b.classList.add("issl"); el("title", {}, b).textContent = "Open these in Issues".textContent = `${oi} open issue${oi > 1 ? "s" : ""}`;
+    if (oi) { const b = el("g", {transform: `translate(${n.width - 12},${n.height - 10})`}, g); el("text", {x: 0, y: 0, "text-anchor": "end", style: "font-size:11px;fill:var(--accent)"}, b).textContent = `${oi} open issue${oi > 1 ? "s" : ""}`; b.classList.add("issl"); el("title", {}, b).textContent = "Open these in Issues";
       b.addEventListener("click", ev => { ev.stopPropagation(); isub = s.name; ist = "open"; ikind = "all"; iq = ""; go("issues"); }); }
     g.addEventListener("click", ev => { ev.stopPropagation(); showPart(n.id); });
     g.addEventListener("mouseenter", () => !selected && hot(n.id)); g.addEventListener("mouseleave", () => !selected && hot(null));
