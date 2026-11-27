@@ -96,7 +96,7 @@ doc serve [--port 8765] [--interval 60] [--no-push] [--no-open]
 - Serves the page at `http://127.0.0.1:8765` (this computer only) and opens it in your browser; `--no-open` skips that.
   Share it with your own devices with `tailscale serve --bg 8765`.
 - Every `--interval` seconds: `git pull --ff-only`, and a rebuild when any input
-  changed (the `.ioc` files, the ROS2 folders, `docs/`). GitHub issues refresh every 5 minutes.
+  changed (the `.ioc` files, the ROS2 folders, `docs/`). GitHub issues refresh every 30 seconds.
 - Each form writes files, commits them with a `doc: …` message and pushes
   (`--no-push`: commit only).
 - It refuses to write a file that has uncommitted changes in this clone.

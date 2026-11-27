@@ -141,7 +141,7 @@ class Server:
         """issues=False: never wait for GitHub (used while a request waits for the answer)."""
         with self.lock:
             fp = self._fingerprint()
-            due = issues and time.time() - self.issues_at > 300
+            due = issues and time.time() - self.issues_at > ISSUE_EVERY
             if not force and fp == self.inputs and not due:
                 return False
             if due:
@@ -177,10 +177,13 @@ class Server:
             return True
 
     def loop(self):
+        last_pull = time.time()
         while True:
-            time.sleep(self.interval)
+            time.sleep(min(self.interval, ISSUE_EVERY))
             try:
-                self.pull()
+                if time.time() - last_pull >= self.interval:  # git pull every --interval; GitHub issues every ISSUE_EVERY
+                    self.pull()
+                    last_pull = time.time()
                 self.rebuild()
             except Exception as e:  # keep serving whatever happens
                 self.note(f"background update failed: {e}")
@@ -784,6 +787,9 @@ BROWSERS = ["google-chrome", "google-chrome-stable", "chromium", "chromium-brows
             "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/Applications/Chromium.app/Contents/MacOS/Chromium",
             "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge", "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
             r"C:\Program Files\Google\Chrome\Application\chrome.exe", r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"]
+
+
+ISSUE_EVERY = 30  # seconds between GitHub issue refreshes (about 360 API calls an hour)
 
 
 def pick_folder():
