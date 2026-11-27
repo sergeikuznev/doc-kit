@@ -686,7 +686,7 @@ The page never reloads by itself, and you never wait for GitHub:
 ## 10. When the wiring no longer matches the hardware
 
 Rename a pin label in CubeMX, for example `NRF24_CE` to `RADIO_CE`, and the
-wire to `nrf24_ce` now points at a pin that is gone.
+wire to `NRF24_CE` now points at a pin that is gone.
 
 ![Problem on the overview](images/page-21-problem.png)
 
@@ -700,7 +700,7 @@ wire to `nrf24_ce` now points at a pin that is gone.
 3. **Focus** on one subsystem (from its panel) to see just the affected wiring.
 
 Fix it on the page: click the red wire to remove it, then connect
-`radio_ce` to the module's `ce`. The red counter disappears.
+`RADIO_CE` to the module's `ce`. The red counter disappears.
 
 The pre-commit hook stops a commit from your own clone with the same message,
 so a broken model never reaches GitHub unnoticed. Other things the check

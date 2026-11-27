@@ -592,8 +592,8 @@ A prefix is permanent once a requirement uses it; the name can change any time.
 ### Boards, parts, ports, wires
 
 - **A board** is a microcontroller with a CubeMX project. It points at its own
-  `.ioc` file; its ports are read from there: one per peripheral (`spi1`,
-  `tim3`, `usb_otg_fs`) and one per labelled GPIO (`nrf24_csn`), each with its
+  `.ioc` file; its ports are read from there: one per peripheral (`SPI1`,
+  `TIM3`, `USB_OTG_FS`) and one per labelled GPIO (`NRF24_CSN`), names written exactly as in the `.ioc`, each with its
   pins and saved settings. Several `.ioc` files in one folder are never guessed
   between.
 - **A part** is anything else: a module, sensor, driver, battery, computer.
@@ -642,8 +642,8 @@ package ROVER_arch {
             }
         }
 
-        connect CTRL.mcu.spi1 to COMM.radio.spi;
-        connect CTRL.mcu.nrf24_csn to COMM.radio.csn;
+        connect CTRL.mcu.SPI1 to COMM.radio.spi;
+        connect CTRL.mcu.NRF24_CSN to COMM.radio.csn;
     }
 
     allocate ROS::rover_ekf to rover.CTRL.pi;     // which computer runs a node

@@ -74,8 +74,8 @@ through the repo, so each person who commits runs it once.
   ROS2 code and the records, adds it to the commit, and stops the commit when
   the wiring no longer matches the facts:
   ```
-  ✕ docs/model/ROVER_arch.sysml:102: connect CTRL.mcu.nrf24_ce to COMM.radio.ce:
-    rover.CTRL.mcu has no port 'nrf24_ce' (it is not in the .ioc any more - pin renamed or removed?)
+  ✕ docs/model/ROVER_arch.sysml:102: connect CTRL.mcu.NRF24_CE to COMM.radio.ce:
+    rover.CTRL.mcu has no port 'NRF24_CE' (it is not in the .ioc any more - pin renamed or removed?)
 
   Commit stopped. Fix the wiring on the page (doc serve, Electrical view), or commit anyway with: git commit --no-verify
   ```

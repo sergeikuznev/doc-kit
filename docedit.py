@@ -1026,11 +1026,39 @@ OPS = {"ros_node": op_ros_node, "ros_node_delete": op_ros_node_delete, "ros_topi
        "wire": op_wire, "bom_columns": op_bom_columns, "bom_item": op_bom_item, "pages": op_pages}
 
 
+def _pin_case(A, model):
+    """Board pins keep the .ioc's capitals since 0.6.4: rewrite older lower-case references to match."""
+    parts = (model or {}).get("parts", {})
+    tn = A["top"]["name"]
+
+    def real(segs):
+        p = parts.get(".".join([tn] + segs[:-1]))
+        if p:
+            hit = next((q["name"] for q in p.get("ports", []) if q["name"].lower() == segs[-1].lower() and not q.get("missing")), None)
+            if hit:
+                segs[-1] = hit
+    for c in A["connects"]:
+        real(c[0])
+        real(c[1])
+
+    def walk(p, prefix):
+        mp = parts.get(".".join([tn] + prefix))
+        if mp:
+            for q in p.get("ports", []):
+                hit = next((x["name"] for x in mp.get("ports", []) if x["name"].lower() == q["name"].lower()), None)
+                if hit:
+                    q["name"] = hit
+        for ch in p.get("parts", []):
+            walk(ch, prefix + [ch["name"]])
+    walk(A["top"], [])
+
+
 def run(op, root, f, model):
     """Returns (writes, message, notes). Nothing is written here."""
     cfg = load_cfg(root)
     A = load_arch(root, cfg)
     adopt(cfg, A)
+    _pin_case(A, model)
     ctx = {"root": root, "model": model, "extra": []}
     msg, notes = OPS[op](cfg, A, f, ctx)
     ensure_boxes(cfg, A)

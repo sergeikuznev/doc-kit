@@ -202,7 +202,7 @@ def _derived(ip, settings):
 
 
 def _ident(text):
-    t = re.sub(r"\W+", "_", text).strip("_").lower()
+    t = re.sub(r"\W+", "_", text).strip("_")  # case kept as in the .ioc (AIN1, SPI1, USB_OTG_FS)
     return t or "pin"
 
 
@@ -220,9 +220,9 @@ def parse_ioc(path, board):
     def add(name, ptype, pin_list, settings, ip=None, label=None):
         base, n = _ident(name), 2
         name = base
-        while name in used:
+        while name.lower() in used:
             name, n = f"{base}_{n}", n + 1
-        used.add(name)
+        used.add(name.lower())
         kind, meaning = PORT_DEFS.get(ptype, ("Signal", ptype))
         ports.append({"name": name, "type": ptype, "kind": kind, "meaning": meaning, "pins": pin_list,
                       "settings": settings, "ip": ip, "label": label, "conj": False})
@@ -741,7 +741,7 @@ def build(root, overrides=None):
             else:
                 ports = [dict(q) for q in defs[p["type"]]["ports"]]
         for q in p["ports"]:
-            base = next((x for x in ports if x["name"] == q["name"] and not x.get("own")), None)
+            base = next((x for x in ports if x["name"].lower() == q["name"].lower() and not x.get("own")), None)
             if base is not None:  # same name as a port of its type: adds details (voltage, address, ...) to that port
                 if q["type"] != base["type"]:
                     problems.append(f"{afile}:{q['line']}: port {key}.{q['name']}: its type says {base['type']}, not {q['type']}")
@@ -782,7 +782,8 @@ def build(root, overrides=None):
                 problems.append(f"{afile}:{line}: {what}: no part {s!r} in {part_path}")
                 return None
             part_path = nxt
-        port = next((q for q in parts[part_path]["ports"] if q["name"] == segs[-1]), None)
+        port = next((q for q in parts[part_path]["ports"] if q["name"] == segs[-1]), None) or \
+            next((q for q in parts[part_path]["ports"] if q["name"].lower() == segs[-1].lower()), None)  # files from before 0.6.4 wrote board pins in lower case
         if port is None:
             src = parts[part_path]["source"]
             hint = " (it is not in the .ioc any more - pin renamed or removed?)" if src == "facts" else ""
