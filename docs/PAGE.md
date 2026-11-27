@@ -3,8 +3,8 @@
 The page is how you use doc-kit. It shows the whole robot in one place (wiring,
 software, requirements, faults, decisions, issues, docs, photos), and it is
 where you change it: subsystems and boards, parts and wires, test results with
-a photo, ideas, decisions, procedures. Every change is previewed, written to
-plain files in your repo, committed and pushed.
+a photo, ideas, decisions, procedures. **Save** writes the change to plain
+files in your repo, commits and pushes it; **↶ Undo** reverses the last one.
 
 Concepts (what a requirement is, what makes a good fault row) are in the
 [handbook](HANDBOOK.md). The few terminal commands (install, hooks, CI) are in
@@ -163,15 +163,9 @@ holds as many parts as you need.
 2. **Name** (and an optional line on what is in it).
 3. **Box in the system diagram**: untick for a requirements-only group.
 
-Every Setup change shows a preview before anything is written:
-
-![Setup preview](images/page-27-setup-preview.png)
-
-1. **The files** it will write and commit: `docs/model/model.toml`, the arch
-   file, the subsystem table in `docs/README.md`, and the subsystem list of the
-   GitHub issue forms (so issue labels match your subsystems).
-2. **The change**, as a diff.
-3. **Write it** commits and pushes. **Back** returns to the form.
+**Save** writes `docs/model/model.toml`, the arch file, the subsystem table in
+`docs/README.md` and the subsystem list of the GitHub issue forms (so issue
+labels match your subsystems), and commits them together.
 
 ### Adding a board
 
@@ -233,11 +227,11 @@ connect the same MCU port to each.
 1. **Subsystem**: moving a part keeps its wires.
 2. **What it is**: part number or one line.
 3. **Ports**: a name and a type each. Renaming a port keeps its wires;
-   removing one removes its wires (the preview lists them).
+   removing one removes its wires.
 4. **+ Port.** Missing a type? *Add one* opens the port type form.
 
 Deleting a part removes its wires, and the links of requirements and ROS nodes
-to it; the preview lists everything that goes. Boards get their ports from the
+to it (you confirm first). Boards get their ports from the
 `.ioc` and parts made before doc-kit 0.3 may get theirs from a type in the arch
 file; for those, the form edits the name and description only.
 
@@ -523,18 +517,12 @@ requirement's panel.
 3. **Free text** with a hint of what a good answer looks like.
 4. **Upload**: the file goes to `docs/media/` with today's date in its name,
    and its name goes into the field.
-5. **Preview** shows what will be written. Nothing is saved yet.
+5. **Save** writes, commits and pushes. Removing something asks *Yes, do it* first.
 
-![Preview](images/page-19-preview.png)
-
-1. **The file** that will change.
-2. **The exact text** that will be written.
-3. **Write it** saves, commits and pushes.
-4. **Back** returns to the form with your answers kept.
-
-Warnings appear on the preview without blocking you: a requirement with no
-*shall* or no number to measure, a fault pointing to a requirement that does
-not exist.
+Hints appear in the form without blocking you, e.g. a requirement with no
+*shall* or no number to measure. If a change breaks the model (a wire to a
+pin that does not exist), a red notice says so after saving, and the Overview
+lists it.
 
 | Form | Fields | Writes |
 |---|---|---|
@@ -598,13 +586,7 @@ wire to `nrf24_ce` now points at a pin that is gone.
 3. **Focus** on one subsystem (from its panel) to see just the affected wiring.
 
 Fix it on the page: **Edit**, click the red wire to remove it, then connect
-`radio_ce` to the module's `ce`.
-
-![Fix preview](images/page-34-fix-preview.png)
-
-1. **Fixes**: the preview lists the problems a change removes (in green) and
-   any it would add (in red), before you write it.
-2. **The change** to the arch file.
+`radio_ce` to the module's `ce`. The red counter disappears.
 
 The pre-commit hook stops a commit from your own clone with the same message,
 so a broken model never reaches GitHub unnoticed. Other things the check
@@ -636,7 +618,7 @@ with two message types.
 2. **Requirements**, find the one you tested (filter *Approved* or search), tap **Record test**.
 3. Passed or Failed, what you measured (*stopped after 0.4 s, 5 runs*).
 4. **Upload photo / video / log**: take the photo or pick the video.
-5. **Preview**, check the row, **Write it**.
+5. **Save**.
 6. The requirement turns Verified or Failed, the photo appears on its card and on its part.
 
 If it failed: go to the fault that requirement covers and check the warning,
@@ -663,7 +645,7 @@ then file a bug (**+ New → Bug**) with the same photo.
 
 1. Save the `.ioc` and push (or commit on the server's machine). The page shows the problem (section 10).
 2. **Electrical → Edit**: remove the red wire, connect the renamed pin.
-3. The preview says *fixes*. **Write it**. The **Interfaces** table updates itself with the new pin.
+3. The red counter disappears. The **Interfaces** table updates itself with the new pin.
 
 From your own clone, the commit hook stops the `.ioc` commit with the same
 message; commit with the fix from the page, or `git commit --no-verify` and fix it on the page right after.
@@ -714,8 +696,8 @@ each commit.
 **It never writes** the `.ioc` (CubeMX owns it) or your code. It never deletes a
 record: a dropped requirement is marked Deleted with a reason, a replaced
 decision is Superseded, a subsystem whose prefix was used is kept as deleted.
-Parts and wires are really removed (git history keeps them), after a preview
-that lists everything that goes.
+Parts and wires are really removed (git history keeps them, and **↶ Undo**
+brings back the last change).
 
 **It refuses** to write a file that has uncommitted changes on the machine
 running the server, so it never commits half of your own edit. Commit or stash

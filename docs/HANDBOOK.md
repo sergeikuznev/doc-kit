@@ -663,7 +663,7 @@ that is not in the facts (pin renamed or removed in CubeMX), mismatched types
 (an SPI bus wired to a GPIO), an unknown part type, a node allocated to a part
 that does not exist, a pin for a requirement that does not exist, one topic used
 with two message types. Broken wires are drawn red and dashed instead of
-disappearing, and every page edit previews the problems it adds or fixes.
+disappearing, and the page warns right after a change that breaks the model.
 
 Gaps are not errors, they are review questions: a subsystem with no
 requirements or no fault analysed, a fault no requirement covers, a topic

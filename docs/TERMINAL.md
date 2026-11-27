@@ -82,8 +82,8 @@ through the repo, so each person who commits runs it once.
 - **post-commit**: after a commit whose message closes an issue (`fixes #12`),
   prints a reminder to record what came out of it (a decision, a test result, a procedure) on the page.
 
-Commits made by the page skip the check: the page has already shown the
-problems a change adds, in its preview.
+Commits made by the page skip the check, so a half-finished wiring change
+is never blocked; problems show on the page instead.
 
 ---
 

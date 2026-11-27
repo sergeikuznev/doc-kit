@@ -325,7 +325,7 @@ class Server:
         tail = "" if not inside else " · not pushed (--no-push)" if pushed is None else " · pushed" if pushed else " · push failed, commit kept locally"
         if writes and not inside:
             tail = " · outside the project, so not committed"
-        return {"message": msg.replace("doc: ", "Saved: ") + tail, "version": self.version}
+        return {"message": msg.replace("doc: ", "Saved: ") + tail, "version": self.version, "warnings": warnings}
 
     def _inside(self, path):
         return os.path.realpath(path).startswith(os.path.realpath(self.root) + os.sep)
