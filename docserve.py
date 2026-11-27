@@ -427,11 +427,11 @@ class Server:
             """GitHub's own issue status (preview): set it by its id from the repo's planning statuses. True when it worked."""
             try:
                 sts = json.loads(self.gh("api", "-H", "X-GitHub-Api-Version: 2026-03-10", "repos/{owner}/{repo}/planning-statuses"))
-                sid = next((x["id"] for x in sts if str(x.get("name", "")).strip().lower() == st), None)
-                if sid is None:
+                name = next((x["name"] for x in sts if str(x.get("name", "")).strip().lower() == st), None)
+                if name is None:
                     return False
-                self.gh("api", "-X", "PATCH", "-H", "X-GitHub-Api-Version: 2026-03-10", api, "-F", f"status_id={sid}")
-                return True
+                got = self.gh("api", "-X", "PATCH", "-H", "X-GitHub-Api-Version: 2026-03-10", api, "-f", f"status={name}", "--jq", ".status.name")
+                return got.strip().lower() == st
             except Exception:
                 return False
 
