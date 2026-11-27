@@ -850,7 +850,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Build the page (it is published even when the model has problems; they show on it)
-        run: python3 tools/doc.py model --no-open || true
+        run: python3 tools/doc-kit/doc.py model --no-open || true
         env:
           GH_TOKEN: ${{ github.token }}
       - run: |

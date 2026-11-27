@@ -13,10 +13,10 @@ These commands set a project up and run the checks:
     doc model [--check] [--no-open]          rebuild the facts, check the architecture, write docs/system.html
     doc report [--no-open]                   static status page docs/report.html
 
-(doc = python3 tools/doc.py; see tools/guides/TERMINAL.md)
+(doc = python3 tools/doc-kit/doc.py; see tools/doc-kit/guides/TERMINAL.md)
 """
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 import datetime
 import html
@@ -600,17 +600,17 @@ def cmd_hook():
                 f"changed a procedure, record it on the page (+ New).", "36"))
 
 HOOK = """#!/bin/sh
-# Installed by tools/doc.py: after a commit that closes an issue, print a reminder
+# Installed by doc-kit: after a commit that closes an issue, print a reminder
 # to record the decision / test / procedure on the page.
-python3 "$(git rev-parse --show-toplevel)/tools/doc.py" hook || true
+python3 "$(git rev-parse --show-toplevel)/tools/doc-kit/doc.py" hook || true
 """
 
 PRE_HOOK = """#!/bin/sh
-# Installed by tools/doc.py: regenerate the model facts (.ioc, ROS2 code, docs)
+# Installed by doc-kit: regenerate the model facts (.ioc, ROS2 code, docs)
 # and stop the commit if the architecture no longer matches them.
 ROOT="$(git rev-parse --show-toplevel)"
 [ -f "$ROOT/docs/model/model.toml" ] || exit 0
-python3 "$ROOT/tools/doc.py" model --hook
+python3 "$ROOT/tools/doc-kit/doc.py" model --hook
 """
 
 
@@ -620,7 +620,7 @@ def cmd_install_hook():
     if not gitdir:
         sys.exit("Not a git repository.")
     hook = os.path.join(ROOT, gitdir, "hooks", "post-commit")
-    if os.path.exists(hook) and "tools/doc.py" not in read(hook):
+    if os.path.exists(hook) and "tools/doc" not in read(hook) and "doc-kit" not in read(hook):
         sys.exit(f"{hook} already exists and was not made by doc.py. Merge it by hand.")
     os.makedirs(os.path.dirname(hook), exist_ok=True)
     with open(hook, "w") as f:
@@ -628,7 +628,7 @@ def cmd_install_hook():
     os.chmod(hook, 0o755)
     ok("Installed post-commit hook: after a commit with 'fixes #N' it reminds you to record what came out of it.")
     pre = os.path.join(ROOT, gitdir, "hooks", "pre-commit")
-    if os.path.exists(pre) and "tools/doc.py" not in read(pre):
+    if os.path.exists(pre) and "tools/doc" not in read(pre) and "doc-kit" not in read(pre):
         warn(f"{pre} already exists and was not made by doc.py; the model check was not installed.")
     else:
         with open(pre, "w") as f:
@@ -1008,27 +1008,31 @@ def cmd_init(args):
                      f'[project]\nname = "{name}"\n\n[ros]\npaths = []\n')
         created.append("docs/model/model.toml")
 
-    tool = os.path.join(target, "tools", "doc.py")
-    existed = os.path.exists(tool)
-    os.makedirs(os.path.dirname(tool), exist_ok=True)
+    home = os.path.join(target, "tools", "doc-kit")  # everything doc-kit installs lives in this one folder
+    tool = os.path.join(home, "doc.py")
+    existed = os.path.exists(tool) or os.path.exists(os.path.join(target, "tools", "doc.py"))
+    os.makedirs(home, exist_ok=True)
     shutil.copy2(os.path.abspath(__file__), tool)
     os.chmod(tool, 0o755)
-    created.append("tools/doc.py (updated to " + __version__ + ")" if existed else "tools/doc.py")
+    created.append("tools/doc-kit/doc.py (updated to " + __version__ + ")" if existed else "tools/doc-kit/doc.py")
     for extra in ("docmodel.py", "docmodel_page.html", "docserve.py", "docedit.py", os.path.join("vendor", "elk.bundled.js"),
                   os.path.join("vendor", "LICENSE-elkjs.md"), "README.md", os.path.join("docs", "PAGE.md"),
                   os.path.join("docs", "TERMINAL.md"), os.path.join("docs", "HANDBOOK.md")):
         src = os.path.join(kit, extra)
         if os.path.exists(src):
-            dst = os.path.join(target, "tools", "guides", os.path.basename(extra)) if extra.endswith(".md") and "LICENSE" not in extra \
-                else os.path.join(target, "tools", extra)
+            dst = os.path.join(home, "guides", os.path.basename(extra)) if extra.endswith(".md") and "LICENSE" not in extra \
+                else os.path.join(home, extra)
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             shutil.copy2(src, dst)
-            created.append(os.path.relpath(dst, target).replace(os.sep, "/"))
-
-    gi = os.path.join(target, "tools", ".gitignore")
+    created.append("tools/doc-kit/ (docmodel.py, docserve.py, docedit.py, docmodel_page.html, vendor/, guides/)")
+    gi = os.path.join(home, ".gitignore")
     if not os.path.exists(gi):
         with open(gi, "w") as fh:
             fh.write("__pycache__/\n")
+    moved = _move_old_layout(target)
+    if moved:
+        created.append(f"moved out of tools/: {', '.join(moved)}")
+
     ok(f"\nSet up documentation for {name} in {target}")
     for f in sorted(created):
         print(f"  + {f}")
@@ -1036,7 +1040,8 @@ def cmd_init(args):
         info(f"  = {f} (already exists, left unchanged)")
     print(c("\nNext steps:", "1"))
     print("  1. Once per computer, add the shortcut to ~/.zshrc or ~/.bashrc:")
-    print("""       alias doc='python3 "$(git rev-parse --show-toplevel)/tools/doc.py"'""")
+    print("""       alias doc='python3 "$(git rev-parse --show-toplevel)/tools/doc-kit/doc.py"'""")
+    print("     (an older alias pointing at tools/doc.py must be changed to tools/doc-kit/doc.py)")
     print("  2. Commit what init created, then inside the project:  doc install-hook")
     print("  3. doc serve    and open http://127.0.0.1:8765")
     print("  4. On the page, open Setup: add your subsystems, boards (.ioc files) and ROS2 code folders.")
@@ -1067,6 +1072,44 @@ def _drop_old_defaults(target):
         if os.path.exists(path) and OLD_OPTIONS in read(path):
             write(path, read(path).replace(OLD_OPTIONS, "options: [general]   # written from the page (Setup): your subsystem prefixes in lowercase"))
 
+
+OLD_FILES = ["doc.py", "docmodel.py", "docserve.py", "docedit.py", "docmodel_page.html",
+             os.path.join("vendor", "elk.bundled.js"), os.path.join("vendor", "LICENSE-elkjs.md")]
+
+def _move_old_layout(target):
+    """doc-kit up to 0.4 put its files straight into tools/. Remove those copies (they are now in
+    tools/doc-kit/), and point hooks and the Pages workflow at the new place."""
+    tools, gone = os.path.join(target, "tools"), []
+    old_doc = os.path.join(tools, "doc.py")
+    if os.path.exists(old_doc) and "doc-kit" in read(old_doc):
+        for f in OLD_FILES:
+            pth = os.path.join(tools, f)
+            if os.path.exists(pth):
+                os.remove(pth)
+                gone.append(f.replace(os.sep, "/"))
+        for d in ("guides", "vendor", "__pycache__"):
+            pth = os.path.join(tools, d)
+            if d == "guides" and os.path.isdir(pth):
+                shutil.rmtree(pth)
+                gone.append("guides/")
+            elif os.path.isdir(pth) and (d == "__pycache__" or not os.listdir(pth)):
+                shutil.rmtree(pth)
+        gi = os.path.join(tools, ".gitignore")
+        if os.path.exists(gi) and read(gi).strip() == "__pycache__/":
+            os.remove(gi)
+    hooks = os.path.join(target, ".git", "hooks")
+    for f in ("pre-commit", "post-commit"):
+        pth = os.path.join(hooks, f)
+        if os.path.exists(pth) and "tools/doc.py" in read(pth):
+            text = read(pth).replace("tools/doc.py", "tools/doc-kit/doc.py")
+            with open(pth, "w") as fh:
+                fh.write(text)
+    wf = os.path.join(target, ".github", "workflows", "doc-kit-pages.yml")
+    if os.path.exists(wf) and "tools/doc.py" in read(wf):
+        text = read(wf).replace("tools/doc.py", "tools/doc-kit/doc.py")
+        with open(wf, "w") as fh:
+            fh.write(text)
+    return gone
 
 MOVED = {"req", "test", "fault", "decision", "procedure", "check", "log", "idea", "bug", "update", "tidy"}
 

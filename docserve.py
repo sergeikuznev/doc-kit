@@ -1,7 +1,7 @@
 """
 docserve.py - serve the system map and accept edits from it.
 
-    python3 tools/doc.py serve [--port 8765] [--no-push] [--interval 60] [--no-open]
+    python3 tools/doc-kit/doc.py serve [--port 8765] [--no-push] [--interval 60] [--no-open]
 
 Binds to 127.0.0.1 only. Share it with your own devices through Tailscale:
     tailscale serve --bg 8765
@@ -440,11 +440,15 @@ class Server:
             if not body and not then:
                 raise doc.OpError("Write a comment first")
 
+            if then:
+                self.want_status[n] = then
+
             def work():
                 if body:
                     self.gh("issue", "comment", str(n), "--body", body)
-                if then:
-                    set_status(then)
+                latest = self.want_status.pop(n, None)
+                if latest:
+                    set_status(latest)
             msg = f"#{n}: " + ", ".join(x for x in ("commented" if body else "", f"→ {then}" if then else "") if x)
         elif op == "issue_delete":
             work, msg, then = (lambda: self.gh("issue", "delete", str(n), "--yes")), f"#{n} deleted", None

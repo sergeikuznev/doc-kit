@@ -166,6 +166,11 @@ a,a:visited{color:var(--accent);text-decoration-color:color-mix(in srgb,var(--ac
 .banner button{font:inherit;border:0;border-radius:8px;padding:5px 12px;background:var(--accent);color:#fff;cursor:pointer}
 .toast{position:fixed;right:18px;bottom:18px;background:var(--surface);border:1px solid var(--ring);padding:10px 14px;border-radius:10px;box-shadow:var(--shadow);z-index:60;font-size:13px}
 .toast.err{border-color:var(--crit);color:var(--crit-ink)}
+.gapsp{border-color:color-mix(in srgb,var(--warn) 55%,transparent);background:color-mix(in srgb,var(--warn) 9%,var(--surface));box-shadow:inset 4px 0 0 color-mix(in srgb,var(--warn) 80%,transparent)}
+.gapsp h3{color:var(--warn-ink)}.gapsp .issue{border-top-color:color-mix(in srgb,var(--warn) 22%,transparent)}.gapsp .issue .k{color:var(--warn-ink)}
+.xbtn{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:8px;border:1px solid transparent;background:none;color:var(--muted);font-size:18px;line-height:1;cursor:pointer;display:grid;place-items:center}
+.xbtn:hover{background:var(--sunk);color:var(--ink);border-color:var(--hair)}.modal .box{position:relative}.modal .box.narrow{width:min(520px,96vw)}.modal h3{padding-right:36px}
+aside .in{position:relative}aside .dsub:first-of-type{padding-right:40px}.lightbox .xbtn{position:fixed;top:16px;right:18px;color:#fff;font-size:22px}.lightbox .xbtn:hover{background:rgba(255,255,255,.12)}
 .sync{font-size:12px;color:var(--muted);align-self:center;white-space:nowrap}.sync.on{color:var(--accent)}.sync.ok{color:var(--good-ink)}.sync.bad{color:var(--crit-ink);cursor:help}
 .newbtn.dzbtn{background:var(--crit);border-color:var(--crit)}.newbtn{font:inherit;font-size:12.5px;font-weight:600;padding:5px 12px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer}
 .menu{position:absolute;right:20px;top:52px;background:var(--surface);border:1px solid var(--ring);border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.15);padding:6px;z-index:45;min-width:220px}
@@ -266,7 +271,7 @@ function loadHash() { const parts = decodeURIComponent(location.hash.slice(1)).s
 // ------------------------------------------------------------------ drawer
 let refit = null;
 const afterPanel = () => setTimeout(() => refit && refit(), 200);
-function openDrawer(html) { afterPanel(); $("#drawer-in").innerHTML = `<button class="btn x" id="dx">Close</button>` + html; $("#drawer").classList.add("open"); $("#dx").onclick = closeDrawer; wire($("#drawer-in")); }
+function openDrawer(html) { afterPanel(); $("#drawer-in").innerHTML = `<button class="xbtn" id="dx" title="Close (Esc)" aria-label="Close">✕</button>` + html; $("#drawer").classList.add("open"); $("#dx").onclick = closeDrawer; wire($("#drawer-in")); }
 let reopen = null;
 function closeDrawer() { reopen = null; if ($("#drawer").classList.contains("open")) afterPanel(); $("#drawer").classList.remove("open"); const had = selected; selected = null; if (had) saveHash(); document.querySelectorAll(".sel").forEach(e => e.classList.remove("sel")); }
 function wire(root) {
@@ -667,7 +672,7 @@ function overview() {
   </div>
   ${M.problems.length ? `<div class="panel" style="border-color:var(--crit)"><h3 style="color:var(--crit-ink)">Model problems <span class="chip">${M.problems.length}</span></h3><div class="dsub" style="margin-bottom:6px">The commit check stops on these.</div>${M.problems.map(p => `<div class="issue p"><span class="k">problem</span><span class="mono">${H(p)}</span></div>`).join("")}</div>` : `<div class="panel"><h3>✓ Architecture matches the facts</h3><div class="dsub">Every connection points to a port that exists, and every type matches.</div></div>`}
   ${M.notes.length ? `<div class="panel"><h3>Notes</h3>${M.notes.map(p => `<div class="issue"><span class="k">note</span><span class="mono">${H(p)}</span></div>`).join("")}</div>` : ""}
-  <div class="panel"><h3>Gaps <span class="chip">${M.gaps.length}</span></h3>${Object.entries(groups).map(([k, gs]) => gs.map(g => `<div class="issue"><span class="k">${H(k)}</span><span class="${g.refs.length ? "g" : ""}" ${g.refs.length ? `data-part="${g.refs[0]}"` : ""}>${H(g.text)}</span></div>`).join("")).join("") || `<div class="dsub">None.</div>`}</div>`);
+  <div class="panel ${M.gaps.length ? "gapsp" : ""}"><h3>Gaps <span class="chip">${M.gaps.length}</span>${M.gaps.length ? `<span class="dsub" style="margin:0 0 0 6px;font-weight:400">questions a design review would ask: worth acting on</span>` : ""}</h3>${Object.entries(groups).map(([k, gs]) => gs.map(g => `<div class="issue"><span class="k">${H(k)}</span><span class="${g.refs.length ? "g" : ""}" ${g.refs.length ? `data-part="${g.refs[0]}"` : ""}>${H(g.text)}</span></div>`).join("")).join("") || `<div class="dsub">None.</div>`}</div>`);
 }
 function interfaces() {
   const pairs = {}; M.icd.forEach(i => (pairs[i.pair.join(" ↔ ")] ||= []).push(i));
@@ -737,7 +742,7 @@ function lightbox(f) {
   const view = x.kind === "image" ? `<img src="${u}">` : x.kind === "video" ? `<video src="${u}" controls autoplay></video>`
     : x.kind === "pdf" ? `<iframe src="${u}" style="width:80vw;height:75vh;border:0;border-radius:8px;background:#fff"></iframe>` : `<pre id="lbtext">Loading…</pre>`;
   const d = document.createElement("div"); d.className = "lightbox";
-  d.innerHTML = `<div class="in">${view}<div class="row"><b>${H(x.name)}</b><span style="opacity:.7">${H(x.date || "")}</span>${x.reqs.map(r => `<span class="chip" data-req="${H(r)}">${H(r)}</span>`).join("")}<span style="flex:1"></span><a href="${u}" target="_blank">Open file ↗</a></div></div>`;
+  d.innerHTML = `<button class="xbtn" title="Close (Esc)" aria-label="Close" onclick="this.closest('.lightbox').remove()">✕</button><div class="in">${view}<div class="row"><b>${H(x.name)}</b><span style="opacity:.7">${H(x.date || "")}</span>${x.reqs.map(r => `<span class="chip" data-req="${H(r)}">${H(r)}</span>`).join("")}<span style="flex:1"></span><a href="${u}" target="_blank">Open file ↗</a></div></div>`;
   closeOnBackdrop(d);
   document.body.appendChild(d); wire(d);
   d.querySelectorAll("[data-req]").forEach(e => e.addEventListener("click", () => d.remove()));
@@ -782,7 +787,7 @@ function issuesPage() {
     // open first (newest change first); then closed ones, the most recently closed first
     .sort((a, b) => (a.state === "closed") - (b.state === "closed") || String(a.state === "closed" ? b.closed || b.updated : b.updated).localeCompare(String(a.state === "closed" ? a.closed || a.updated : a.updated)));
   page(`<div class="ibar"><h2 style="margin:0">Issues</h2><span class="sp" style="flex:1"></span>${SERVED ? `<button class="act" data-form="idea">+ Idea</button><button class="act" data-form="bug">+ Bug</button>` : ""}</div>
-    <p class="lead">From GitHub${M.issue_error && M.issue_error !== "skipped" ? ` — <span style="color:var(--warn-ink)">not loaded: ${H(M.issue_error)}</span>` : M.issue_error === "skipped" ? " (skipped this build)" : ""}. ${SERVED ? "Refreshed every 5 minutes." : `Snapshot from ${H((M.built || "").replace("T", " "))}.`} Labels place each issue in a subsystem; requirement IDs in the text link it to requirements.</p>
+    <p class="lead">From GitHub${M.issue_error && M.issue_error !== "skipped" ? ` — <span style="color:var(--warn-ink)">not loaded: ${H(M.issue_error)}</span>` : M.issue_error === "skipped" ? " (skipped this build)" : ""}. ${SERVED ? "" : `Snapshot from ${H((M.built || "").replace("T", " "))}.`} Labels place each issue in a subsystem; requirement IDs in the text link it to requirements.</p>
     <div class="filters"><input id="iq" placeholder="Search issues…" value="${H(iq)}">
       ${[["active", "open + done"], ["open", "open"], ["closed", "closed"], ["all", "all"]].map(([x, l]) => `<button class="fchip ${x === ist ? "on" : ""}" data-ist="${x}">${l}</button>`).join("")}
       <span style="width:8px"></span>${["all", "idea", "bug"].map(x => `<button class="fchip ${x === ikind ? "on" : ""}" data-ik="${x}">${x}</button>`).join("")}
@@ -820,16 +825,24 @@ function statusMenu(anchor, n) {
   m.querySelectorAll("[data-st]").forEach(b => b.onclick = () => { m.remove(); if (b.dataset.st !== i.status) issueOp("issue_status", {number: n, status: b.dataset.st}); });
   setTimeout(() => document.addEventListener("click", function off(ev) { if (!m.contains(ev.target)) m.remove(); document.removeEventListener("click", off); }), 0);
 }
+const issueWant = {};  // number -> {status, until}: what you chose last, kept on screen until GitHub agrees
+let issueChain = Promise.resolve();
+function applyIssueWants() { const now = Date.now();
+  for (const [n, w] of Object.entries(issueWant)) { const i = (M.issues || []).find(x => x.number === +n);
+    if (!i || now > w.until) { delete issueWant[n]; continue; }
+    if (i.status === w.status && !pendingSync) { delete issueWant[n]; continue; }
+    const was = i.state; i.status = w.status; i.state = ["done", "not planned", "duplicate"].includes(w.status) ? "closed" : "open"; if (i.state === "closed" && was !== "closed") i.closed = w.at; } }
 async function issueOp(op, body) {
   const i = (M.issues || []).find(x => x.number === body.number), st = body.status || body.then;
   const now = new Date().toISOString();
-  if (i && st) { const was = i.state; i.status = st; i.state = ["done", "not planned", "duplicate"].includes(st) ? "closed" : "open"; i.updated = now; if (i.state === "closed" && was !== "closed") i.closed = now; }
+  if (i && st) { const was = i.state; i.status = st; i.state = ["done", "not planned", "duplicate"].includes(st) ? "closed" : "open"; i.updated = now; if (i.state === "closed" && was !== "closed") i.closed = now;
+    issueWant[body.number] = {status: st, at: now, until: Date.now() + 60000}; }
   if (op === "issue_delete") { M.issues = M.issues.filter(x => x.number !== body.number); closeDrawer(); }
   if (op === "issue_comment" && body.body) { (pendingComments[body.number] ||= []).push({type: "comment", who: S_.me || "you", at: now, body: body.body}); setTimeout(() => delete pendingComments[body.number], 15000);
     if ($("#icom")) $("#icom").value = ""; }
   const again = reopen; chrome(); if (["issues", "overview"].includes(view)) render(); if (again && op !== "issue_delete") again();
-  try { await post(`api/apply/${op}`, body); if (window.syncNow) syncNow(); }
-  catch (e) { toast(e.message, true); refreshModel(); }
+  issueChain = issueChain.then(() => post(`api/apply/${op}`, body)).then(() => { if (window.syncNow) syncNow(); })
+    .catch(e => { delete issueWant[body.number]; toast(e.message, true); refreshModel(); });
 }
 function showIssue(n) { setTimeout(() => reopen = () => showIssue(n), 0); if (!n) return toast("Still being created on GitHub…");
   const i = (M.issues || []).find(x => x.number === n); if (!i) return;
@@ -947,7 +960,7 @@ function derive() { reqById = Object.fromEntries(M.requirements.map(r => [r.id, 
 // new data replaces the old in place: same view, same scroll, same panel; nothing reloads
 async function refreshModel() {
   try { const r = await fetch("api/model", {cache: "no-store"}); if (!r.ok) return; const data = await r.json(); if (!data.parts) return;
-    M = data; derive(); } catch (e) { return; }
+    M = data; applyIssueWants(); derive(); } catch (e) { return; }
   const again = reopen, top = $("#main").scrollTop;
   chrome(); render(); $("#main").scrollTop = top; if (again) again(); else markSel && markSel();
 }
@@ -1034,10 +1047,10 @@ function formSpec(kind, d) {
   const part = d.orig ? M.parts[d.orig] : null;
   switch (kind) {
     case "subsystem": return {title: sub ? `Edit subsystem ${sub.prefix}` : "New subsystem", sub: "Subsystems are the boxes of the system diagram and the prefixes of requirement IDs (CTRL-001). Written to model.toml, the README table and the issue forms.", html:
-      `<div class="two">${fld("prefix", "Prefix", "2–6 capitals, e.g. CTRL. It starts every requirement ID of this subsystem.", inp("prefix", sub ? sub.prefix : "", "CTRL"))}${fld("name", "Name", "", inp("name", sub ? sub.name : "", "Control"))}</div>` +
+      fld("prefix", "Prefix", "2–6 capitals, e.g. CTRL. It starts every requirement ID of this subsystem.", inp("prefix", sub ? sub.prefix : "", "CTRL")) + fld("name", "Name", "", inp("name", sub ? sub.name : "", "Control")) +
       fld("about", "What is in it", "Optional, one line.", inp("about", sub ? sub.about : "", "STM32 and the sensors wired to it")) +
       `<div class="fld"><label><input type="checkbox" name="box" ${!sub || sub.box ? "checked" : ""}>Box in the system diagram</label><div class="hint">Untick for a requirements-only group, e.g. SYS (whole robot) or FDIR: its requirements belong to the whole system.</div></div>` +
-      (sub && sub.reqs ? `<div class="dsub">${sub.reqs} requirement(s) use ${H(sub.prefix)}-, so the prefix cannot change (IDs never change).</div>` : ""), extra: sub ? {orig: sub.prefix} : {}};
+      (sub && sub.reqs ? `<div class="dsub">${sub.reqs} requirement(s) use ${H(sub.prefix)}-, so the prefix cannot change (IDs never change).</div>` : ""), extra: sub ? {orig: sub.prefix} : {}, narrow: true};
     case "subsystem_delete": return {title: `Delete subsystem ${sub.prefix}`, sub: sub.reqs ? "" : "Removes it from model.toml, the README table and the issue forms.", html:
       `<div class="dsub">${sub.parts ? `It still holds ${sub.parts} part(s): move or delete them first.` : sub.reqs ? `${sub.reqs} live requirement(s) use ${H(sub.prefix)}-: mark them deleted first.` : "Nothing uses it. If old (deleted) requirements used its prefix it is kept as deleted, so their IDs are never reused."}</div>`, extra: {prefix: sub.prefix}};
     case "board": { const c = SET().ioc_candidates;
@@ -1061,7 +1074,7 @@ function formSpec(kind, d) {
         .map(p => [p.path, `${"  ".repeat(p.depth - 1)}${p.depth === 1 ? p.name + ((M.prefix_names || {})[p.name] ? " · " + M.prefix_names[p.name] : "") : "↳ " + p.name}`]);
       return {title: part ? `Edit ${short(d.orig)}` : "New part", sub: "A module, sensor, driver, battery or computer, or an assembly that holds other parts. Its ports are the pins, buses, power and mounts it connects with.", html:
       (!part && templates().length ? fld("tpl", "Start from a template", "Fills in the fields below. Templates live in the part library (Setup).", `<select id="tplsel"><option value="">none</option>${templates().map((t, i) => `<option value="${i}">${H(t.name)}${t.doc ? " · " + H(t.doc.slice(0, 40)) : ""}</option>`).join("")}</select>`) : "") +
-      `<div class="two">${fld("parent", "Inside", "A subsystem, or a part to put it in (an assembly).", sel("parent", places, parentPath, places.length ? "pick…" : "add subsystems in Setup first"))}${fld("name", "Name", "e.g. imu, lora, pi, battery", inp("name", part ? part.name : "", "imu"))}</div>` +
+      `<div class="two">${fld("parent", "Inside", "A subsystem, or a part to put it in (an assembly).", (places.length ? sel("parent", places, parentPath) : sel("parent", [], "", "add subsystems in Setup first")))}${fld("name", "Name", "e.g. imu, lora, pi, battery", inp("name", part ? part.name : "", "imu"))}</div>` +
       fld("doc", "What it is", "Part number or one line.", inp("doc", part ? part.doc : "", "ICM-42688-P IMU, SPI")) +
       `<div class="fld"><label>Details</label><div class="hint">For the BOM and the checks: part number, supplier, cost, I2C address… Add any field you like.</div>${kvBox(part ? part.attrs : {}, SUGGEST.part, "pattr")}</div>` +
       `<div class="fld"><label>Ports</label><div class="hint">${inherited.length ? `${inherited.length} come from ${part.board ? "its .ioc" : `its type ${H(part.type)}`} (name and type fixed, details editable). ` : ""}You can also add ports while connecting: click a port, then this part.</div>
@@ -1173,7 +1186,7 @@ function openForm(kind, data = {}) {
   const spec = formSpec(kind, data);
   const op = spec.op || kind;
   const m = document.createElement("div"); m.className = "modal";
-  m.innerHTML = `<div class="box"><h3>${H(spec.title)}</h3><div class="sub">${spec.sub}</div><form id="frm">${spec.html}</form>
+  m.innerHTML = `<div class="box ${spec.narrow ? "narrow" : ""}"><button class="xbtn" type="button" title="Close (Esc)" aria-label="Close" onclick="this.closest('.modal').remove()">✕</button><h3>${H(spec.title)}</h3><div class="sub">${spec.sub}</div><form id="frm">${spec.html}</form>
     <div id="pvw" style="display:none"></div><div class="mfoot"><span class="sp dsub" id="fmsg"></span><button class="btn" id="fcancel">Cancel</button><button class="newbtn" id="fgo">Save</button></div></div>`;
   document.body.appendChild(m);
   closeOnBackdrop(m);

@@ -46,7 +46,7 @@ docs/requirements.md, fdir.md, devlog.md
 docs/decisions/, procedures/, icd/, media/
 docs/model/model.toml         project name; Setup adds subsystems, boards, ROS2 folders
 .github/ISSUE_TEMPLATE/       Idea and Bug forms; Setup writes their subsystem list
-tools/                        doc.py, docmodel.py, docserve.py, docedit.py, the page, vendor/elkjs, guides/
+tools/doc-kit/                doc.py, docmodel.py, docserve.py, docedit.py, the page, vendor/elkjs, guides/
 ```
 
 Commit what it created.
@@ -58,7 +58,7 @@ Commit what it created.
 Add once per computer, to `~/.zshrc` or `~/.bashrc`:
 
 ```bash
-alias doc='python3 "$(git rev-parse --show-toplevel)/tools/doc.py"'
+alias doc='python3 "$(git rev-parse --show-toplevel)/tools/doc-kit/doc.py"'
 ```
 
 `doc` then works from any folder inside any project that has doc-kit.
@@ -128,7 +128,7 @@ commits from people who did not install the hook. In GitHub Actions:
 ```yaml
 - uses: actions/setup-python@v5
   with: { python-version: "3.12" }
-- run: python3 tools/doc.py model --check
+- run: python3 tools/doc-kit/doc.py model --check
 ```
 
 The records are plain Markdown tables, and the model is two small text files
@@ -154,10 +154,14 @@ python3 doc.py init path/to/your/project
 cd path/to/your/project && doc install-hook
 ```
 
-`init` replaces everything in `tools/` and leaves your docs untouched. Restart
+`init` replaces everything in `tools/doc-kit/` and leaves your docs untouched. Restart
 `doc serve` afterwards. Projects set up with doc-kit 0.2 keep working: their
 README subsystem table is taken over into `model.toml` on the first Setup
 change, and an untouched 0.2 default list is cleared, so Setup starts empty.
+Projects set up before 0.5 had doc-kit's files loose in `tools/`: `init` moves
+them into `tools/doc-kit/` (your own files in `tools/` are left alone), updates
+the hooks and the Pages workflow, and the `doc` alias must then point at
+`tools/doc-kit/doc.py`.
 
 ---
 

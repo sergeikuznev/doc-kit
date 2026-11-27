@@ -60,7 +60,7 @@ only shows what your files say, and only writes what you typed.
 git clone https://github.com/sergeikuznev/doc-kit.git
 python3 doc-kit/doc.py init /path/to/your/project
 cd /path/to/your/project
-alias doc='python3 "$(git rev-parse --show-toplevel)/tools/doc.py"'   # add to ~/.zshrc once
+alias doc='python3 "$(git rev-parse --show-toplevel)/tools/doc-kit/doc.py"'   # add to ~/.zshrc once
 git add -A && git commit -m "docs: doc-kit"
 doc install-hook        # checks the wiring before each commit
 doc serve               # the page, live, at http://127.0.0.1:8765
@@ -141,9 +141,9 @@ docs/
                             <name>_facts.sysml (generated)
   report.html, system.html  generated pages
 .github/ISSUE_TEMPLATE/     Idea and Bug forms for the GitHub website
-tools/doc.py                the tool
-tools/docmodel.py, docmodel_page.html, docserve.py, docedit.py, vendor/   the page and its server
-tools/guides/               README and guides, shown in the page's Docs section
+tools/doc-kit/              everything doc-kit installs, in one folder: doc.py, the page and its
+                            server (docmodel.py, docserve.py, docedit.py, docmodel_page.html, vendor/),
+                            guides/ (shown in the page's Docs section)
 ```
 
 Everything is plain text, so you can read and edit any file by hand and the tool keeps working.
@@ -167,7 +167,7 @@ machine's git identity. Each person who also commits from their own clone runs
 ## Updating
 
 Pull the latest doc-kit and run `python3 doc.py init /path/to/your/project` again.
-It replaces everything in `tools/` and leaves all your existing docs untouched.
+It replaces everything in `tools/doc-kit/` and leaves all your existing docs untouched.
 Then run `doc install-hook` once more and restart `doc serve`
 ([details](docs/TERMINAL.md#7-updating-doc-kit-in-a-project)).
 
