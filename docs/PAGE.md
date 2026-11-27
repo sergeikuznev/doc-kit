@@ -118,6 +118,30 @@ say where your ROS2 code is.
    Ethernet, WiFi, radio link, power, mechanical). Add your own when you want a
    check to be stricter, e.g. `Power5V` so a 12 V output cannot be wired to a 5 V input.
 
+### Part library
+
+Reusable parts (an IMU, an encoder, a motor driver, a radio) with their
+details and ports, so you build each module once and use it in every project.
+
+- **+ Folder** adds a library folder. A folder **inside the project** (e.g.
+  `docs/model/parts`) is committed and shared with the team. A folder
+  **outside** (e.g. `~/robotics/parts`, or its own git repo) serves all your
+  projects on this computer; it is written but never committed. The folder
+  list and the **default** folder are remembered per computer, in
+  `~/.config/doc-kit/settings.json`.
+- **Save as template** in a part's panel stores that part; pick the folder
+  (the default is preselected). **+ Template**, **Edit** and **Delete** manage them here.
+- **+ Part** can **start from a template**: it fills in the description, details and ports.
+
+### Publishing a read-only page
+
+**Publish a read-only page → Set up** adds a GitHub Actions workflow
+(`.github/workflows/doc-kit-pages.yml`). After you enable it once (repo
+Settings › Pages › Source: GitHub Actions), GitHub rebuilds the page on every
+push and publishes it: no forms, no server, always current. Good as a
+portfolio link. The published page is **public**, even when the repo is
+private, and Pages on a private repo needs a paid GitHub plan.
+
 ### Choosing subsystems
 
 Group them the way the robot comes apart.
@@ -217,12 +241,48 @@ to it; the preview lists everything that goes. Boards get their ports from the
 `.ioc` and parts made before doc-kit 0.3 may get theirs from a type in the arch
 file; for those, the form edits the name and description only.
 
+### Details: part numbers, voltages, addresses
+
+Every part, port and wire can carry **details**: named fields with a value.
+The forms suggest the common ones, and **+ Field** adds any field you like.
+
+| On | Suggested fields | Used by |
+|---|---|---|
+| a part | part_number, manufacturer, supplier, link, unit_cost, quantity, i2c_address | BOM, I²C check |
+| a power port | voltage, max_current (what it can supply), current (what it draws) | power budget, voltage check |
+| an I²C port | address | I²C check |
+| a wire | gauge, length, connector, cable, color | BOM, Interfaces |
+
+In the part form, **Details** next to a port opens its fields. Ports that
+come from a board's `.ioc` or a part's type keep their name and type, but take
+details too (e.g. the MCU's power input).
+
+### Wires
+
+In edit mode, click a wire for its **wire details** (gauge, length, connector,
+cable…) or to remove it. The connect form has the same fields, folded away.
+In a part's panel, **wire** next to each connection opens them; the details
+show under the connection, in the Interfaces table and in the BOM.
+
+### Assemblies: parts inside parts
+
+A part can hold other parts: pick it under **Inside** in the part form. An arm
+can be one part holding its joints, servos and encoders. Assemblies are drawn
+as shaded boxes inside their subsystem; wires go to the parts inside.
+
+![An assembly](images/page-35-assembly.png)
+
 ### Which computer runs a ROS node
 
 ![Allocate form](images/page-33-allocate.png)
 
 In the **Software** view, click a node, then **Change** next to *Runs on*.
 Nodes that run nowhere yet are grouped under *Not allocated*.
+
+doc-kit also reads your **launch files** (`.launch.py`, `.launch.xml`) in the
+ROS2 code folders. A node's panel shows which launch file starts it, with its
+package, executable, remappings and parameters. A launch file runs on one
+computer, so *Apply to: every node started by …* places all its nodes at once.
 
 ### Which part a requirement belongs to
 
@@ -367,6 +427,41 @@ from it.
 2. **Decision and why.**
 3. **Links** to the parts and requirements named on its Related line, and *Change status*.
 
+### Power and checks
+
+![Power and checks](images/page-36-power.png)
+
+Every group of wired power ports is a **rail**. Ports with *max_current*
+supply it, ports with *current* draw from it; the bar shows the load against
+what is available. Flagged (also among the Overview's gaps):
+
+- a rail drawing more than its sources supply;
+- a rail joining ports with different voltages (a 5 V output wired to a 3.3 V input);
+- two devices with the same address on one I²C bus.
+
+Ports with no current set are listed under each rail, so you see what is
+still missing. A regulator's input draw is entered by hand (from its output
+load and efficiency).
+
+### BOM
+
+![BOM](images/page-37-bom.png)
+
+The bill of materials is built from the model: parts grouped by part number
+(or description), wires totalled by gauge from their lengths, connectors
+counted from the wires, plus **+ Item** for things that are not parts in the
+diagram (screws, heat-shrink, zip ties). Columns: quantity, item, part number,
+manufacturer, supplier, link, unit cost, total, where. **Columns** adds your own;
+a part fills a column from its detail of the same name. Export as **Excel**
+(`.xlsx`), **PNG** or **PDF** (print dialog). Without a server, Excel becomes a CSV.
+
+### Design review pack
+
+**Review pack** (top right) opens a printable document: summary, subsystems,
+requirements with their evidence, faults, interfaces with wire details, power
+budget, decisions, BOM, and the open problems and gaps. Print it or save it as
+PDF, for a design review, a report or URC documentation.
+
 ---
 
 ## 7. Issues, docs and media
@@ -457,7 +552,20 @@ not exist.
 | Change decision status | Proposed, Accepted, Rejected, Superseded by NNN, or the Related line | the decision file |
 
 Each save is one commit with a readable message (`doc: test COMM-002 verified`),
-then a push. An upload is its own commit.
+then a push. An upload is its own commit. If someone else pushed in the
+meantime, the server rebases onto their change and pushes again.
+
+### Undo
+
+**↶ Undo** (top right) appears when the last commit was made by the page. It
+shows what that change was, then adds a commit that reverses it: the history
+keeps both. Anything older, or a commit made outside the page, is undone with git.
+
+### Who made a change
+
+When someone opens the page through Tailscale, Tailscale tells the server who
+they are, and their changes are committed under their name. Opened directly on
+the server's computer, changes use that computer's git identity.
 
 ---
 
@@ -598,8 +706,9 @@ from a form. Wiring is easier on a laptop: the ports are small on a phone screen
 
 **It writes** your records (requirements, tests, faults, decisions, procedures,
 checklist lines, devlog), the model (`docs/model/model.toml` and the arch
-file), the generated subsystem table and issue-form lists, GitHub issues, and
-files you upload into `docs/media/`. It regenerates `<name>_facts.sysml` with
+file), the generated subsystem table and issue-form lists, GitHub issues,
+files you upload into `docs/media/`, part templates in your library folders,
+and the Pages workflow when you set it up. It regenerates `<name>_facts.sysml` with
 each commit.
 
 **It never writes** the `.ioc` (CubeMX owns it) or your code. It never deletes a

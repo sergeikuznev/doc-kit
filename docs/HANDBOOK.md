@@ -608,6 +608,16 @@ A prefix is permanent once a requirement uses it; the name can change any time.
 - **Decisions** link to parts by naming them on their Related line
   (`**Related:** PWR-001, battery`).
 
+### Details, budgets and the BOM
+
+Parts, ports and wires carry **details** (named values): a part number and
+supplier for the bill of materials, voltage and current on power ports for the
+power budget, an address on I²C ports, gauge and length on wires. Enter what
+you know; the checks use what is there and list what is missing. The aim is
+not a perfect database but catching the mistakes that cost a board: an
+overloaded regulator, a 5 V rail on a 3.3 V sensor, two sensors on one I²C
+address.
+
 ### What the file looks like
 
 You do not need to read or write it, but it is plain text, so here is what a

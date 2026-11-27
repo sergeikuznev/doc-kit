@@ -109,6 +109,7 @@ class Server:
                                "firmware": self.git("describe", "--always", "--dirty").stdout.strip(),
                                "labels": doc.subsystems(), "prefixes": [(r[0], r[1]) for r in doc.subsystem_rows()],
                                "setup": docedit.setup_info(self.root, m), "checklist": doc.checklist_sections(),
+                               "last": self.git("log", "-1", "--format=%s%x00%an%x00%cr").stdout.strip().split("\0"),
                                "procedures": sorted(os.listdir(os.path.join(self.root, "docs", "procedures")))
                                if os.path.isdir(os.path.join(self.root, "docs", "procedures")) else []}
                 data = json.dumps({k: v for k, v in m.items() if k != "built"}, sort_keys=True, default=list)
@@ -164,21 +165,21 @@ class Server:
         rels = [os.path.relpath(x, self.root) for x in paths]
         self.git("add", "--", *rels, check=True)
         # the page has already shown the problems this change adds, so the commit check is not run again
-        r = self.git("commit", "--no-verify", "-m", message, "--", *rels)
+        who = getattr(self, "who", None)
+        author = ["--author", f"{who[0]} <{who[1] if '@' in who[1] else who[1] + '@tailscale'}>"] if who and who[1] else []
+        r = self.git("commit", "--no-verify", *author, "-m", message, "--", *rels)
         if r.returncode:
             raise doc.OpError("commit stopped: " + (r.stdout + r.stderr).strip()[-800:])
-        pushed = None
-        if self.push and self.git("remote").stdout.strip():
-            pr = self.git("push", "--quiet")
-            pushed = pr.returncode == 0
-            if not pushed:
-                self.note("push failed: " + pr.stderr.strip()[-200:])
+        pushed = self._push()
         self.note(f"committed: {message}" + ("" if pushed is None else " (pushed)" if pushed else " (push FAILED)"))
         return pushed
 
-    def apply(self, op, f, dry):
-        """Run one form. dry=True returns the preview only."""
+    def apply(self, op, f, dry, who=None):
+        """Run one form. dry=True returns the preview only. who = (name, login) from Tailscale, if any."""
         D = doc
+        self.who = who
+        if op == "undo":
+            return self.undo(dry)
         lines = lambda k: [x.strip() for x in str(f.get(k, "")).splitlines() if x.strip()]
         need = lambda k: (str(f.get(k, "")).strip() or (_ for _ in ()).throw(D.OpError(f"'{k}' is required")))
         warnings, msg = [], ""
@@ -283,6 +284,11 @@ class Server:
         elif op == "log":
             writes, preview = D.op_log({k: lines(k) for k in ("done", "broke", "next", "media")})
             msg = "doc: devlog"
+        elif op in docedit.LIB_OPS:
+            writes, msg, notes = docedit.run_library(op, self.root, f)
+            warnings += notes
+            preview, _ = self._model_preview(writes, check=False)
+            msg = "doc: " + msg
         elif op in docedit.OPS:
             writes, msg, notes = docedit.run(op, self.root, f, self.model)
             warnings += notes
@@ -299,29 +305,85 @@ class Server:
             msg = f"doc: decision {str(num).zfill(3)} {field} -> {value}"
         else:
             raise D.OpError(f"unknown form {op}")
-        self.guard([w[0] for w in writes])
+        inside = [w for w in writes if self._inside(w[0])]
+        self.guard([w[0] for w in inside])
         if dry:
-            return {"preview": preview, "warnings": warnings,
-                    "target": ", ".join(os.path.relpath(w[0], self.root) for w in writes)}
+            return {"preview": preview, "warnings": warnings, "commit": bool(inside),
+                    "target": ", ".join(self._show(w[0]) for w in writes)}
         with self.lock:
-            D.apply_writes(writes)
-            pushed = self.commit([w[0] for w in writes], msg)
+            for path, text in writes:
+                if text is None:
+                    if os.path.exists(path):
+                        os.remove(path)
+                else:
+                    os.makedirs(os.path.dirname(path), exist_ok=True)
+                    with open(path, "w", encoding="utf-8") as fh:
+                        fh.write(text)
+            pushed = self.commit([w[0] for w in inside], msg) if inside else None
             self.rebuild(force=True)
-        return {"message": msg.replace("doc: ", "Saved: ") + ("" if pushed is None else " · pushed" if pushed else " · push failed, commit kept locally"),
-                "version": self.version}
+            self.inputs = None
+        tail = "" if not inside else " · not pushed (--no-push)" if pushed is None else " · pushed" if pushed else " · push failed, commit kept locally"
+        if writes and not inside:
+            tail = " · outside the project, so not committed"
+        return {"message": msg.replace("doc: ", "Saved: ") + tail, "version": self.version}
 
-    def _model_preview(self, writes):
+    def _inside(self, path):
+        return os.path.realpath(path).startswith(os.path.realpath(self.root) + os.sep)
+
+    def _show(self, path):
+        return os.path.relpath(path, self.root) if self._inside(path) else path
+
+    def undo(self, dry):
+        """Revert the last commit, if the page made it ('doc: ...')."""
+        head = self.git("log", "-1", "--format=%h%x00%s%x00%an%x00%cr").stdout.strip().split("\0")
+        if len(head) < 4 or not head[1].startswith(("doc: ", 'Revert "doc: ')):
+            raise doc.OpError("The last commit was not made by the page, so there is nothing to undo here. Use git for that one.")
+        files = [x for x in self.git("show", "--name-only", "--format=", "HEAD").stdout.splitlines() if x.strip()]
+        self.guard([os.path.join(self.root, x) for x in files if os.path.exists(os.path.join(self.root, x))])
+        if dry:
+            stat = self.git("show", "--stat", "--format=", "HEAD").stdout.strip()
+            return {"preview": f"{head[0]}  {head[1]}\n{head[2]}, {head[3]}\n\n{stat}", "target": ", ".join(files),
+                    "warnings": ["This adds a new commit that reverses it; the history keeps both."]}
+        with self.lock:
+            r = self.git("revert", "--no-edit", "HEAD")
+            if r.returncode:
+                self.git("revert", "--abort")
+                raise doc.OpError("could not undo: " + (r.stderr or r.stdout).strip()[-300:])
+            pushed = self._push()
+            self.note(f"undone: {head[1]}")
+            self.rebuild(force=True)
+        return {"message": f"Undone: {head[1][5:] if head[1].startswith('doc: ') else head[1]}" + (" · pushed" if pushed else ""), "version": self.version}
+
+    def _push(self):
+        if not (self.push and self.git("remote").stdout.strip()):
+            return None
+        pr = self.git("push", "--quiet")
+        if pr.returncode:  # someone pushed meanwhile: put ours on top and try once more
+            if self.git("pull", "--rebase", "--quiet").returncode == 0:
+                pr = self.git("push", "--quiet")
+            else:
+                self.git("rebase", "--abort")
+        if pr.returncode:
+            self.note("push failed: " + pr.stderr.strip()[-200:])
+        return pr.returncode == 0
+
+    def _model_preview(self, writes, check=True):
         """Diff of each file, plus the model problems this change would add or fix."""
         out = []
         for path, text in writes:
-            relp = os.path.relpath(path, self.root)
+            relp = self._show(path)
             old = open(path, encoding="utf-8").read().splitlines() if os.path.exists(path) else []
+            if text is None:
+                out.append(f"── {relp} (deleted)")
+                continue
             diff = list(difflib.unified_diff(old, text.splitlines(), relp, relp, n=1, lineterm=""))[2:]
             out.append(f"── {relp}{' (new file)' if not old else ''}\n" + "\n".join(diff))
+        if not check:
+            return "\n\n".join(out), []
         norm = lambda xs: {re.sub(r":\d+:", ":", x) for x in xs}
         warn = []
         try:
-            after = docmodel.build(self.root, dict(writes))["problems"]
+            after = docmodel.build(self.root, {p: t for p, t in writes if t is not None})["problems"]
             before = (self.model or {}).get("problems", [])
             added, fixed = norm(after) - norm(before), norm(before) - norm(after)
             warn += [f"new model problem: {x}" for x in sorted(added)]
@@ -346,6 +408,55 @@ class Server:
             pushed = self.commit([path], f"doc: add media {fname}")
             self.rebuild(force=True)
         return {"file": fname, "message": f"Uploaded {fname}" + (" · pushed" if pushed else "")}
+
+
+def xlsx(rows):
+    """A one-sheet .xlsx from a list of rows (first row = header), standard library only."""
+    import io
+    import zipfile
+    from xml.sax.saxutils import escape
+
+    def col(i):
+        s = ""
+        i += 1
+        while i:
+            i, r = divmod(i - 1, 26)
+            s = chr(65 + r) + s
+        return s
+    sheet = []
+    for ri, row in enumerate(rows, 1):
+        cells = []
+        for ci, v in enumerate(row):
+            ref = f"{col(ci)}{ri}"
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                cells.append(f'<c r="{ref}"><v>{v}</v></c>')
+            else:
+                style = ' s="1"' if ri == 1 else ""
+                cells.append(f'<c r="{ref}" t="inlineStr"{style}><is><t>{escape(str(v))}</t></is></c>')
+        sheet.append(f'<row r="{ri}">{"".join(cells)}</row>')
+    files = {
+        "[Content_Types].xml": '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>'
+        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+        '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+        '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>',
+        "_rels/.rels": '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
+        "xl/workbook.xml": '<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="BOM" sheetId="1" r:id="rId1"/></sheets></workbook>',
+        "xl/_rels/workbook.xml.rels": '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+        '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>',
+        "xl/styles.xml": '<?xml version="1.0" encoding="UTF-8"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        '<fonts count="2"><font/><font><b/></font></fonts><fills count="1"><fill/></fills><borders count="1"><border/></borders>'
+        '<cellStyleXfs count="1"><xf/></cellStyleXfs><cellXfs count="2"><xf/><xf fontId="1" applyFont="1"/></cellXfs></styleSheet>',
+        "xl/worksheets/sheet1.xml": '<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        f'<sheetData>{"".join(sheet)}</sheetData></worksheet>'}
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for name, text in files.items():
+            z.writestr(name, text)
+    return buf.getvalue()
 
 
 def make_handler(S):
@@ -394,12 +505,21 @@ def make_handler(S):
                 return self.send(413, {"error": "file too large (200 MB max)"})
             raw = self.rfile.read(n)
             try:
+                who = (urllib.parse.unquote(self.headers.get("Tailscale-User-Name") or ""), self.headers.get("Tailscale-User-Login") or "")
+                S.who = who if who[1] else None
+                if path == "/api/bom.xlsx":
+                    data = xlsx(json.loads(raw or b"[]"))
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    self.send_header("Content-Length", str(len(data)))
+                    self.end_headers()
+                    return self.wfile.write(data)
                 if path == "/api/upload":
                     return self.send(200, S.upload(urllib.parse.unquote(self.headers.get("X-Filename", "upload")), raw))
                 m = re.match(r"^/api/(preview|apply)/(\w+)$", path)
                 if not m:
                     return self.send(404, {"error": "not found"})
-                return self.send(200, S.apply(m.group(2), json.loads(raw or b"{}"), dry=m.group(1) == "preview"))
+                return self.send(200, S.apply(m.group(2), json.loads(raw or b"{}"), dry=m.group(1) == "preview", who=S.who))
             except (doc.OpError, docedit.EditError, docmodel.ModelError) as e:
                 return self.send(400, {"error": str(e)})
             except Exception as e:

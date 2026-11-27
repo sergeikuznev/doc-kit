@@ -18,6 +18,12 @@ on it. Every change becomes a git commit.
 - **Build it by clicking.** Add your subsystems and point each board at its
   `.ioc` in Setup; add parts and wire them in the diagrams: click a pin, click
   the module. No modelling language to learn, no boxes to arrange.
+- **Engineering numbers from the same model.** Power budget per rail, voltage
+  and I²C address checks, a bill of materials (Excel, PNG, PDF) with wire
+  lengths per gauge, and a printable design review pack.
+- **Reuse.** A part library shared between projects, assemblies inside
+  assemblies, launch files read for which computer runs what. One click to
+  undo the last change; a read-only copy on GitHub Pages for your portfolio.
 - **Record what happens, where it happens.** At the bench, on your phone:
   pick the requirement, Passed, what you measured, take the photo, *Write it*.
   Every change becomes a git commit.

@@ -137,6 +137,15 @@ them directly.
 
 ---
 
+Publishing a read-only page: **Setup → Publish a read-only page** writes
+`.github/workflows/doc-kit-pages.yml`, which runs `doc model` on every push and
+deploys `docs/system.html` and `docs/media/` to GitHub Pages.
+
+Per-computer settings (the part library folders and the default one) are in
+`~/.config/doc-kit/settings.json`.
+
+---
+
 ## 7. Updating doc-kit in a project
 
 ```bash

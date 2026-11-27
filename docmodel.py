@@ -467,6 +467,40 @@ class Parser:
             if depth == 0 and v in ("}", ";"):
                 return
 
+    def attrs_block(self, target):
+        """{ attribute key = "value"; doc /* */ ... }  ->  target["attrs"]; other elements are skipped."""
+        while not self.accept("}"):
+            k, v, _ = self.peek()
+            if v == "attribute":
+                self.attribute(target)
+            elif k == "doc":
+                self.take()
+            elif v == "doc":
+                self.take()
+                if self.peek()[0] == "doc":
+                    self.take()
+            else:
+                self.skip_block()
+
+    def attribute(self, owner):
+        self.take("attribute")
+        key = self.take(kind="id")[1]
+        if self.accept(":"):
+            self.path()
+        val = ""
+        if self.accept("="):
+            parts = []
+            while self.peek()[1] not in (";", "}", "") and self.peek()[0] != "eof":
+                t = self.take()
+                parts.append(t[1][1:-1] if t[0] == "str" else t[1])
+            val = " ".join(parts)
+        if self.peek()[1] == "{":
+            self.skip_block()
+        else:
+            self.take(";")
+        if owner is not None:
+            owner.setdefault("attrs", {})[key] = val
+
     def doc_of(self):
         if self.peek()[0] == "doc":
             return re.sub(r"^/\*|\*/$", "", self.take()[1]).strip()
@@ -531,7 +565,7 @@ class Parser:
         if v == "part" and self.peek(1)[1] == "def":
             self.take(); self.take()
             name = self.take(kind="id")[1]
-            d = {"name": name, "ports": [], "doc": "", "line": line}
+            d = {"name": name, "ports": [], "doc": "", "line": line, "attrs": {}}
             if self.accept(":>"):
                 self.path()
             if self.accept("{"):
@@ -544,7 +578,7 @@ class Parser:
         if v == "part":
             self.take()
             name = self.take(kind="id")[1]
-            p = {"name": name, "type": None, "parts": [], "ports": [], "connects": [], "doc": "", "line": line}
+            p = {"name": name, "type": None, "parts": [], "ports": [], "connects": [], "doc": "", "line": line, "attrs": {}}
             if self.accept(":"):
                 p["type"] = self.path()[-1]
             if self.accept("{"):
@@ -560,23 +594,28 @@ class Parser:
             self.take(":")
             conj = self.accept("~")
             ptype = self.path()[-1]
-            if self.peek()[1] == "{":
-                self.skip_block()
+            port = {"name": name, "type": ptype, "conj": conj, "line": line, "attrs": {}}
+            if self.accept("{"):
+                self.attrs_block(port)
             else:
                 self.take(";")
             if owner is None:
                 self.err("a port must be inside a part or part def")
-            owner["ports"].append({"name": name, "type": ptype, "conj": conj, "line": line})
+            owner["ports"].append(port)
             return
         if v == "connect":
             self.take()
             a = self.path()
             self.take("to")
             b = self.path()
-            self.take(";")
+            c = {"a": a, "b": b, "line": line, "attrs": {}}
+            if self.accept("{"):
+                self.attrs_block(c)
+            else:
+                self.take(";")
             if owner is None or "connects" not in owner:
                 self.err("connect must be inside a part")
-            owner["connects"].append({"a": a, "b": b, "line": line})
+            owner["connects"].append(c)
             return
         if v == "allocate":
             self.take()
@@ -595,7 +634,10 @@ class Parser:
             self.take(";")
             model["satisfies"].append({"req": rid, "by": b, "line": line})
             return
-        if v in ("attribute", "item", "requirement", "action", "state", "alias", "comment", "metadata"):
+        if v == "attribute":
+            self.attribute(owner)
+            return
+        if v in ("item", "requirement", "action", "state", "alias", "comment", "metadata"):
             self.skip_block()
             return
         self.err(f"unexpected {v!r} (doc model reads: part, part def, port, port def, connect, allocate, satisfy)")
@@ -627,6 +669,10 @@ def build(root, overrides=None):
             raise ModelError("each [[board]] in model.toml needs name and ioc")
         boards.append(parse_ioc(resolve_ioc(root, b["ioc"]), b) | {"board": b["name"]})
     nodes, ros_unknown = scan_ros(root, cfg["ros"]["paths"])
+    launches = scan_launch(root, cfg["ros"]["paths"])
+    for n in nodes:
+        n["launch"] = [dict(e, file=l["file"]) for l in launches for e in l["nodes"]
+                       if n["name"] in (e.get("name"), e.get("executable"))]
     reqs, faults, decisions = load_docs(root)
 
     arch_path = os.path.join(root, "docs", "model", f"{name}_arch.sysml")
@@ -654,8 +700,8 @@ def build(root, overrides=None):
             if kind is None:
                 problems.append(f"{afile}:{q['line']}: port {dn}.{q['name']}: unknown type {q['type']}")
             ports.append({"name": q["name"], "type": q["type"], "conj": q["conj"], "kind": kind or "Signal",
-                          "meaning": meaning_of(q["type"], arch["port_defs"]), "pins": [], "settings": []})
-        defs[dn] = {"ports": ports, "source": "arch", "doc": d["doc"]}
+                          "meaning": meaning_of(q["type"], arch["port_defs"]), "pins": [], "settings": [], "attrs": q.get("attrs", {})})
+        defs[dn] = {"ports": ports, "source": "arch", "doc": d["doc"], "attrs": d.get("attrs", {})}
 
     if len(arch["parts"]) != 1:
         raise ModelError(f"{afile}: write exactly one top-level part (the robot), found {len(arch['parts'])}")
@@ -674,13 +720,21 @@ def build(root, overrides=None):
             else:
                 ports = [dict(q) for q in defs[p["type"]]["ports"]]
         for q in p["ports"]:
+            base = next((x for x in ports if x["name"] == q["name"] and not x.get("own")), None)
+            if base is not None:  # same name as a port of its type: adds details (voltage, address, ...) to that port
+                if q["type"] != base["type"]:
+                    problems.append(f"{afile}:{q['line']}: port {key}.{q['name']}: its type says {base['type']}, not {q['type']}")
+                base["attrs"] = {**base.get("attrs", {}), **q.get("attrs", {})}
+                continue
             kind = _kind_of(q["type"], arch["port_defs"])
             if kind is None:
                 problems.append(f"{afile}:{q['line']}: port {key}.{q['name']}: unknown type {q['type']}")
             ports.append({"name": q["name"], "type": q["type"], "conj": q["conj"], "kind": kind or "Signal",
-                          "meaning": meaning_of(q["type"], arch["port_defs"]), "pins": [], "settings": [], "own": True})
+                          "meaning": meaning_of(q["type"], arch["port_defs"]), "pins": [], "settings": [], "own": True,
+                          "attrs": q.get("attrs", {})})
         d = defs.get(p["type"], {})
         parts[key] = {"path": key, "name": p["name"], "type": p["type"], "ports": ports, "doc": p["doc"] or d.get("doc", ""),
+                      "attrs": {**d.get("attrs", {}), **p.get("attrs", {})},
                       "source": d.get("source", "arch"), "subsystem": sub, "children": [], "depth": len(path) - 1,
                       "board": d.get("board", {}).get("board") if d.get("board") else None}
         if prefix:
@@ -692,7 +746,7 @@ def build(root, overrides=None):
         key = f"{top['name']}.{s}"
         if key not in parts:
             parts[key] = {"path": key, "name": s, "type": None, "ports": [], "doc": "", "source": "arch", "subsystem": s,
-                          "children": [], "depth": 1, "board": None}
+                          "children": [], "depth": 1, "board": None, "attrs": {}}
             parts[top["name"]]["children"].append(key)
 
     def resolve(owner_path, segs, line, what):
@@ -743,27 +797,35 @@ def build(root, overrides=None):
             connections.append({"drawn": bool(ea and eb), "a": ea and [ea[0], ea[1]["name"]], "b": eb and [eb[0], eb[1]["name"]],
                                 "a_txt": ".".join(c["a"]), "b_txt": ".".join(c["b"]),
                                 "kind": (ea or eb)[1]["kind"] if (ea or eb) else "Signal",
-                                "type": (ea or eb)[1]["type"] if (ea or eb) else "?", "ok": ok, "line": c["line"]})
+                                "type": (ea or eb)[1]["type"] if (ea or eb) else "?", "ok": ok, "line": c["line"],
+                                "attrs": c.get("attrs", {})})
         for ch in p["parts"]:
             collect(ch, prefix + [p["name"]])
     collect(top, [])
 
     # ---- ROS allocations
     node_names = {n["name"] for n in nodes}
-    host = {}
+    host, via_launch = {}, {}
+    launch_files = {l["file"]: l for l in launches}
     for a in arch["allocations"]:
         w = a["what"][-1]
-        if a["what"][0] in ("ROS", "ros") and w in node_names:
-            tgt = ".".join(a["to"] if a["to"][0] == top["name"] else [top["name"]] + a["to"])
+        tgt = ".".join(a["to"] if a["to"][0] == top["name"] else [top["name"]] + a["to"])
+        if a["what"][0] in ("ROS", "ros") and (w in node_names or w in launch_files):
             if tgt not in parts:
                 problems.append(f"{afile}:{a['line']}: allocate {w}: no part {tgt}")
-            else:
+            elif w in node_names:
                 host[w] = tgt
+            else:
+                launch_files[w]["host"] = tgt
+                for n in nodes:
+                    if any(e["file"] == w for e in n["launch"]):
+                        via_launch.setdefault(n["name"], tgt)
         else:
             problems.append(f"{afile}:{a['line']}: allocate {'::'.join(a['what'])}: no ROS node of that name "
                             f"(found: {', '.join(sorted(node_names)) or 'none'})")
     for n in nodes:
-        n["host"] = host.get(n["name"])
+        n["host"] = host.get(n["name"]) or via_launch.get(n["name"])
+        n["host_from"] = "node" if n["name"] in host else "launch" if n["host"] else None
 
     # ---- requirement placement
     found = [c.split(".")[-1] for c in parts[top["name"]]["children"]]
@@ -856,11 +918,184 @@ def build(root, overrides=None):
                         "pins": fact.get("pins", []), "settings": [s for s in fact.get("settings", [])
                                                                     if s[0] in ("Speed", "SPI mode", "Role", "Baud rate", "Clock speed", "Timing")]})
 
+    power, i2c = electrical(parts, connections, gap)
+    bom = build_bom(cfg, parts, connections)
     return {"name": name, "top": top["name"], "subsystems": subsystems, "parts": parts, "connections": connections,
+            "power": power, "i2c": i2c, "bom": bom, "launches": launches,
             "boards": boards, "nodes": nodes, "topics": sorted(topics.values(), key=lambda t: t["topic"]),
             "requirements": reqs, "faults": faults, "decisions": decisions, "icd": icd, "gaps": gaps,
             "problems": problems, "notes": notes, "arch_file": afile,
             "prefix_names": {t[0]: t[1] for t in table}, "group_only": group_only}
+
+
+# ================================================================ budgets, checks, BOM
+
+def num(v):
+    """'5', '5 V', '3V3', '300 mA', '0.3A' -> float in base units, or None."""
+    t = str(v or "").strip().replace(",", ".")
+    m = re.match(r"^(\d+)[Vv](\d+)$", t)
+    if m:
+        return float(f"{m.group(1)}.{m.group(2)}")
+    m = re.match(r"^([-+]?\d*\.?\d+)\s*([mµuk]?)", t)
+    if not m:
+        return None
+    return float(m.group(1)) * {"m": 1e-3, "µ": 1e-6, "u": 1e-6, "k": 1e3}.get(m.group(2), 1)
+
+
+def length_m(v):
+    """'0.2 m', '150 mm', '30cm', '12 in' -> metres, or None."""
+    m = re.match(r"^\s*(\d*\.?\d+)\s*(mm|cm|m|in|ft)?\b", str(v or "").replace(",", "."))
+    if not m:
+        return None
+    return float(m.group(1)) * {"mm": 1e-3, "cm": 1e-2, "in": 0.0254, "ft": 0.3048}.get(m.group(2), 1)
+
+
+def _nets(connections, keep):
+    """Groups of 'part.port' joined by wires (union-find), for the wires keep() accepts."""
+    parent = {}
+
+    def find(x):
+        parent.setdefault(x, x)
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+    for c in connections:
+        if c["ok"] and keep(c):
+            a, b = ".".join(c["a"]), ".".join(c["b"])
+            parent[find(a)] = find(b)
+    groups = {}
+    for x in list(parent):
+        groups.setdefault(find(x), []).append(x)
+    return list(groups.values())
+
+
+def electrical(parts, connections, gap):
+    def port(full):
+        p, _, n = full.rpartition(".")
+        return p, next((q for q in parts[p]["ports"] if q["name"] == n), {})
+    power = []
+    for net in _nets(connections, lambda c: c["kind"] == "Power"):
+        rows = []
+        for full in sorted(net):
+            p, q = port(full)
+            a = q.get("attrs") or {}
+            rows.append({"port": full, "part": p, "voltage": num(a.get("voltage")), "max_current": num(a.get("max_current")),
+                         "current": num(a.get("current"))})
+        src = [r for r in rows if r["max_current"] is not None]
+        loads = [r for r in rows if r["current"] is not None and r["max_current"] is None]
+        volts = sorted({r["voltage"] for r in rows if r["voltage"] is not None})
+        cap = sum(r["max_current"] for r in src) if src else None
+        load = sum(r["current"] for r in loads)
+        name = (src[0] if src else rows[0])["port"]
+        rail = {"name": name, "ports": rows, "voltage": volts[0] if len(volts) == 1 else None, "voltages": volts,
+                "capacity": cap, "load": load, "unknown": [r["port"] for r in rows if r not in src and r not in loads]}
+        power.append(rail)
+        short = name.split(".", 1)[-1]
+        if len(volts) > 1:
+            gap("power", f"Rail {short} joins ports of different voltages ({', '.join(f'{v:g} V' for v in volts)})",
+                sorted({r["part"] for r in rows}))
+        if cap is not None and load > cap:
+            gap("power", f"Rail {short} is overloaded: {load:g} A drawn, {cap:g} A available", [src[0]["part"]])
+    power.sort(key=lambda r: (r["capacity"] is None and not r["load"] and not r["voltages"], r["name"]))
+    i2c = []
+    for net in _nets(connections, lambda c: c["type"] == "I2cBus"):
+        devs = []
+        for full in sorted(net):
+            p, q = port(full)
+            addr = (q.get("attrs") or {}).get("address") or parts[p]["attrs"].get("i2c_address")
+            devs.append({"port": full, "part": p, "address": addr})
+        i2c.append({"name": devs[0]["port"], "devices": devs})
+        seen = {}
+        for d in devs:
+            if d["address"]:
+                key = d["address"].lower().replace("0x", "").lstrip("0") or "0"
+                if key in seen:
+                    gap("electrical", f"I2C address {d['address']} used twice on one bus: {seen[key].split('.', 1)[-1]} and "
+                        f"{d['port'].split('.', 1)[-1]}", [d["part"]])
+                seen[key] = d["port"]
+    return power, i2c
+
+
+BOM_CORE = ["part_number", "manufacturer", "supplier", "link", "unit_cost"]
+
+
+def build_bom(cfg, parts, connections):
+    groups = {}
+    for k, p in parts.items():
+        if p["depth"] < 2 or (p["children"] and not p["attrs"].get("part_number")):
+            continue
+        a = p["attrs"]
+        key = a.get("part_number") or p["doc"] or p["type"] or p["name"]
+        g = groups.setdefault(key, {"kind": "part", "item": p["doc"] or p["type"] or p["name"], "qty": 0, "parts": [],
+                                    "subsystems": [], "values": {}})
+        g["qty"] += num(a.get("quantity")) or 1
+        g["parts"].append(k)
+        if p["subsystem"] not in g["subsystems"]:
+            g["subsystems"].append(p["subsystem"])
+        for kk, vv in a.items():
+            g["values"].setdefault(kk, vv)
+    rows = sorted(groups.values(), key=lambda g: (g["subsystems"][0] or "", g["item"]))
+    wires, conns = {}, {}
+    for c in connections:
+        a = c.get("attrs") or {}
+        if a.get("gauge") or a.get("cable"):
+            label = " ".join(x for x in (a.get("cable"), a.get("gauge")) if x)
+            w = wires.setdefault(label, {"kind": "wire", "item": f"Wire {label}", "qty": 0, "length": 0.0, "unmeasured": 0,
+                                         "parts": [], "subsystems": [], "values": {}})
+            w["qty"] += 1
+            ln = length_m(a.get("length"))
+            w["length"] += ln or 0
+            w["unmeasured"] += ln is None
+        if a.get("connector"):
+            cc = conns.setdefault(a["connector"], {"kind": "connector", "item": f"Connector {a['connector']} (mated pair)",
+                                                   "qty": 0, "parts": [], "subsystems": [], "values": {}})
+            cc["qty"] += 1
+    extra = [{"kind": "extra", "item": e.get("item", ""), "qty": num(e.get("qty")) or 1, "parts": [], "subsystems": [],
+              "values": {k: v for k, v in e.items() if k not in ("item", "qty")}, "index": i}
+             for i, e in enumerate(cfg.get("bom_item", []))]
+    return {"columns": list(cfg.get("bom", {}).get("columns", [])), "rows": rows + list(wires.values()) + list(conns.values()) + extra}
+
+
+# ================================================================ ROS2 launch files
+
+def scan_launch(root, paths):
+    """Nodes started by launch files (.launch.py / .launch.xml / .launch), with remappings and parameters."""
+    files = []
+    for p in paths:
+        for dirpath, dirs, names in os.walk(os.path.join(root, p)):
+            dirs[:] = [d for d in dirs if d not in ("build", "install", "log", ".git")]
+            files += [os.path.join(dirpath, n) for n in names
+                      if n.endswith((".launch.py", ".launch.xml", ".launch")) or (os.path.basename(dirpath) == "launch" and n.endswith((".py", ".xml")))]
+    out = []
+    for f in sorted(set(files)):
+        text = open(f, encoding="utf-8", errors="replace").read()
+        nodes = []
+        if f.endswith(".py"):
+            for m in re.finditer(r"\bNode\s*\(", text):
+                i, depth = m.end(), 1
+                while i < len(text) and depth:
+                    depth += {"(": 1, ")": -1}.get(text[i], 0)
+                    i += 1
+                body = text[m.end():i - 1]
+                kw = lambda k: (re.search(rf"\b{k}\s*=\s*['\"]([^'\"]+)['\"]", body) or [None, None])[1]
+                remaps = re.findall(r"\(\s*['\"]([^'\"]+)['\"]\s*,\s*['\"]([^'\"]+)['\"]\s*\)",
+                                    (re.search(r"remappings\s*=\s*\[(.*?)\]", body, re.S) or [None, ""])[1])
+                params = re.search(r"parameters\s*=\s*\[(.*?)\]\s*[,)]?", body, re.S)
+                nodes.append({"package": kw("package"), "executable": kw("executable") or kw("node_executable"),
+                              "name": kw("name") or kw("node_name"), "namespace": kw("namespace"), "remappings": remaps,
+                              "parameters": " ".join(params.group(1).split())[:300] if params else ""})
+        else:
+            for m in re.finditer(r"<node\b([^>]*?)(/>|>(.*?)</node>)", text, re.S):
+                at = dict(re.findall(r'(\w+)\s*=\s*"([^"]*)"', m.group(1)))
+                inner = m.group(3) or ""
+                nodes.append({"package": at.get("pkg"), "executable": at.get("exec") or at.get("type"), "name": at.get("name"),
+                              "namespace": at.get("namespace") or at.get("ns"),
+                              "remappings": re.findall(r'<remap\s+from="([^"]+)"\s+to="([^"]+)"', inner),
+                              "parameters": ", ".join(f"{a}={b}" for a, b in re.findall(r'<param\s+name="([^"]+)"\s+value="([^"]*)"', inner))})
+        if nodes:
+            out.append({"file": os.path.relpath(f, root), "nodes": nodes, "host": None})
+    return out
 
 
 # ================================================================ facts export (SysML v2 text)

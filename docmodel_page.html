@@ -37,7 +37,7 @@ main{overflow:auto;min-width:0;position:relative}
 .empty{color:var(--muted);padding:40px;text-align:center}
 /* svg */
 svg text{fill:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-.cont>rect{fill:var(--surface);fill-opacity:.55;stroke:var(--faint);stroke-dasharray:4 3;stroke-width:1.2}
+.cont>rect{fill:var(--surface);fill-opacity:.55;stroke:var(--faint);stroke-dasharray:4 3;stroke-width:1.2}.cont.asm>rect{fill:var(--sunk);fill-opacity:.8;stroke-dasharray:2 2}
 .cont>text.t{font-size:13px;font-weight:700;letter-spacing:.04em}.cont>text.s{font-size:11px;fill:var(--muted)}
 .leaf{cursor:pointer}.leaf>rect.b{fill:var(--surface);stroke:var(--ring);stroke-width:1.2;filter:drop-shadow(0 1px 2px rgba(0,0,0,.06))}
 .leaf>rect.band{rx:2}.leaf.facts>rect.band{fill:var(--facts)}.leaf.arch>rect.band{fill:var(--arch)}
@@ -171,6 +171,9 @@ aside h4{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:va
 .prow{display:grid;grid-template-columns:1fr 1.3fr auto;gap:8px;margin-bottom:6px}.prow input,.prow select{font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--hair);border-radius:8px;background:var(--bg);color:var(--ink)}
 .cklist{max-height:260px;overflow:auto;border:1px solid var(--hair);border-radius:8px;padding:6px 10px}.cklist label{display:block;font-weight:400;font-size:13px;padding:2px 0}.cklist .g{font-size:11px;text-transform:uppercase;color:var(--faint);margin-top:6px}
 .fld input[type=checkbox]{width:auto;margin-right:6px}
+.kvr{display:grid;grid-template-columns:1fr 1.4fr auto;gap:6px;margin-bottom:5px}.kvr input{font:inherit;font-size:12.5px;padding:5px 7px;border:1px solid var(--hair);border-radius:7px;background:var(--bg);color:var(--ink)}
+.pattrs{border-left:2px solid var(--hair);padding:6px 0 2px 10px;margin:2px 0 4px}.prow{grid-template-columns:1fr 1.3fr auto}
+.bom td,.bom th{white-space:nowrap}.bom td.w{white-space:normal;min-width:180px}.rail{margin-bottom:12px}.meter{height:8px;border-radius:4px;background:var(--sunk);overflow:hidden;margin:6px 0}.meter span{display:block;height:100%}
 @media(max-width:900px){.docs{grid-template-columns:1fr}.two{grid-template-columns:1fr}}
 @media(max-width:900px){.shell{display:flex;flex-direction:column}nav{flex:none;display:flex;overflow-x:auto;border-right:0;border-bottom:1px solid var(--hair);padding:6px;gap:2px}
 nav .grp{display:none}nav button{width:auto;white-space:nowrap;padding:6px 10px}main{flex:1;min-height:0}
@@ -209,7 +212,8 @@ const VIEWS = [
              ["power", "Power", "var(--pwr)", () => kindCount("Power")], ["mechanical", "Mechanical", "var(--mech)", () => kindCount("Mechanical")],
              ["software", "Software (ROS2)", "var(--arch)", () => M.nodes.length]]],
   ["Records", [["interfaces", "Interfaces (ICD)", null, () => M.icd.length], ["requirements", "Requirements", null, () => M.requirements.length],
-               ["faults", "Faults (FDIR)", null, () => M.faults.length], ["decisions", "Decisions", null, () => M.decisions.length]]],
+               ["faults", "Faults (FDIR)", null, () => M.faults.length], ["decisions", "Decisions", null, () => M.decisions.length],
+               ["budget", "Power & checks", null, () => (M.gaps || []).filter(g => g.kind === "power" || g.kind === "electrical").length || ""], ["bom", "BOM", null, () => (M.bom?.rows || []).length]]],
   ["Project", [["issues", "Issues", null, () => (M.issues || []).filter(i => i.state === "open").length || ""], ["docs", "Docs", null, () => (M.docs || []).length],
                ["media", "Media", null, () => (M.media || []).length]]],
 ];
@@ -221,7 +225,10 @@ function chrome() {
   $("#counters").innerHTML = `${M.problems.length ? `<span class="counter bad" data-go="overview"><b>${M.problems.length}</b> model problem${M.problems.length > 1 ? "s" : ""}</span>` : ""}
     <span class="counter gap" data-go="overview"><b>${M.gaps.length}</b> gaps</span>
     <span class="counter" data-go="requirements"><b>${verified}/${M.requirements.length}</b> verified</span>
+    <button class="btn" id="review" title="Design review pack: print or save as PDF">Review pack</button>
+    ${SERVED && S_.last && /^(doc: |Revert "doc: )/.test(S_.last[0] || "") ? `<button class="btn" data-form="undo" title="Undo: ${H(S_.last[0])} (${H(S_.last[1] || "")}, ${H(S_.last[2] || "")})">↶ Undo</button>` : ""}
     ${SERVED ? `<button class="newbtn" id="newbtn">+ New</button>` : ""}`;
+  $("#review").onclick = reviewPack; wire($("#counters"));
   if (SERVED) $("#newbtn").onclick = ev => { ev.stopPropagation(); newMenu(); };
   document.querySelectorAll("[data-go]").forEach(b => b.onclick = () => go(b.dataset.go));
   $("#nav").innerHTML = VIEWS.map(([g, items]) => `<div class="grp">${g}</div>` + items.map(([id, label, col, n]) =>
@@ -271,8 +278,9 @@ function showPart(path) {
     <div class="dh">${H(p.name)}${p.depth === 1 && (M.prefix_names || {})[p.name] ? ` <span style="font-weight:400;color:var(--muted)">${H(M.prefix_names[p.name])}</span>` : ""}</div>`;
   h += `<div class="links" style="margin:6px 0 4px"><span class="chip" style="color:var(--${p.source})">${p.source === "facts" ? "board, from its .ioc" : p.depth === 1 ? "subsystem" : "part"}</span>${p.depth === 1 ? `<span class="chip focus" data-focus="${H(p.name)}">Open in Electrical</span>` : ""}</div>`;
   if (SERVED && p.depth === 1) h += `<div class="links" style="margin:10px 0"><button class="act" data-form="part" data-parent="${H(path)}">+ Part here</button><button class="act" onclick="go('setup')">Edit in Setup</button></div>`;
-  if (SERVED && p.depth >= 2) h += `<div class="links" style="margin:10px 0"><button class="act" data-form="part" data-orig="${H(path)}">Edit part</button><button class="act" data-focus="${H(p.subsystem)}" data-view="electrical" data-edit="1">Connect ports…</button><button class="act dz" data-form="part_delete" data-path="${H(path)}">Delete</button></div>`;
+  if (SERVED && p.depth >= 2) h += `<div class="links" style="margin:10px 0"><button class="act" data-form="part" data-orig="${H(path)}">Edit part</button><button class="act" data-focus="${H(p.subsystem)}" data-view="electrical" data-edit="1">Connect ports…</button><button class="act" data-form="template" data-from="${H(path)}">Save as template</button><button class="act dz" data-form="part_delete" data-path="${H(path)}">Delete</button></div>`;
   if (p.doc) h += `<p>${H(p.doc)}</p>`;
+  if (Object.keys(p.attrs || {}).length) h += `<h4>Details</h4><div class="kv">${attrsKv(p.attrs)}</div>`;
   const b = M.boards.find(b => b.board === p.board);
   if (b) {
     h += `<h4>Chip</h4><div class="kv"><div>Part number</div><div>${H(b.mcu)} ${H(b.package)}</div><div>Source</div><div class="mono">${H(b.source)}</div>${b.clocks.map(c => `<div>${H(c[0])}</div><div>${H(c[1])}</div>`).join("")}</div>`;
@@ -288,9 +296,10 @@ function showPart(path) {
     p.ports.forEach((q, i) => {
       const to = linked[q.name] || [];
       const det = q.settings && q.settings.length;
-      h += `<tr class="${to.length ? "" : "off"} ${det ? "row" : ""}" data-i="${i}"><td class="mono">${det ? "▸ " : ""}${H(q.name)}</td><td><span class="kdot" style="background:${KCOL[q.kind]}"></span>${H(q.meaning || q.type)}</td>
+      h += `<tr class="${to.length ? "" : "off"} ${det ? "row" : ""}" data-i="${i}"><td class="mono">${det ? "▸ " : ""}${H(q.name)}</td><td><span class="kdot" style="background:${KCOL[q.kind]}"></span>${H(q.meaning || q.type)}${Object.keys(q.attrs || {}).length ? `<div class="dsub" style="margin:2px 0 0">${Object.entries(q.attrs).map(([k, v]) => `${H(k.replace(/_/g, " "))} ${H(v)}`).join(" · ")}</div>` : ""}</td>
         <td class="mono">${(q.pins || []).map(x => `${H(x[0])} <span style="color:var(--faint)">${H(x[1])}</span>`).join("<br>") || "—"}</td>
-        <td>${to.map(t => `<span class="lnk mono" data-part="${t[0]}">${H(short(t[0]))}.${H(t[1])}</span>${SERVED ? ` <button class="act dz" style="padding:0 6px" title="Remove this connection" data-form="disconnect" data-a="${H(path + "." + q.name)}" data-b="${H(t.join("."))}">✕</button>` : ""}`).join("<br>") || "—"}</td></tr>`;
+        <td>${to.map(t => { const cw = conns.find(c => [c.a.join("."), c.b.join(".")].sort().join() === [path + "." + q.name, t.join(".")].sort().join()); const wa = cw && cw.attrs || {};
+          return `<span class="lnk mono" data-part="${t[0]}">${H(short(t[0]))}.${H(t[1])}</span>${Object.keys(wa).length ? `<div class="dsub" style="margin:0">${Object.values(wa).map(H).join(" · ")}</div>` : ""}${SERVED ? ` <button class="act" style="padding:0 6px" title="Wire details" data-form="wire" data-a="${H(path + "." + q.name)}" data-b="${H(t.join("."))}">wire</button>` : ""}${SERVED ? ` <button class="act dz" style="padding:0 6px" title="Remove this connection" data-form="disconnect" data-a="${H(path + "." + q.name)}" data-b="${H(t.join("."))}">✕</button>` : ""}`; }).join("<br>") || "—"}</td></tr>`;
       if (det) h += `<tr class="det" data-d="${i}" style="display:none"><td colspan="4"><div class="kv">${q.settings.map(s => `<div>${H(s[0])}</div><div>${H(s[1])}</div>`).join("")}</div></td></tr>`;
     });
     h += `</table>`;
@@ -336,7 +345,10 @@ function showNode(name) {
   const row = (e, role) => `<tr class="row" data-topic="${H(e.topic)}"><td>${role}</td><td class="mono lnk">${H(e.topic)}</td><td class="mono">${H(e.type)}</td><td class="mono">:${e.line}</td></tr>`;
   openDrawer(`<div class="dsub">ROS2 node · ${H(n.lang === "c" ? "micro-ROS (C)" : n.lang === "py" ? "Python" : "C++")}</div><div class="dh">${H(n.name)}</div>
     <div class="kv" style="margin-top:8px"><div>Source</div><div class="mono">${H(n.file)}</div><div>Runs on</div><div>${n.host ? `<span class="lnk" data-part="${n.host}">${H(short(n.host))}</span>` : `<span class="warnline">not allocated</span>`}${SERVED ? ` <button class="act" data-form="allocate" data-node="${H(n.name)}">Change</button>` : ""}</div></div>
-    <h4>Topics</h4><table class="ptab"><tr><th></th><th>Topic</th><th>Type</th><th>Line</th></tr>${n.pub.map(e => row(e, "pub")).join("")}${n.sub.map(e => row(e, "sub")).join("")}</table>`);
+    ${n.host_from === "launch" ? `<div class="dsub" style="margin-top:4px">placed by its launch file</div>` : ""}
+    <h4>Topics</h4><table class="ptab"><tr><th></th><th>Topic</th><th>Type</th><th>Line</th></tr>${n.pub.map(e => row(e, "pub")).join("")}${n.sub.map(e => row(e, "sub")).join("")}</table>
+    ${(n.launch || []).map(l => `<h4>Started by ${H(l.file.split("/").pop())}</h4><div class="kv"><div>File</div><div class="mono">${H(l.file)}</div>${l.package ? `<div>Package</div><div class="mono">${H(l.package)}</div>` : ""}${l.executable ? `<div>Executable</div><div class="mono">${H(l.executable)}</div>` : ""}${l.namespace ? `<div>Namespace</div><div class="mono">${H(l.namespace)}</div>` : ""}
+      ${l.remappings.length ? `<div>Remappings</div><div class="mono">${l.remappings.map(r => `${H(r[0])} → ${H(r[1])}`).join("<br>")}</div>` : ""}${l.parameters ? `<div>Parameters</div><div class="mono">${H(l.parameters)}</div>` : ""}</div>`).join("")}`);
 }
 function showTopic(t) {
   const x = M.topics.find(y => y.topic === t);
@@ -361,31 +373,46 @@ function leafNode(path, kinds, used) {
           layoutOptions: {"elk.portConstraints": "FIXED_SIDE", "elk.portAlignment.default": "BEGIN", "elk.spacing.portPort": "11",
 }};
 }
+const ASM_PAD = {"elk.padding": "[top=36,left=12,bottom=12,right=12]", "elk.algorithm": "layered", "elk.direction": "RIGHT"};
+function allLeaves(n, out = []) { (n.children || []).forEach(c => (c.children && c.children.length) ? allLeaves(c, out) : out.push(c)); return out; }
 function buildElectrical(kinds) {
   const cs = M.connections.filter(c => c.drawn && kinds.includes(c.kind));
   let keep = null;
-  if (focus) { keep = new Set(); cs.forEach(c => { const sa = M.parts[c.a[0]].subsystem, sb = M.parts[c.b[0]].subsystem; if (sa === focus || sb === focus) { keep.add(c.a[0]); keep.add(c.b[0]); } }); M.parts[`${M.top}.${focus}`].children.forEach(k => keep.add(k)); }
+  if (focus) { keep = new Set(); cs.forEach(c => { const sa = M.parts[c.a[0]].subsystem, sb = M.parts[c.b[0]].subsystem; if (sa === focus || sb === focus) { keep.add(c.a[0]); keep.add(c.b[0]); } });
+    Object.values(M.parts).forEach(p => { if (p.depth >= 2 && p.subsystem === focus) keep.add(p.path); });
+    [...keep].forEach(k => { const seg = k.split("."); while (seg.length > 3) { seg.pop(); keep.add(seg.join(".")); } }); }
   const used = new Set(); const shown = cs.filter(c => !keep || (keep.has(c.a[0]) && keep.has(c.b[0])));
   shown.forEach(c => { used.add(c.a.join(".")); used.add(c.b.join(".")); });
+  const hasUsed = k => M.parts[k].ports.some(q => used.has(`${k}.${q.name}`)) || M.parts[k].children.some(hasUsed);
+  const visible = k => (!keep || keep.has(k)) && (editing || kinds.length > 1 || hasUsed(k));
+  const byId = {}, leafIds = new Set();
+  const make = k => {
+    const p = M.parts[k], kids = p.children.filter(visible);
+    if (p.children.length && (kids.length || editing)) {
+      const n = {id: k, children: kids.map(make), edges: [], asm: true, layoutOptions: {...ASM_PAD}};
+      if (!n.children.length) n.children.push({id: `${k}::add`, width: 130, height: 40, ports: [], layoutOptions: {}, add: k});
+      return byId[k] = n;
+    }
+    if (editing) p.ports.forEach(q => { if (kinds.includes(q.kind) && !q.missing) used.add(`${k}.${q.name}`); });
+    leafIds.add(k);
+    return byId[k] = leafNode(k, kinds, used);
+  };
   const containers = M.subsystems.map(s => {
-    const leaves = M.parts[`${M.top}.${s}`].children.filter(k => (!keep || keep.has(k)) && (editing || (kinds.length > 1 ? true : M.parts[k].ports.some(q => used.has(`${k}.${q.name}`)))));
-    if (editing) leaves.forEach(k => M.parts[k].ports.forEach(q => { if (kinds.includes(q.kind) && !q.missing) used.add(`${k}.${q.name}`); }));
-    const kids = leaves.map(k => leafNode(k, kinds, used));
+    const kids = M.parts[`${M.top}.${s}`].children.filter(visible).map(make);
     if (editing && !kids.length && (!keep || s === focus)) kids.push({id: `${M.top}.${s}::add`, width: 150, height: 44, ports: [], layoutOptions: {}, add: `${M.top}.${s}`});
-    return kids.length ? {id: `${M.top}.${s}`, children: kids, edges: [],
+    return kids.length ? byId[`${M.top}.${s}`] = {id: `${M.top}.${s}`, children: kids, edges: [],
       layoutOptions: {"elk.padding": "[top=40,left=16,bottom=16,right=16]", "elk.algorithm": "layered", "elk.direction": "RIGHT"}} : null;
   }).filter(Boolean);
-  const present = new Set(containers.flatMap(c => c.children.map(x => x.id)));
   const root = {id: "root", layoutOptions: {"elk.algorithm": "layered", "elk.direction": "RIGHT", "elk.hierarchyHandling": "INCLUDE_CHILDREN", "elk.edgeRouting": "ORTHOGONAL",
     "elk.layered.spacing.nodeNodeBetweenLayers": "70", "elk.spacing.nodeNode": "30", "elk.spacing.edgeNode": "18", "elk.spacing.edgeEdge": "9", "elk.layered.spacing.edgeNodeBetweenLayers": "18",
     "elk.layered.nodePlacement.strategy": "NETWORK_SIMPLEX", "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
     "elk.separateConnectedComponents": "true", "elk.aspectRatio": "1.8", "elk.spacing.componentComponent": "40"}, children: containers, edges: []};
-  shown.filter(c => present.has(c.a[0]) && present.has(c.b[0])).forEach((c, i) => {
-    const sa = M.parts[c.a[0]].subsystem, sb = M.parts[c.b[0]].subsystem;
+  const lca = (a, b) => { const x = a.split("."), y = b.split("."); for (let i = Math.min(x.length, y.length) - 1; i >= 2; i--) { const id = x.slice(0, i).join("."); if (id === y.slice(0, i).join(".") && byId[id] && !leafIds.has(id)) return byId[id]; } return root; };
+  shown.filter(c => leafIds.has(c.a[0]) && leafIds.has(c.b[0])).forEach((c, i) => {
     const edge = {id: "e" + i, sources: [c.a.join(".")], targets: [c.b.join(".")], c};
     const pa = M.parts[c.a[0]].ports.find(q => q.name === c.a[1]);
     if (sideOf(M.parts[c.a[0]], pa) === "WEST") { edge.sources = [c.b.join(".")]; edge.targets = [c.a.join(".")]; }
-    if (sa === sb) containers.find(x => x.id === `${M.top}.${sa}`).edges.push(edge); else root.edges.push(edge);
+    lca(c.a[0], c.b[0]).edges.push(edge);
   });
   return {graph: root, kinds};
 }
@@ -470,8 +497,8 @@ function drawEdges(root, out, abs, cls) {
     (e.sections || []).forEach(s => {
       const pts = [s.startPoint, ...(s.bendPoints || []), s.endPoint].map(p => `${p.x + off.x},${p.y + off.y}`);
       if (editing && e.c && e.c.ok !== undefined) { const hit = el("path", {d: "M" + pts.join(" L"), class: "ehit"}, root);
-        el("title", {}, hit).textContent = "Click to remove this connection";
-        hit.addEventListener("click", ev => { ev.stopPropagation(); openForm("disconnect", {a: e.c.a.join("."), b: e.c.b.join(".")}); }); }
+        el("title", {}, hit).textContent = e.c.ok ? "Click for wire details, or to remove it" : "Click to remove this broken connection";
+        hit.addEventListener("click", ev => { ev.stopPropagation(); openForm(e.c.ok ? "wire" : "disconnect", {a: e.c.a.join("."), b: e.c.b.join(".")}); }); }
       const path = el("path", {d: "M" + pts.join(" L"), class: cls(e)}, root);
       path.dataset.ends = e.c ? `${e.c.a[0]}|${e.c.b[0]}` : (e.a ? `${M.top}.${e.a.s}|${M.top}.${e.a.t}` : `${e.sources[0]}|${e.targets[0]}`);
       if (e.c) el("title", {}, path).textContent = `${short(e.c.a.join("."))} → ${short(e.c.b.join("."))} (${e.c.type})`;
@@ -493,14 +520,14 @@ async function drawParts(kinds, title, lead) {
   // pass 1: let ELK choose the port order that avoids crossings; pass 2: pin ports under the title
   const first = await elk.layout(JSON.parse(JSON.stringify(graph)));
   const firstAbs = absMap(first);
-  graph.children.forEach(c => c.children.forEach(n => {
+  allLeaves(graph).forEach(n => {
     if (n.add) return;
     const laid = firstAbs[n.id].n, bySide = {EAST: [], WEST: []};
     laid.ports.forEach(pt => bySide[pt.x > laid.width / 2 ? "EAST" : "WEST"].push(pt));
     Object.values(bySide).forEach(list => list.sort((a, b) => a.y - b.y).forEach((pt, i) => {
       const src = n.ports.find(q => q.id === pt.id); src.x = pt.x; src.y = HEAD - 4 + i * PORT_H; }));
     n.layoutOptions["elk.portConstraints"] = "FIXED_POS";
-  }));
+  });
   const out = await elk.layout(graph);
   const abs = absMap(out);
   const svg = el("svg", {}, cv), root = el("g", {}, svg);
@@ -512,8 +539,14 @@ async function drawParts(kinds, title, lead) {
     g.style.cursor = "pointer"; g.addEventListener("click", ev => { if (ev.target.closest(".leaf")) return; showPart(c.id); });
   });
   const missing = new Set(M.connections.filter(c => !c.ok).flatMap(c => [c.a_txt, c.b_txt]));
+  Object.values(abs).forEach(({x, y, n}) => { if (!n.children || !n.children.length || !M.parts[n.id] || M.parts[n.id].depth < 2) return;
+    const g = el("g", {class: "cont asm", transform: `translate(${x},${y})`}, root); el("rect", {width: n.width, height: n.height, rx: 10}, g);
+    el("text", {x: 12, y: 22, class: "t", style: "font-size:12px"}, g).textContent = M.parts[n.id].name;
+    if (M.parts[n.id].doc) el("text", {x: 12 + M.parts[n.id].name.length * 8 + 8, y: 22, class: "s"}, g).textContent = M.parts[n.id].doc.slice(0, 40);
+    g.style.cursor = "pointer"; g.addEventListener("click", ev => { if (ev.target.closest(".leaf,.addph")) return; ev.stopPropagation();
+      if (pend) { const a = pend.full; cancelPend(); return openForm("connect", {a, bpart: n.id}); } showPart(n.id); }); });
   drawEdges(root, out, abs, e => `edge ${e.c.kind}${e.c.ok ? "" : " bad"}`);
-  out.children.forEach(c => (c.children || []).forEach(n => {
+  allLeaves(out).forEach(n => {
     if (n.id.endsWith("::add")) { const a = abs[n.id], g = el("g", {class: "addph", transform: `translate(${a.x},${a.y})`}, root);
       el("rect", {width: n.width, height: n.height, rx: 8}, g); el("text", {x: n.width / 2, y: 27, "text-anchor": "middle"}, g).textContent = "+ Part";
       g.addEventListener("click", ev => { ev.stopPropagation(); openForm("part", {parent: n.id.slice(0, -5)}); }); return; }
@@ -533,7 +566,7 @@ async function drawParts(kinds, title, lead) {
       el("title", {}, t).textContent = `${q.name}: ${q.meaning || q.type}${q.pins && q.pins.length ? " · " + q.pins.map(x => x.join(" ")).join(", ") : ""}`; });
     g.addEventListener("click", ev => { ev.stopPropagation(); if (pend) { const a = pend.full; cancelPend(); return openForm("connect", {a, bpart: n.id}); } showPart(n.id); });
     g.addEventListener("mouseenter", () => !selected && hot(n.id)); g.addEventListener("mouseleave", () => !selected && hot(null));
-  }));
+  });
   panZoom(svg, out.width, out.height); markSel();
 }
 async function drawSystem() {
@@ -662,7 +695,7 @@ function render() {
     electrical: () => drawParts(["Signal"], "Electrical", "Buses and pins between modules. Port settings, pins and links are in each part's panel."),
     power: () => drawParts(["Power"], "Power", "Where power comes from and who draws it."),
     mechanical: () => drawParts(["Mechanical"], "Mechanical", "How parts are physically attached."),
-    software: drawSoftware, issues: issuesPage, docs: docsPage, media: mediaPage, setup: setupPage})[view]();
+    software: drawSoftware, issues: issuesPage, docs: docsPage, media: mediaPage, setup: setupPage, budget: budgetPage, bom: bomPage})[view]();
 }
 // ------------------------------------------------------------------ issues, docs, media
 const mediaByFile = Object.fromEntries((M.media || []).map(x => [x.file, x]));
@@ -820,7 +853,19 @@ function typeOpts(v) {
   const groups = {}; SET().port_types.forEach(t => (groups[t.kind] ||= []).push(t));
   return Object.entries(groups).map(([k, ts]) => `<optgroup label="${H(k)}">${ts.map(t => `<option value="${H(t.name)}" ${t.name === v ? "selected" : ""}>${H(t.meaning)} (${H(t.name)})</option>`).join("")}</optgroup>`).join("");
 }
-const prow = (q = {}) => `<div class="prow" data-was="${H(q.name || "")}"><input data-pn placeholder="port name, e.g. spi" value="${H(q.name || "")}"><select data-pt><option value="">type…</option>${typeOpts(q.type)}</select><button class="act dz" type="button" data-rm>✕</button></div>`;
+const SUGGEST = {part: ["part_number", "manufacturer", "supplier", "link", "unit_cost", "quantity", "i2c_address", "notes"],
+  Power: ["voltage", "max_current", "current"], I2cBus: ["address"], wire: ["gauge", "length", "connector", "cable", "color", "notes"], port: ["notes"]};
+const kvRow = (k = "", v = "", list = "") => `<div class="kvr"><input data-k placeholder="field" value="${H(k)}" list="${list}"><input data-v placeholder="value" value="${H(v)}"><button class="act dz" type="button" data-rmkv>✕</button></div>`;
+function kvBox(attrs, sugg, id) { const list = "dl" + Math.random().toString(36).slice(2, 8);
+  const rows = Object.entries(attrs || {}); sugg.forEach(k => { if (!rows.some(r => r[0] === k)) rows.push([k, ""]); });
+  return `<datalist id="${list}">${sugg.map(k => `<option value="${k}">`).join("")}</datalist><div class="kvbox" ${id ? `id="${id}"` : ""} data-list="${list}">${rows.map(([k, v]) => kvRow(k, v, list)).join("")}</div><button class="act" type="button" data-addkv>+ Field</button>`; }
+const kvCollect = box => box ? [...box.querySelectorAll(":scope > .kvr")].map(r => ({key: r.querySelector("[data-k]").value.trim(), value: r.querySelector("[data-v]").value.trim()})).filter(x => x.key && x.value) : [];
+const typeKind = t => (SET().port_types.find(x => x.name === t) || {}).kind;
+const portSugg = t => typeKind(t) === "Power" ? SUGGEST.Power : t === "I2cBus" ? SUGGEST.I2cBus : SUGGEST.port;
+const prow = (q = {}, locked = false) => `<div class="prow" data-was="${H(q.name || "")}" ${locked ? "data-locked" : ""}><input data-pn placeholder="port name, e.g. spi" value="${H(q.name || "")}" ${locked ? "disabled" : ""}><select data-pt ${locked ? "disabled" : ""}><option value="">type…</option>${typeOpts(q.type)}</select><span style="white-space:nowrap"><button class="act" type="button" data-pa title="Details: voltage, current, address…">${Object.keys(q.attrs || {}).length ? "Details •" : "Details"}</button>${locked ? "" : `<button class="act dz" type="button" data-rm>✕</button>`}</span>
+  <div class="pattrs" style="display:none;grid-column:1/-1">${kvBox(q.attrs, portSugg(q.type))}</div></div>`;
+const templates = () => (SET().library?.folders || []).flatMap(f => f.templates.map(t => ({...t, folder: f.path})));
+const attrsKv = a => Object.entries(a || {}).map(([k, v]) => `<div>${H(k.replace(/_/g, " "))}</div><div>${/^https?:/.test(v) ? `<a href="${H(v)}" target="_blank">${H(v)}</a>` : H(v)}</div>`).join("");
 function guessBoard(path) { const used = SET().boards.map(b => b.name); if (!used.includes("mcu")) return "mcu";
   return (path.split("/").pop().replace(/\.ioc$/, "").toLowerCase().replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "") || "board").replace(/^(\d)/, "b$1"); }
 function formSpec(kind, d) {
@@ -850,22 +895,55 @@ function formSpec(kind, d) {
     case "port_type": return {title: "New port type", sub: "For connections the built-in types do not cover, e.g. a 5 V rail or a motor mount. Ports connect only to ports of the same type.", html:
       `<div class="two">${fld("name", "Type name", "e.g. Power5V, MotorMount", inp("name", "", "Power5V"))}${fld("kind", "Kind (which view shows it)", "", sel("kind", [["Power", "Power"], ["Mechanical", "Mechanical"], ["Signal", "Signal"]]))}</div>` + fld("meaning", "Meaning", "Shown in panels and the ICD.", inp("meaning", "", "5 V rail"))};
     case "port_type_delete": return {title: `Delete port type ${d.name}`, sub: "Only possible when no port uses it.", html: "", extra: {name: d.name}};
-    case "part": { const parent = part ? `${M.top}.${part.subsystem}` : d.parent || "", typed = part && part.type;
-      return {title: part ? `Edit ${short(d.orig)}` : "New part", sub: "A module, sensor, driver, battery or computer. Its ports are the pins, buses, power and mounts it connects with.", html:
-      `<div class="two">${fld("parent", "Subsystem", "", sel("parent", M.subsystems.map(x => [`${M.top}.${x}`, `${x}${(M.prefix_names || {})[x] ? " · " + M.prefix_names[x] : ""}`]), parent, M.subsystems.length ? "pick…" : "add subsystems in Setup first"))}${fld("name", "Name", "e.g. imu, lora, pi, battery", inp("name", part ? part.name : "", "imu"))}</div>` +
+    case "part": { const parentPath = part ? part.path.split(".").slice(0, -1).join(".") : d.parent || "", own = part ? part.ports.filter(q => q.own) : [];
+      const inherited = part ? part.ports.filter(q => !q.own && !q.missing) : [];
+      const places = Object.values(M.parts).filter(p => p.depth >= 1 && !p.board && (!part || (p.path !== part.path && !p.path.startsWith(part.path + "."))))
+        .map(p => [p.path, `${"  ".repeat(p.depth - 1)}${p.depth === 1 ? p.name + ((M.prefix_names || {})[p.name] ? " · " + M.prefix_names[p.name] : "") : "↳ " + p.name}`]);
+      return {title: part ? `Edit ${short(d.orig)}` : "New part", sub: "A module, sensor, driver, battery or computer, or an assembly that holds other parts. Its ports are the pins, buses, power and mounts it connects with.", html:
+      (!part && templates().length ? fld("tpl", "Start from a template", "Fills in the fields below. Templates live in the part library (Setup).", `<select id="tplsel"><option value="">none</option>${templates().map((t, i) => `<option value="${i}">${H(t.name)}${t.doc ? " · " + H(t.doc.slice(0, 40)) : ""}</option>`).join("")}</select>`) : "") +
+      `<div class="two">${fld("parent", "Inside", "A subsystem, or a part to put it in (an assembly).", sel("parent", places, parentPath, places.length ? "pick…" : "add subsystems in Setup first"))}${fld("name", "Name", "e.g. imu, lora, pi, battery", inp("name", part ? part.name : "", "imu"))}</div>` +
       fld("doc", "What it is", "Part number or one line.", inp("doc", part ? part.doc : "", "ICM-42688-P IMU, SPI")) +
-      (typed ? `<div class="dsub">Ports come from ${M.boards.some(b => b.def === part.type) ? "its .ioc file" : `its type <span class="mono">${H(part.type)}</span> in the arch file`}.</div>`
-        : `<div class="fld"><label>Ports</label><div class="hint">You can also add ports later while connecting: click a port, then this part.</div><div id="prows">${(part ? part.ports.filter(q => q.own) : []).map(prow).join("")}</div><button class="act" type="button" id="addport">+ Port</button> <span class="dsub">Missing a type? <span class="xref" onclick="document.querySelector('.modal').remove();openForm('port_type')">Add one</span></span></div>`),
+      `<div class="fld"><label>Details</label><div class="hint">For the BOM and the checks: part number, supplier, cost, I2C address… Add any field you like.</div>${kvBox(part ? part.attrs : {}, SUGGEST.part, "pattr")}</div>` +
+      `<div class="fld"><label>Ports</label><div class="hint">${inherited.length ? `${inherited.length} come from ${part.board ? "its .ioc" : `its type ${H(part.type)}`} (name and type fixed, details editable). ` : ""}You can also add ports while connecting: click a port, then this part.</div>
+        <div id="prows">${inherited.map(q => prow(q, true)).join("")}${own.map(q => prow(q)).join("")}</div><button class="act" type="button" id="addport">+ Port</button> <span class="dsub">Missing a type? <span class="xref" onclick="document.querySelector('.modal').remove();openForm('port_type')">Add one</span></span></div>`,
       extra: part ? {orig: d.orig} : {}}; }
+    case "template": { const t = d.tidx !== undefined ? templates()[+d.tidx] : d.from ? (() => { const p = M.parts[d.from]; return {name: p.attrs.part_number || p.doc || p.name, doc: p.doc, attrs: p.attrs, ports: p.ports.filter(q => !q.missing).map(q => ({name: q.name, type: q.type, attrs: q.attrs || {}}))}; })() : null;
+      const folders = (SET().library?.folders || []);
+      return {title: t && d.tidx !== undefined ? `Template ${t.name}` : "New part template", sub: "A reusable part: name, details and ports. New parts can start from it, in this project and in others that use the same library folder.", html:
+      (folders.length ? fld("folder", "Library folder", "", sel("folder", folders.map(f => [f.path, `${f.path}${f.default ? " (default)" : ""}${f.in_repo ? " · in this project" : ""}`]), t?.folder || SET().library.default)) : `<div class="warnline">Add a library folder first: Setup › Part library.</div>`) +
+      fld("name", "Template name", "Usually the part number.", inp("name", t?.name || "", "ICM-42688-P")) + fld("doc", "What it is", "", inp("doc", t?.doc || "")) +
+      `<div class="fld"><label>Details</label>${kvBox(t?.attrs || {}, SUGGEST.part, "pattr")}</div>` +
+      `<div class="fld"><label>Ports</label><div id="prows">${(t?.ports || []).map(q => prow(q)).join("")}</div><button class="act" type="button" id="addport">+ Port</button></div>`,
+      op: "template_save", extra: d.tidx !== undefined ? {orig_file: t.file, orig_folder: t.folder} : {}}; }
+    case "template_delete": { const t = templates()[+d.tidx]; return {title: `Delete template ${t.name}`, sub: `Removes ${t.file} from ${t.folder}. Parts made from it are not affected.`, html: "", extra: {folder: t.folder, file: t.file}}; }
+    case "lib_folder": return {title: "Add a library folder", sub: "Where part templates are kept. A folder inside this project is committed and shared with the team; one outside (e.g. ~/robotics/parts, or its own git repo) serves all your projects on this computer.", html:
+      fld("path", "Folder", "Absolute, ~/…, or relative to the project (e.g. docs/model/parts).", inp("path", "", "~/robotics/parts")) +
+      `<div class="fld"><label><input type="checkbox" name="create" checked>Create it if it does not exist</label><label><input type="checkbox" name="default" ${(SET().library?.folders || []).length ? "" : "checked"}>Make it the default folder for new templates</label></div>`};
+    case "wire": { const c = M.connections.find(x => x.a && x.b && [x.a.join("."), x.b.join(".")].sort().join() === [d.a, d.b].sort().join());
+      return {title: "Wire", sub: `${H(short(d.a))} ↔ ${H(short(d.b))} · ${H(c?.type || "")}`, html:
+      `<div class="fld"><label>Details</label><div class="hint">Gauge, length, connector, cable… Used by the BOM (wire length per gauge, connector count) and shown in the Interfaces table.</div>${kvBox(c?.attrs || {}, SUGGEST.wire, "pattr")}</div>
+       <button class="act dz" type="button" onclick="document.querySelector('.modal').remove();openForm('disconnect', {a: '${H(d.a)}', b: '${H(d.b)}'})">Remove this connection…</button>`, extra: {a: d.a, b: d.b}}; }
     case "part_delete": return {title: `Delete ${short(d.path)}`, sub: "Removes the part, its connections, and the links of requirements and ROS nodes to it. The preview lists them.", html: "", extra: {path: d.path}};
     case "connect": { const ports = leafParts().flatMap(p => p.ports.filter(q => !q.missing).map(q => [`${p.path}.${q.name}`, portLabel(p.path, q)]));
       return {title: "Connect two ports", sub: "Both ends must have the same type. Wires crossing subsystems appear in the Interfaces page automatically.", html:
       fld("a", "From", "", sel("a", ports, d.a)) + `<div class="two">${fld("b_part", "To part", "", sel("b_part", leafParts().map(p => [p.path, short(p.path)]), d.bpart, "pick…"))}${fld("b_port", "Port", "", `<select name="b_port"></select>`)}</div>` +
-      `<div id="bnew" style="display:none">${fld("b_new", "Name of the new port", "", inp("b_new"))}</div>`}; }
+      `<div id="bnew" style="display:none">${fld("b_new", "Name of the new port", "", inp("b_new"))}</div>` +
+      `<details class="fld"><summary class="dsub">Wire details (optional): gauge, length, connector</summary>${kvBox({}, SUGGEST.wire, "pattr")}</details>`}; }
+    case "pages": return {title: "Publish the page on GitHub Pages", sub: "Adds .github/workflows/doc-kit-pages.yml. GitHub then rebuilds the page on every push. The published page is public.", html: ""};
+    case "pages_off": return {title: "Stop publishing", sub: "Removes the workflow. Also unpublish it in the repo's Settings › Pages.", html: "", op: "pages", extra: {disable: true}};
+    case "undo": return {title: "Undo the last change", sub: "", html: "", op: "undo"};
+    case "bom_item": { const e = d.index !== undefined ? SET().bom_items[+d.index] : null;
+      return {title: e ? `BOM item: ${e.item}` : "Add a BOM item", sub: "Things that are not parts in the diagram: screws, heat-shrink, zip ties, spare connectors.", html:
+      `<div class="two">${fld("item", "Item", "", inp("item", e?.item || "", "M3x8 socket head screw"))}${fld("qty", "Quantity", "", inp("qty", e?.qty || "1"))}</div>` +
+      `<div class="fld"><label>Details</label>${kvBox(Object.fromEntries(Object.entries(e || {}).filter(([k]) => k !== "item" && k !== "qty")), [...SUGGEST.part.filter(k => k !== "i2c_address" && k !== "quantity"), ...(M.bom?.columns || [])], "pattr")}</div>` +
+      (e ? `<label class="act dz" style="display:inline-block"><input type="checkbox" name="delete" style="width:auto"> remove this item</label>` : ""), extra: e ? {index: d.index} : {}}; }
+    case "bom_columns": return {title: "BOM columns", sub: "Extra columns after the standard ones (qty, item, part number, manufacturer, supplier, link, unit cost, total). A part fills a column from its detail of the same name.", html:
+      `<div id="rplist">${(M.bom?.columns || []).map(c => `<div class="prow" style="grid-template-columns:1fr auto"><input name="columns[]" value="${H(c)}"><button class="act dz" type="button" data-rm>✕</button></div>`).join("")}</div><button class="act" type="button" id="addcol">+ Column</button>`};
     case "disconnect": return {title: "Remove connection", sub: "", html: `<div class="pv">${H(short(d.a))}  ↔  ${H(short(d.b))}</div>`, extra: {a: d.a, b: d.b}};
-    case "allocate": { const n = M.nodes.find(x => x.name === d.node);
+    case "allocate": { const n = M.nodes.find(x => x.name === d.node); const lf = [...new Set((n.launch || []).map(l => l.file))];
       return {title: `Where does ${n.name} run?`, sub: "The computer or board that runs this ROS node. Shown in the Software view and the part's panel.", html:
-      fld("to", "Runs on", "", sel("to", leafParts().map(p => [p.path, short(p.path)]), n.host || "", "not allocated")), extra: {node: n.name}}; }
+      fld("to", "Runs on", "", sel("to", leafParts().map(p => [p.path, short(p.path)]), n.host || "", "not allocated")) +
+      (lf.length ? fld("launch", "Apply to", "A launch file runs on one computer, so it can place all its nodes at once.", sel("launch", [["", `only ${n.name}`], ...lf.map(f => [f, `every node started by ${f.split("/").pop()}`])], "")) : ""), extra: {node: n.name}}; }
     case "satisfy": { const groups = {}; leafParts().forEach(p => (groups[p.subsystem] ||= []).push(p));
       return {title: `${r.id} belongs to…`, sub: `Without a pin, a requirement belongs to its subsystem (${H(r.prefix)}). Pin it when one part carries it, e.g. the battery for a runtime requirement.`, html:
       `<div class="dsub" style="margin-bottom:8px">${H(r.text)}</div><div class="cklist">${Object.entries(groups).map(([g, ps]) => `<div class="g">${H(g)}</div>` + ps.map(p => `<label><input type="checkbox" name="parts[]" value="${H(p.path)}" ${r.parts.includes(p.path) ? "checked" : ""} style="width:auto;margin-right:6px">${H(p.name)}${p.doc ? ` <span style="color:var(--faint)">${H(p.doc.slice(0, 40))}</span>` : ""}</label>`).join("")).join("") || "No parts yet."}</div>`, extra: {rid: r.id}}; }
@@ -950,7 +1028,16 @@ function openForm(kind, data = {}) {
     const v = frm.value; if (v) v.onchange = () => { if ($("#whyw")) $("#whyw").innerHTML = v.value === "Deleted" ? fld("why", "Why is it dropped?", "", inp("why")) : "";
       if ($("#byw")) $("#byw").innerHTML = v.value === "Superseded" ? fld("by", "Superseded by decision number", "", sel("by", M.decisions.map(x => [x.num, `${x.num} · ${x.title}`]))) : ""; }; };
   if (frm.field) { frm.field.onchange = drawFv; drawFv(); }
-  frm.addEventListener("click", ev => { if (ev.target.matches("[data-rm]")) { ev.preventDefault(); ev.target.closest(".prow").remove(); } });
+  frm.addEventListener("click", ev => { const t = ev.target;
+    if (t.matches("[data-rm]")) { ev.preventDefault(); t.closest(".prow").remove(); }
+    if (t.matches("[data-rmkv]")) { ev.preventDefault(); t.closest(".kvr").remove(); }
+    if (t.matches("[data-addkv]")) { ev.preventDefault(); const box = t.previousElementSibling; box.insertAdjacentHTML("beforeend", kvRow("", "", box.dataset.list)); box.lastElementChild.querySelector("input").focus(); }
+    if (t.matches("[data-pa]")) { ev.preventDefault(); const pa = t.closest(".prow").querySelector(".pattrs"); pa.style.display = pa.style.display ? "" : "none"; } });
+  if ($("#tplsel")) $("#tplsel").onchange = () => { const t = templates()[+$("#tplsel").value]; if (!t) return;
+    if (!frm.name.value) frm.name.value = (t.name.toLowerCase().replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "") || "part").replace(/^(\d)/, "p$1");
+    frm.doc.value = t.doc || frm.doc.value; $("#pattr").outerHTML; const box = $("#pattr");
+    box.innerHTML = Object.entries(t.attrs || {}).map(([k, v]) => kvRow(k, v, box.dataset.list)).join("");
+    $("#prows").innerHTML = (t.ports || []).map(q => prow(q)).join(""); };
   if ($("#addport")) $("#addport").onclick = () => { $("#prows").insertAdjacentHTML("beforeend", prow()); $("#prows").lastElementChild.querySelector("input").focus(); };
   if (kind === "part" && !data.orig && $("#prows") && !$("#prows").children.length) $("#prows").insertAdjacentHTML("beforeend", prow());
   if (kind === "board") { const upd = () => { const c = SET().ioc_candidates.find(x => x.path === frm.ioc.value);
@@ -960,6 +1047,7 @@ function openForm(kind, data = {}) {
   if (kind === "ros_paths") $("#rppick").onchange = e => { let v = e.target.value; if (!v) return; if (v === "+") v = "";
     $("#rplist").insertAdjacentHTML("beforeend", `<div class="prow" style="grid-template-columns:1fr auto"><input name="paths[]" value="${H(v)}" placeholder="folder, relative to the project"><button class="act dz" type="button" data-rm>✕</button></div>`);
     if (!v) $("#rplist").lastElementChild.querySelector("input").focus(); e.target.value = ""; };
+  if ($("#addcol")) $("#addcol").onclick = () => { $("#rplist").insertAdjacentHTML("beforeend", `<div class="prow" style="grid-template-columns:1fr auto"><input name="columns[]" placeholder="e.g. mass_g, lead_time"><button class="act dz" type="button" data-rm>✕</button></div>`); $("#rplist").lastElementChild.querySelector("input").focus(); };
   if (kind === "check") frm.section.onchange = () => { $("#newsec").style.display = frm.section.value === "+new" ? "" : "none"; };
   if (kind === "check" && frm.section.value === "+new") $("#newsec").style.display = "";
   if (kind === "connect") { const fill = () => { const [ap, aq] = [frm.a.value.split(".").slice(0, -1).join("."), frm.a.value.split(".").pop()];
@@ -984,8 +1072,10 @@ function openForm(kind, data = {}) {
   const collect = () => { const o = {...(spec.extra || {})};
     new FormData(frm).forEach((v, k) => { if (/^o\d+_/.test(k)) return; if (k.endsWith("[]")) (o[k.slice(0, -2)] ||= []).push(v); else o[k] = v; });
     frm.querySelectorAll("input[type=checkbox][name]").forEach(cb => { if (!cb.name.endsWith("[]")) o[cb.name] = cb.checked; });
-    if (kind === "part" && $("#prows")) o.ports = [...frm.querySelectorAll(".prow")].map(r => ({name: r.querySelector("[data-pn]").value.trim(), type: r.querySelector("[data-pt]").value, was: r.dataset.was || ""}));
+    if ((kind === "part" || kind === "template") && $("#prows")) o.ports = [...frm.querySelectorAll("#prows > .prow")].map(r => ({name: r.querySelector("[data-pn]").value.trim(), type: r.querySelector("[data-pt]").value, was: r.dataset.was || "", attrs: kvCollect(r.querySelector(".kvbox"))}));
+    if ($("#pattr")) o.attrs = kvCollect($("#pattr"));
     if (kind === "ros_paths" && !o.paths) o.paths = [];
+    if (kind === "bom_columns" && !o.columns) o.columns = [];
     if (kind === "satisfy" && !o.parts) o.parts = [];
     if (kind === "decision") { o.options = []; document.querySelectorAll("#opts .opts").forEach((x, i) => o.options.push({name: frm[`o${i + 1}_name`].value, pros: frm[`o${i + 1}_pros`].value, cons: frm[`o${i + 1}_cons`].value})); }
     return o; };
@@ -997,13 +1087,86 @@ function openForm(kind, data = {}) {
         $("#pvw").style.display = ""; frm.style.display = "none";
         const diff = /^── /m.test(r.preview || "");
         const pvh = diff ? H(r.preview).split("\n").map(l => l.startsWith("──") ? `<b>${l}</b>` : l.startsWith("@@") ? `<span class="dhunk">${l}</span>` : l.startsWith("+") ? `<span class="dadd">${l}</span>` : l.startsWith("-") ? `<span class="ddel">${l}</span>` : l).join("\n") : H(r.preview);
-        $("#pvw").innerHTML = `<div class="dsub">Will write and commit: <span class="mono">${H(r.target)}</span></div>${(r.warnings || []).map(w => w.startsWith("fixes:") ? `<div class="warn wgood" style="margin:6px 0">✓ ${H(w)}</div>` : `<div class="warn ${w.startsWith("new model problem") || w.startsWith("the model would not") ? "wbad" : ""}" style="color:var(--warn-ink);margin:6px 0">${w.startsWith("also") || w.startsWith("adds") || w.endsWith("folders") ? "•" : "⚠"} ${H(w)}</div>`).join("")}<div class="pv">${pvh}</div>`;
+        $("#pvw").innerHTML = `<div class="dsub">${r.commit === false ? "Will write (outside the project, not committed)" : "Will write and commit"}: <span class="mono">${H(r.target)}</span></div>${(r.warnings || []).map(w => w.startsWith("fixes:") ? `<div class="warn wgood" style="margin:6px 0">✓ ${H(w)}</div>` : `<div class="warn ${w.startsWith("new model problem") || w.startsWith("the model would not") ? "wbad" : ""}" style="color:var(--warn-ink);margin:6px 0">${w.startsWith("also") || w.startsWith("adds") || w.endsWith("folders") ? "•" : "⚠"} ${H(w)}</div>`).join("")}<div class="pv">${pvh}</div>`;
         $("#fgo").textContent = op === "idea" || op === "bug" ? "Create issue" : /delete|remove|disconnect/.test(op) ? "Yes, do it" : "Write it"; $("#fcancel").textContent = "Back"; $("#fcancel").onclick = () => { stage = "form"; frm.style.display = ""; $("#pvw").style.display = "none"; $("#fgo").textContent = "Preview"; $("#fcancel").textContent = "Cancel"; $("#fcancel").onclick = () => m.remove(); };
         stage = "preview";
       } else { $("#fgo").disabled = true; $("#fmsg").textContent = "Saving…"; const r = await post(`api/apply/${op}`, body);
         m.remove(); toast(r.message + (r.url ? " " + r.url : "")); setTimeout(() => location.reload(), 900); }
     } catch (e) { $("#fgo").disabled = false; $("#fmsg").textContent = ""; toast(e.message, true); }
   };
+}
+
+// ------------------------------------------------------------------ power budget and electrical checks
+const fmt = (x, u) => x === null || x === undefined ? "—" : `${+x.toFixed(3)} ${u}`;
+function budgetPage() {
+  const g = (M.gaps || []).filter(x => x.kind === "power" || x.kind === "electrical");
+  page(`<h2>Power and electrical checks</h2><p class="lead">Every group of wired power ports is a rail. A port with <i>max_current</i> supplies it; ports with <i>current</i> draw from it. Add these in a part's ports (Edit › Details), e.g. a buck's <span class="mono">out</span>: voltage 5 V, max_current 3 A; the Pi's <span class="mono">vin</span>: voltage 5 V, current 1.2 A.</p>
+  ${g.length ? `<div class="panel" style="border-color:var(--warn)"><h3>Flags <span class="chip">${g.length}</span></h3>${g.map(x => `<div class="issue"><span class="k">${H(x.kind)}</span><span class="${x.refs.length ? "g" : ""}" ${x.refs.length ? `data-part="${x.refs[0]}"` : ""}>${H(x.text)}</span></div>`).join("")}</div>` : ""}
+  ${(M.power || []).map(r => { const pct = r.capacity ? Math.min(100, r.load / r.capacity * 100) : 0, col = r.capacity === null ? "var(--hair)" : r.load > r.capacity ? "var(--crit)" : pct > 80 ? "var(--warn)" : "var(--good)";
+    return `<div class="panel rail"><h3><span class="mono">${H(short(r.name))}</span><span class="chip">${r.voltages.length ? r.voltages.map(v => fmt(v, "V")).join(" / ") : "voltage not set"}</span>${r.voltages.length > 1 ? `<span class="warnline" style="margin:0">mixed voltages</span>` : ""}</h3>
+      <div class="dsub">${r.capacity === null ? `No source with max_current yet: ${fmt(r.load, "A")} drawn.` : `${fmt(r.load, "A")} drawn of ${fmt(r.capacity, "A")} available (${pct.toFixed(0)}%)${r.load > r.capacity ? " · overloaded" : ""}`}</div>
+      <div class="meter"><span style="width:${pct}%;background:${col}"></span></div>
+      <table class="ptab"><tr><th>Port</th><th>Voltage</th><th>Supplies (max)</th><th>Draws</th></tr>${r.ports.map(p => `<tr><td class="mono"><span class="lnk" data-part="${H(p.part)}">${H(short(p.port))}</span></td><td>${fmt(p.voltage, "V")}</td><td>${fmt(p.max_current, "A")}</td><td>${fmt(p.current, "A")}</td></tr>`).join("")}</table>
+      ${r.unknown.length ? `<div class="dsub" style="margin-top:6px">No current set: ${r.unknown.map(x => H(short(x))).join(", ")}</div>` : ""}</div>`; }).join("") || `<div class="empty">No power wiring yet. Wire power ports in the Power view (Edit).</div>`}
+  <h3 style="margin-top:22px">I²C buses</h3><p class="lead">Each device's address comes from its port detail <i>address</i>, or the part detail <i>i2c_address</i>. Two devices with the same address on one bus are flagged.</p>
+  ${(M.i2c || []).map(b => `<div class="panel"><h3 class="mono">${H(short(b.name))}</h3><table class="ptab"><tr><th>Device port</th><th>Address</th></tr>${b.devices.map(d => `<tr><td class="mono"><span class="lnk" data-part="${H(d.part)}">${H(short(d.port))}</span></td><td class="mono">${H(d.address || "—")}</td></tr>`).join("")}</table></div>`).join("") || `<div class="dsub">No I²C wiring yet.</div>`}`);
+}
+
+// ------------------------------------------------------------------ BOM
+const BOM_STD = [["qty", "Qty"], ["item", "Item"], ["part_number", "Part number"], ["manufacturer", "Manufacturer"], ["supplier", "Supplier"], ["link", "Link"], ["unit_cost", "Unit cost"], ["total", "Total"]];
+function bomTable() {
+  const cols = [...BOM_STD, ...(M.bom?.columns || []).map(c => [c, c.replace(/_/g, " ")]), ["where", "Where"]];
+  const rows = (M.bom?.rows || []).map(r => { const v = r.values || {}, cost = parseFloat(String(v.unit_cost || "").replace(/[^0-9.]/g, ""));
+    const qty = r.kind === "wire" ? (r.length ? `${+r.length.toFixed(2)} m${r.unmeasured ? ` + ${r.unmeasured} unmeasured` : ""}` : `${r.qty} wire(s)`) : r.qty;
+    return {r, cells: cols.map(([k]) => k === "qty" ? qty : k === "item" ? r.item : k === "total" ? (isFinite(cost) && typeof r.qty === "number" ? +(cost * r.qty).toFixed(2) : "")
+      : k === "where" ? (r.parts.length ? r.parts.map(short).join(", ") : r.kind === "extra" ? "extra item" : r.kind) : (v[k] ?? ""))}; });
+  const total = rows.reduce((t, x) => t + (+x.cells[7] || 0), 0);
+  return {cols, rows, total};
+}
+function bomPage() {
+  const {cols, rows, total} = bomTable();
+  page(`<div class="ibar"><h2 style="margin:0">Bill of materials</h2><span style="flex:1"></span>
+    ${SERVED ? `<button class="act" data-form="bom_item">+ Item</button><button class="act" data-form="bom_columns">Columns</button>` : ""}
+    <button class="act" id="bx">Excel</button><button class="act" id="bp">PNG</button><button class="act" id="bf">PDF</button></div>
+    <p class="lead">Built from the parts (grouped by part number), wires (total length per gauge), connectors, and extra items. Fill it in from each part's Details: part number, supplier, cost, or any column you add.</p>
+    <div class="panel" style="overflow:auto"><table class="icd bom"><tr>${cols.map(c => `<th>${H(c[1])}</th>`).join("")}</tr>
+    ${rows.map(({r, cells}) => `<tr>${cells.map((c, i) => `<td class="${cols[i][0] === "item" || cols[i][0] === "where" ? "w" : ""}">${cols[i][0] === "link" && /^https?:/.test(c) ? `<a href="${H(c)}" target="_blank">link</a>` : H(c)}${cols[i][0] === "item" && r.kind === "extra" && SERVED ? ` <span class="xref" data-form="bom_item" data-index="${r.index}">edit</span>` : ""}${cols[i][0] === "item" && r.parts.length ? ` <span class="xref" data-part="${H(r.parts[0])}">open</span>` : ""}</td>`).join("")}</tr>`).join("")}
+    <tr><td></td><td><b>Total</b></td>${cols.slice(2).map(c => `<td>${c[0] === "total" && total ? `<b>${+total.toFixed(2)}</b>` : ""}</td>`).join("")}</tr></table></div>`);
+  const grid = () => [cols.map(c => c[1]), ...rows.map(x => x.cells.map(c => typeof c === "number" ? c : String(c)))];
+  $("#bx").onclick = async () => { if (!SERVED) { const csv = grid().map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n"); return save(new Blob([csv], {type: "text/csv"}), `${M.name}_BOM.csv`); }
+    const r = await fetch("api/bom.xlsx", {method: "POST", headers: {"X-Doc": "1", "Content-Type": "application/json"}, body: JSON.stringify(grid())}); save(await r.blob(), `${M.name}_BOM.xlsx`); };
+  $("#bp").onclick = () => { const g = grid(), c = document.createElement("canvas"), x = c.getContext("2d"); x.font = "13px -apple-system,Segoe UI,sans-serif";
+    const w = g[0].map((_, i) => Math.min(320, Math.max(...g.map(r => x.measureText(String(r[i])).width)) + 20)); c.width = w.reduce((a, b) => a + b, 0) + 20; c.height = g.length * 26 + 56;
+    x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.fillStyle = "#141413"; x.font = "600 15px -apple-system,Segoe UI,sans-serif"; x.fillText(`${M.name} bill of materials`, 10, 24);
+    g.forEach((r, ri) => { let cx = 10; const y = 44 + ri * 26; if (ri) { x.fillStyle = ri % 2 ? "#fff" : "#f4f4f1"; x.fillRect(10, y, c.width - 20, 26); }
+      x.fillStyle = "#141413"; x.font = (ri ? "" : "600 ") + "13px -apple-system,Segoe UI,sans-serif"; r.forEach((v, i) => { let t = String(v); while (t && x.measureText(t).width > w[i] - 14) t = t.slice(0, -2) + "…"; x.fillText(t, cx + 6, y + 17); cx += w[i]; }); });
+    c.toBlob(b => save(b, `${M.name}_BOM.png`)); };
+  $("#bf").onclick = () => printDoc(`${M.name} bill of materials`, `<h1>${H(M.name)}: bill of materials</h1>` + printTable(grid()));
+}
+function save(blob, name) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
+const printTable = g => `<table><tr>${g[0].map(c => `<th>${H(c)}</th>`).join("")}</tr>${g.slice(1).map(r => `<tr>${r.map(c => `<td>${H(c)}</td>`).join("")}</tr>`).join("")}</table>`;
+function printDoc(title, body) {
+  const w = window.open("", "_blank"); if (!w) return toast("Allow pop-ups to print", true);
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${H(title)}</title><style>body{font:12px/1.45 -apple-system,Segoe UI,Roboto,sans-serif;color:#141413;margin:28px}h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:26px 0 8px;border-bottom:1px solid #ddd;padding-bottom:4px;break-after:avoid}
+    table{border-collapse:collapse;width:100%;margin:6px 0 12px}th,td{border:1px solid #ddd;padding:4px 6px;text-align:left;vertical-align:top}th{background:#f4f4f1}tr{break-inside:avoid}.m{color:#666}.cover{margin-bottom:20px}@page{margin:14mm}</style></head><body>${body}<script>setTimeout(()=>print(),300)<\/script></body></html>`);
+  w.document.close();
+}
+
+// ------------------------------------------------------------------ design review pack
+function reviewPack() {
+  const rs = M.requirements.filter(r => r.status !== "Deleted"), st = s => rs.filter(r => r.status === s).length;
+  const sec = (t, h) => `<h2>${H(t)}</h2>${h}`;
+  const b = bomTable();
+  printDoc(`${M.name} design review`, `<div class="cover"><h1>${H(M.name)}: design review pack</h1><div class="m">${new Date().toISOString().slice(0, 10)} · commit ${H(S_.commit || M.version || "")} · generated by doc-kit from the project files</div>
+    <p>${M.subsystems.length} subsystems, ${Object.values(M.parts).filter(p => p.depth >= 2).length} parts, ${conns.length} connections, ${M.nodes.length} ROS2 nodes. Requirements: ${st("Verified")} verified, ${st("Failed")} failed, ${st("Approved")} approved, ${st("Draft")} draft (${rs.length} live). ${M.faults.length} faults analysed. Model problems: ${M.problems.length}.</p></div>` +
+    sec("Subsystems", printTable([["Subsystem", "Name", "Parts"], ...M.subsystems.map(s => [s, (M.prefix_names || {})[s] || "", M.parts[`${M.top}.${s}`].children.map(k => M.parts[k].name).join(", ")])])) +
+    sec("Requirements and verification", printTable([["ID", "Requirement", "Method", "Status", "Evidence"], ...rs.map(r => [r.id, r.text, METHOD[r.method] || r.method, r.status, r.evidence.join(" | ")])])) +
+    sec("Faults (FDIR)", printTable([["ID", "Failure", "Effect", "Detection", "Response", "Recovery", "Sev", "Covered by"], ...[...M.faults].sort((a, b) => b.sev - a.sev).map(f => [f.id, f.failure, f.effect, f.detection, f.response, f.recovery, f.sev, f.reqs.map(x => `${x} (${reqById[x]?.status || "?"})`).join(", ") || "NOT COVERED"])])) +
+    sec("Interfaces between subsystems", printTable([["Between", "Via", "From", "To", "Pins", "Settings", "Wire"], ...M.icd.map(i => { const c = conns.find(x => x.a.join(".") === i.from || x.b.join(".") === i.from); return [i.pair.join(" ↔ "), i.meaning, short(i.from), short(i.to), i.pins.map(p => p.join(" ")).join(", "), i.settings.map(s => s.join(": ")).join(", "), Object.values(c?.attrs || {}).join(", ")]; })])) +
+    ((M.power || []).length ? sec("Power budget", printTable([["Rail", "Voltage", "Available", "Drawn", "Margin"], ...M.power.map(r => [short(r.name), r.voltages.map(v => v + " V").join(" / ") || "—", r.capacity === null ? "—" : r.capacity + " A", r.load + " A", r.capacity ? `${((1 - r.load / r.capacity) * 100).toFixed(0)}%` : "—"])])) : "") +
+    sec("Decisions", printTable([["No.", "Decision", "Status", "Why"], ...M.decisions.map(d => [d.num, `${d.title}: ${d.decision}`, d.status, d.why])])) +
+    sec("Bill of materials", printTable([b.cols.map(c => c[1]), ...b.rows.map(x => x.cells)])) +
+    ((M.problems.length + M.gaps.length) ? sec("Open problems and review questions", printTable([["Kind", "Text"], ...M.problems.map(p => ["model problem", p]), ...M.gaps.map(g => [g.kind, g.text])])) : ""));
 }
 
 // ------------------------------------------------------------------ setup
@@ -1032,9 +1195,16 @@ function setupPage() {
   <div class="panel"><h3>Port types<span style="flex:1"></span><button class="act" data-form="port_type">+ Port type</button></h3>
     <div class="dsub" style="margin-bottom:8px">A port connects only to a port of the same type. Built in: ${builtin.map(t => `<span class="mono">${H(t.name)}</span>`).join(", ")}.</div>
     ${custom.length ? `<table class="stab"><tr><th>Type</th><th>Kind</th><th>Meaning</th><th></th></tr>${custom.map(t => `<tr><td class="mono">${H(t.name)}</td><td>${H(t.kind)}</td><td>${H(t.meaning)}</td><td class="acts"><button class="act dz" data-form="port_type_delete" data-name="${H(t.name)}">Delete</button></td></tr>`).join("")}</table>` : `<div class="dsub">No types of your own yet (e.g. Power5V for a 5 V rail, MotorMount for a mechanical mount).</div>`}</div>
+  <div class="panel"><h3>Part library<span style="flex:1"></span><button class="act" data-form="lib_folder">+ Folder</button><button class="act" data-form="template" ${(st.library?.folders || []).length ? "" : "disabled"}>+ Template</button></h3>
+    <div class="dsub" style="margin-bottom:8px">Reusable parts (IMU, encoder, motor driver, radio…) with their details and ports. Folders are remembered on this computer (${H(st.library?.settings || "")}), so every project can use them. A folder inside the project is committed and shared with the team. In a part's panel, <i>Save as template</i> adds it here; <i>+ Part</i> can start from one.</div>
+    ${(st.library?.folders || []).map(f => `<div style="margin:10px 0 4px"><b class="mono">${H(f.path)}</b> ${f.default ? `<span class="chip">default</span>` : `<button class="act" data-op="lib_default" data-path="${H(f.path)}">Make default</button>`} <span class="dsub">${f.in_repo ? "in this project (committed)" : "on this computer"}${f.exists ? "" : " · missing"}</span> <button class="act dz" data-op="lib_folder_remove" data-path="${H(f.path)}">Forget</button></div>
+      ${f.templates.length ? `<table class="stab">${f.templates.map(t => { const i = templates().findIndex(x => x.folder === f.path && x.file === t.file);
+        return `<tr><td class="mono"><b>${H(t.name)}</b></td><td>${H(t.doc)}</td><td class="dsub">${t.ports.length} ports</td><td class="acts"><button class="act" data-form="template" data-tidx="${i}">Edit</button> <button class="act dz" data-form="template_delete" data-tidx="${i}">Delete</button></td></tr>`; }).join("")}</table>` : `<div class="dsub">No templates yet.</div>`}`).join("") || `<div class="dsub">No library folder yet.</div>`}</div>
+  <div class="panel"><h3>Publish a read-only page<span style="flex:1"></span>${st.pages ? `<button class="act dz" data-form="pages_off">Stop publishing</button>` : `<button class="act" data-form="pages">Set up</button>`}</h3>
+    <div class="dsub">GitHub builds this page on every push and publishes it on GitHub Pages: no forms, no server, always current. A portfolio link. ${st.pages ? "<b>Set up</b>: once, enable it in the repo's Settings › Pages › Source: GitHub Actions." : ""}<br>Note: the published page is public, even when the repo is private (and Pages on a private repo needs a paid GitHub plan).</div></div>
   <div class="panel"><h3>Project</h3><div class="kv"><div>Name</div><div class="mono">${H(st.project)}</div><div>Arch file</div><div class="mono">${H(M.arch_file)}</div><div>Server</div><div>${S_.push ? "commits and pushes" : "commits only (--no-push)"} · ${H(S_.commit || "")}</div></div></div>`);
   document.querySelectorAll("[data-mv]").forEach(b => b.onclick = () => quick("subsystem_move", {prefix: b.dataset.mv, dir: b.dataset.dir}));
-  document.querySelectorAll("[data-op]").forEach(b => b.onclick = () => quick(b.dataset.op, {prefix: b.dataset.prefix}));
+  document.querySelectorAll("[data-op]").forEach(b => b.onclick = () => quick(b.dataset.op, {prefix: b.dataset.prefix, path: b.dataset.path}));
 }
 async function quick(op, body) {
   try { const r = await post(`api/apply/${op}`, body); toast(r.message); setTimeout(() => location.reload(), 700); } catch (e) { toast(e.message, true); }

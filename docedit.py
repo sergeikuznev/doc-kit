@@ -13,6 +13,7 @@ docserve shows them as a diff, with the model problems the change adds or fixes,
 before anything is written or committed.
 """
 
+import json
 import os
 import re
 
@@ -63,6 +64,10 @@ def cfg_text(cfg):
         if b.get("def"):
             out.append(f"def = {_tq(b['def'])}")
     out += ["", "[ros]", "paths = [" + ", ".join(_tq(x) for x in cfg["ros"]["paths"]) + "]"]
+    if cfg.get("bom", {}).get("columns"):
+        out += ["", "[bom]", "columns = [" + ", ".join(_tq(x) for x in cfg["bom"]["columns"]) + "]"]
+    for e in cfg.get("bom_item", []):
+        out += ["", "[[bom_item]]"] + [f"{k} = {_tq(v)}" for k, v in e.items()]
     return "\n".join(out) + "\n"
 
 
@@ -89,8 +94,8 @@ def arch_path(root, cfg):
 
 
 def _clean(p):
-    return {"name": p["name"], "type": p.get("type"), "doc": p.get("doc", ""),
-            "ports": [{"name": q["name"], "type": q["type"], "conj": q["conj"]} for q in p.get("ports", [])],
+    return {"name": p["name"], "type": p.get("type"), "doc": p.get("doc", ""), "attrs": dict(p.get("attrs", {})),
+            "ports": [{"name": q["name"], "type": q["type"], "conj": q["conj"], "attrs": dict(q.get("attrs", {}))} for q in p.get("ports", [])],
             "parts": [_clean(c) for c in p.get("parts", [])]}
 
 
@@ -107,12 +112,12 @@ def load_arch(root, cfg):
                                             "connects": [], "doc": ""}
     tn = top["name"]
     rel = lambda segs: segs[1:] if segs and segs[0] == tn else segs
-    connects = []
+    connects = []  # [a, b, attrs]
 
     def walk(p, prefix):
         for c in p.get("connects", []):
             ends = [c["a"][1:] if c["a"][0] == tn else prefix + c["a"], c["b"][1:] if c["b"][0] == tn else prefix + c["b"]]
-            connects.append(ends)
+            connects.append(ends + [dict(c.get("attrs", {}))])
         for ch in p["parts"]:
             walk(ch, prefix + [ch["name"]])
     walk(top, [])
@@ -125,6 +130,10 @@ def load_arch(root, cfg):
 
 def q(s):
     return s if IDENT.match(s) and s not in KEYWORDS else "'" + s.replace("'", "") + "'"
+
+
+def _val(v):
+    return " ".join(str(v).replace('"', "'").split())
 
 
 def _doc(s):
@@ -144,15 +153,23 @@ def arch_text(A, cfg):
             sup = f" :> {q(d['super'])}" if d.get("super") else ""
             o.append(f"    port def {q(n)}{sup}" + (f" {{ doc /* {_doc(d['doc'])} */ }}" if d.get("doc") else ";"))
 
+    def attr_lines(a, ind):
+        return [f'{ind}attribute {q(k)} = "{_val(v)}";' for k, v in (a or {}).items()]
+
     def port_lines(p, ind):
-        return [f"{ind}port {q(x['name'])} : {'~' if x['conj'] else ''}{q(x['type'])};" for x in p["ports"]]
+        out = []
+        for x in p["ports"]:
+            head = f"{ind}port {q(x['name'])} : {'~' if x['conj'] else ''}{q(x['type'])}"
+            al = attr_lines(x.get("attrs"), ind + "    ")
+            out += [head + " {"] + al + [f"{ind}}}"] if al else [head + ";"]
+        return out
 
     for n, d in A["part_defs"].items():
-        o += ["", f"    part def {q(n)} {{"] + ([f"        doc /* {_doc(d['doc'])} */"] if d["doc"] else []) + port_lines(d, "        ") + ["    }"]
+        o += ["", f"    part def {q(n)} {{"] + ([f"        doc /* {_doc(d['doc'])} */"] if d["doc"] else []) + attr_lines(d.get("attrs"), "        ") + port_lines(d, "        ") + ["    }"]
 
     def part_lines(p, ind):
         head = f"{ind}part {q(p['name'])}" + (f" : {q(p['type'])}" if p["type"] else "")
-        body = ([f"{ind}    doc /* {_doc(p['doc'])} */"] if p["doc"] else []) + port_lines(p, ind + "    ")
+        body = ([f"{ind}    doc /* {_doc(p['doc'])} */"] if p["doc"] else []) + attr_lines(p.get("attrs"), ind + "    ") + port_lines(p, ind + "    ")
         for ch in p["parts"]:
             body += part_lines(ch, ind + "    ")
         return [head + " {"] + body + [f"{ind}}}"] if body else [head + ";"]
@@ -164,7 +181,9 @@ def arch_text(A, cfg):
         o += part_lines(ch, "        ")
     if A["connects"]:
         o.append("")
-        o += [f"        connect {path(a)} to {path(b)};" for a, b in A["connects"]]
+        for a, b, at in A["connects"]:
+            al = attr_lines(at, "            ")
+            o += [f"        connect {path(a)} to {path(b)}" + (" {" if al else ";")] + (al + ["        }"] if al else [])
     o.append("    }")
     if A["allocs"]:
         o.append("")
@@ -207,10 +226,11 @@ def drop_refs(A, segs, port=None):
     """Remove connections (and, for a whole part, allocations and requirement links) that use it."""
     gone = []
     keep = []
-    for a, b in A["connects"]:
+    for c in A["connects"]:
+        a, b = c[0], c[1]
         hit = (a[:-1] == segs and a[-1] == port) or (b[:-1] == segs and b[-1] == port) if port else \
             under(a[:-1], segs) or under(b[:-1], segs)
-        (gone.append(f"connection {'.'.join(a)} ↔ {'.'.join(b)}") if hit else keep.append([a, b]))
+        (gone.append(f"connection {'.'.join(a)} ↔ {'.'.join(b)}") if hit else keep.append(c))
     A["connects"] = keep
     if port is None:
         for key, label in (("allocs", "ROS node {0} runs here"), ("sats", "requirement {0} belongs here")):
@@ -339,8 +359,10 @@ def setup_info(root, model):
     for b in cfg["board"]:
         where = [k for k, p in parts.items() if p.get("type") == board_def(b)]
         boards.append({"name": b["name"], "ioc": b["ioc"], "def": board_def(b), "placed": where})
+    pages = os.path.exists(os.path.join(root, ".github", "workflows", "doc-kit-pages.yml"))
     return {"project": cfg["project"]["name"], "subsystems": subs, "boards": boards, "ros_paths": cfg["ros"]["paths"],
-            "ioc_candidates": iocs, "ros_candidates": ros, "port_types": port_types(A)}
+            "ioc_candidates": iocs, "ros_candidates": ros, "port_types": port_types(A), "library": library_info(root),
+            "pages": pages, "bom_items": cfg.get("bom_item", [])}
 
 
 # ================================================================ operations
@@ -548,11 +570,33 @@ def op_port_type_delete(cfg, A, f, ctx):
     return f"delete port type {name}", []
 
 
-def _ports_from_form(rows, known_types, old):
+def _attrs(rows):
+    """[{key, value}] or {key: value} from the page -> {key: value}; keys become identifiers."""
+    if isinstance(rows, dict):
+        rows = [{"key": k, "value": v} for k, v in rows.items()]
+    out = {}
+    for r in rows or []:
+        k = re.sub(r"\W+", "_", str(r.get("key") or "").strip().lower()).strip("_")
+        v = " ".join(str(r.get("value") or "").split())
+        if k and v:
+            if not IDENT.match(k):
+                k = "f_" + k
+            out[k] = v
+    return out
+
+
+def _ports_from_form(rows, known_types, old, inherited=()):
+    """inherited: names of ports that come from the part's type or .ioc; a row with such a name
+    only stores details (attributes) for that port, and is dropped when it has none."""
     out, seen, renames = [], set(), []
     for r in rows or []:
         nm = str(r.get("name") or "").strip()
         if not nm:
+            continue
+        if nm in inherited:
+            if _attrs(r.get("attrs")):
+                out.append({"name": nm, "type": str(r.get("type") or ""), "conj": False, "attrs": _attrs(r.get("attrs"))})
+            seen.add(nm)
             continue
         nm = check_name(nm, f"Port {nm}")
         if nm in seen:
@@ -563,12 +607,17 @@ def _ports_from_form(rows, known_types, old):
             raise EditError(f"port {nm}: pick a type")
         was = str(r.get("was") or "")
         prev = next((x for x in old if x["name"] == was), None)
-        out.append({"name": nm, "type": typ, "conj": prev["conj"] if prev and prev["type"] == typ else False})
+        out.append({"name": nm, "type": typ, "conj": prev["conj"] if prev and prev["type"] == typ else False,
+                    "attrs": _attrs(r.get("attrs"))})
         if prev and was != nm:
             renames.append((was, nm))
-    kept = {r for r in (str(x.get("was") or "") for x in rows or []) if r}
+    kept = {r for r in (str(x.get("was") or "") for x in rows or []) if r} | set(inherited)
     removed = [x["name"] for x in old if x["name"] not in kept]
     return out, renames, removed
+
+
+def _is_board(cfg, p):
+    return bool(p and p["type"] and any(board_def(b) == p["type"] for b in cfg["board"]))
 
 
 def op_part(cfg, A, f, ctx):
@@ -576,17 +625,23 @@ def op_part(cfg, A, f, ctx):
     orig = split_path(tn, f.get("orig"))
     parent = split_path(tn, f.get("parent"))
     name = check_name(f.get("name"), "Part name")
-    if len(parent) != 1 or node(A, parent) is None:
-        raise EditError("Pick the subsystem the part is in")
-    pnode = node(A, parent)
+    pnode = node(A, parent) if parent else None
+    if pnode is None:
+        raise EditError("Pick where the part goes: a subsystem, or a part to put it inside")
+    if _is_board(cfg, pnode):
+        raise EditError("A board cannot hold other parts. Put the part in the board's subsystem instead.")
+    if orig and under(parent, orig):
+        raise EditError("A part cannot go inside itself")
     known = {t["name"] for t in port_types(A)}
     new_path = parent + [name]
+    where = ".".join(parent)
     notes = []
     if not orig:
         if any(c["name"] == name for c in pnode["parts"]):
-            raise EditError(f"{parent[0]} already has a part called {name}")
+            raise EditError(f"{where} already has a part called {name}")
         ports, _, _ = _ports_from_form(f.get("ports"), known, [])
-        pnode["parts"].append({"name": name, "type": None, "doc": str(f.get("doc") or "").strip(), "ports": ports, "parts": []})
+        pnode["parts"].append({"name": name, "type": None, "doc": str(f.get("doc") or "").strip(), "ports": ports, "parts": [],
+                               "attrs": _attrs(f.get("attrs"))})
         return f"add part {'.'.join(new_path)}", notes
     if len(orig) < 2:
         raise EditError("Subsystems are edited in Setup")
@@ -595,15 +650,19 @@ def op_part(cfg, A, f, ctx):
         raise EditError(f"no part {'.'.join(orig)}")
     if new_path != orig:
         if any(c["name"] == name for c in pnode["parts"]):
-            raise EditError(f"{parent[0]} already has a part called {name}")
+            raise EditError(f"{where} already has a part called {name}")
         _remove_part(A, orig)
         p["name"] = name
         pnode["parts"].append(p)
         rename_refs(A, orig, new_path)
         notes.append(f"connections and links now point to {'.'.join(new_path)}")
     p["doc"] = str(f.get("doc") or "").strip()
-    if not p["type"] and "ports" in f:
-        ports, renames, removed = _ports_from_form(f.get("ports"), known, p["ports"])
+    if "attrs" in f:
+        p["attrs"] = _attrs(f.get("attrs"))
+    if "ports" in f:  # a part's own ports (a board or typed part keeps the ports of its type as well)
+        mp = ((ctx["model"] or {}).get("parts") or {}).get(f"{tn}.{'.'.join(orig)}") or {}
+        inherited = {q["name"] for q in mp.get("ports", []) if not q.get("own") and not q.get("missing")}
+        ports, renames, removed = _ports_from_form(f.get("ports"), known, p["ports"], inherited)
         for old_n, new_n in renames:
             for c in A["connects"]:
                 for i in (0, 1):
@@ -613,6 +672,16 @@ def op_part(cfg, A, f, ctx):
             notes += [f"also removes {g}" for g in drop_refs(A, new_path, r)]
         p["ports"] = ports
     return f"edit part {'.'.join(new_path)}", notes
+
+
+def op_wire(cfg, A, f, ctx):
+    tn = A["top"]["name"]
+    a, b = split_path(tn, f.get("a")), split_path(tn, f.get("b"))
+    c = next((c for c in A["connects"] if sorted([c[0], c[1]]) == sorted([a, b])), None)
+    if c is None:
+        raise EditError("no such connection")
+    c[2] = _attrs(f.get("attrs"))
+    return f"wire {'.'.join(a)} ↔ {'.'.join(b)}", []
 
 
 def op_part_delete(cfg, A, f, ctx):
@@ -680,9 +749,9 @@ def op_connect(cfg, A, f, ctx):
                     break
     if a == b:
         raise EditError("a port cannot connect to itself")
-    if any(sorted([x, y]) == sorted([a, b]) for x, y in A["connects"]):
+    if any(sorted([c[0], c[1]]) == sorted([a, b]) for c in A["connects"]):
         raise EditError("these two ports are already connected")
-    A["connects"].append([a, b])
+    A["connects"].append([a, b, {k: v for k, v in _attrs(f.get("attrs")).items()}])
     return f"connect {'.'.join(a)} to {'.'.join(b)}", notes
 
 
@@ -690,7 +759,7 @@ def op_disconnect(cfg, A, f, ctx):
     tn = A["top"]["name"]
     a, b = split_path(tn, f.get("a")), split_path(tn, f.get("b"))
     before = len(A["connects"])
-    A["connects"] = [c for c in A["connects"] if sorted(c) != sorted([a, b])]
+    A["connects"] = [c for c in A["connects"] if sorted([c[0], c[1]]) != sorted([a, b])]
     if len(A["connects"]) == before:
         raise EditError("no such connection")
     return f"disconnect {'.'.join(a)} from {'.'.join(b)}", []
@@ -701,14 +770,19 @@ def op_allocate(cfg, A, f, ctx):
     nm = str(f.get("node") or "")
     if nm not in nodes:
         raise EditError(f"no ROS node {nm}")
+    launch = str(f.get("launch") or "")
+    if launch:  # every node this launch file starts
+        if launch not in {l["file"] for l in (ctx["model"] or {}).get("launches", [])}:
+            raise EditError(f"no launch file {launch}")
+        nm = launch
     to = split_path(A["top"]["name"], f.get("to"))
     A["allocs"] = [x for x in A["allocs"] if x[0][-1] != nm]
     if to:
         if len(to) < 2 or node(A, to) is None:
             raise EditError("Pick the computer or board the node runs on")
         A["allocs"].append([["ROS", nm], to])
-        return f"ROS node {nm} runs on {'.'.join(to)}", []
-    return f"ROS node {nm} not allocated", []
+        return f"{'launch file' if launch else 'ROS node'} {nm} runs on {'.'.join(to)}", []
+    return f"{'launch file' if launch else 'ROS node'} {nm} not allocated", []
 
 
 def op_satisfy(cfg, A, f, ctx):
@@ -725,10 +799,95 @@ def op_satisfy(cfg, A, f, ctx):
     return f"{rid} belongs to {', '.join(f.get('parts') or []) or 'its subsystem'}", []
 
 
+def op_bom_columns(cfg, A, f, ctx):
+    cols = []
+    for c in f.get("columns") or []:
+        k = re.sub(r"\W+", "_", str(c).strip().lower()).strip("_")
+        if k and k not in cols:
+            cols.append(k)
+    cfg.setdefault("bom", {})["columns"] = cols
+    return "BOM columns", []
+
+
+def op_bom_item(cfg, A, f, ctx):
+    items = cfg.setdefault("bom_item", [])
+    idx = f.get("index")
+    if f.get("delete"):
+        del items[int(idx)]
+        return "remove BOM item", []
+    item = str(f.get("item") or "").strip()
+    if not item:
+        raise EditError("Item is required (e.g. M3x8 screw, heat-shrink, zip ties)")
+    row = {"item": item, "qty": str(f.get("qty") or "1").strip(), **_attrs(f.get("attrs"))}
+    if idx not in (None, ""):
+        items[int(idx)] = row
+        return f"edit BOM item {item}", []
+    items.append(row)
+    return f"add BOM item {item}", []
+
+
+PAGES_WORKFLOW = """# Publishes the doc-kit page (read-only) to GitHub Pages on every push.
+# Written by doc-kit (Setup > Publish). Enable once: repo Settings > Pages > Source: GitHub Actions.
+name: doc-kit page
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  issues: read
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build the page (it is published even when the model has problems; they show on it)
+        run: python3 tools/doc.py model --no-open || true
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - run: |
+          mkdir -p _site
+          cp docs/system.html _site/index.html
+          if [ -d docs/media ]; then cp -r docs/media _site/media; fi
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+"""
+
+
+def op_pages(cfg, A, f, ctx):
+    path = os.path.join(ctx["root"], ".github", "workflows", "doc-kit-pages.yml")
+    if f.get("disable"):
+        if not os.path.exists(path):
+            raise EditError("publishing is not set up")
+        ctx["extra"].append((path, None))
+        return "stop publishing the page to GitHub Pages", []
+    ctx["extra"].append((path, PAGES_WORKFLOW))
+    return "publish the page to GitHub Pages", ["Then, once: repo Settings > Pages > Source: GitHub Actions."]
+
+
 OPS = {"subsystem": op_subsystem, "subsystem_delete": op_subsystem_delete, "subsystem_restore": op_subsystem_restore,
        "subsystem_move": op_subsystem_move, "board": op_board, "board_remove": op_board_remove, "ros_paths": op_ros_paths,
        "port_type": op_port_type, "port_type_delete": op_port_type_delete, "part": op_part, "part_delete": op_part_delete,
-       "connect": op_connect, "disconnect": op_disconnect, "allocate": op_allocate, "satisfy": op_satisfy}
+       "connect": op_connect, "disconnect": op_disconnect, "allocate": op_allocate, "satisfy": op_satisfy,
+       "wire": op_wire, "bom_columns": op_bom_columns, "bom_item": op_bom_item, "pages": op_pages}
 
 
 def run(op, root, f, model):
@@ -736,13 +895,135 @@ def run(op, root, f, model):
     cfg = load_cfg(root)
     A = load_arch(root, cfg)
     adopt(cfg, A)
-    msg, notes = OPS[op](cfg, A, f, {"root": root, "model": model})
+    ctx = {"root": root, "model": model, "extra": []}
+    msg, notes = OPS[op](cfg, A, f, ctx)
     ensure_boxes(cfg, A)
     writes = []
-    for path, text in [(cfg_path(root), cfg_text(cfg)), (arch_path(root, cfg), arch_text(A, cfg))] + synced_files(root, cfg):
+    for path, text in [(cfg_path(root), cfg_text(cfg)), (arch_path(root, cfg), arch_text(A, cfg))] + synced_files(root, cfg) + ctx["extra"]:
         old = open(path, encoding="utf-8").read() if os.path.exists(path) else None
         if text != old:
             writes.append((path, text))
     if not writes:
         raise EditError("No change.")
     return writes, msg, notes
+
+
+# ================================================================ part library (templates shared between projects)
+# Folders are listed per computer in ~/.config/doc-kit/settings.json, so one library can serve
+# every project. A folder inside the project is committed with it (shared with the team);
+# a folder outside is only written.
+
+def settings_path():
+    return os.path.join(os.path.expanduser("~"), ".config", "doc-kit", "settings.json")
+
+
+def load_settings():
+    try:
+        with open(settings_path(), encoding="utf-8") as fh:
+            s = json.load(fh)
+    except (OSError, ValueError):
+        s = {}
+    s.setdefault("libraries", [])
+    s.setdefault("default", None)
+    return s
+
+
+def lib_abs(root, p):
+    p = os.path.expanduser(str(p or "").strip())
+    return os.path.normpath(p if os.path.isabs(p) else os.path.join(root, p))
+
+
+def _in_repo(root, path):
+    return os.path.realpath(path).startswith(os.path.realpath(root) + os.sep)
+
+
+def library_info(root):
+    s = load_settings()
+    folders = []
+    for p in s["libraries"]:
+        full = lib_abs(root, p)
+        temps = []
+        if os.path.isdir(full):
+            for fn in sorted(os.listdir(full)):
+                if fn.endswith(".json"):
+                    try:
+                        t = json.load(open(os.path.join(full, fn), encoding="utf-8"))
+                        temps.append({"file": fn, "name": t.get("name", fn[:-5]), "doc": t.get("doc", ""),
+                                      "attrs": t.get("attrs", {}), "ports": t.get("ports", [])})
+                    except (OSError, ValueError):
+                        pass
+        folders.append({"path": p, "full": full, "exists": os.path.isdir(full), "in_repo": _in_repo(root, full),
+                        "default": p == s["default"], "templates": temps})
+    return {"folders": folders, "default": s["default"], "settings": settings_path()}
+
+
+def run_library(op, root, f):
+    """Returns (writes, message, notes); writes may lie outside the project (then they are not committed)."""
+    s = load_settings()
+    writes, notes = [], []
+
+    def save_settings():
+        writes.append((settings_path(), json.dumps(s, indent=2) + "\n"))
+    if op == "lib_folder":
+        p = str(f.get("path") or "").strip()
+        if not p:
+            raise EditError("Folder is required, e.g. ~/robotics/parts or docs/model/parts")
+        full = lib_abs(root, p)
+        if not os.path.isdir(full):
+            if not f.get("create"):
+                raise EditError(f"{full} does not exist (tick 'create it')")
+            writes.append((os.path.join(full, ".keep"), ""))
+        if p not in s["libraries"]:
+            s["libraries"].append(p)
+        if f.get("default") or not s["default"]:
+            s["default"] = p
+        save_settings()
+        notes.append("inside the project: templates there are committed and shared with the team" if _in_repo(root, full)
+                     else "outside the project: templates there stay on this computer (share the folder yourself, e.g. a git repo)")
+        return writes, f"part library {p}", notes
+    if op == "lib_folder_remove":
+        p = f.get("path")
+        if p not in s["libraries"]:
+            raise EditError("no such library folder")
+        s["libraries"].remove(p)
+        if s["default"] == p:
+            s["default"] = s["libraries"][0] if s["libraries"] else None
+        save_settings()
+        return writes, f"forget part library {p} (its files are kept)", notes
+    if op == "lib_default":
+        if f.get("path") not in s["libraries"]:
+            raise EditError("no such library folder")
+        s["default"] = f["path"]
+        save_settings()
+        return writes, f"default part library {f['path']}", notes
+    if op == "template_save":
+        folder = f.get("folder") or s["default"]
+        if folder not in s["libraries"]:
+            raise EditError("Pick a library folder (add one in Setup > Part library)")
+        name = str(f.get("name") or "").strip()
+        if not name:
+            raise EditError("Template name is required, e.g. ICM-42688-P")
+        fn = re.sub(r"[^\w.-]+", "_", name).strip("_") + ".json"
+        full = os.path.join(lib_abs(root, folder), fn)
+        ports = []
+        for r in f.get("ports") or []:
+            if str(r.get("name") or "").strip():
+                ports.append({"name": check_name(r["name"], "Port"), "type": str(r.get("type") or ""), "attrs": _attrs(r.get("attrs"))})
+        t = {"name": name, "doc": str(f.get("doc") or "").strip(), "attrs": _attrs(f.get("attrs")), "ports": ports}
+        orig = f.get("orig_file")
+        if orig and orig != fn:
+            writes.append((os.path.join(lib_abs(root, f.get("orig_folder") or folder), orig), None))
+        elif os.path.exists(full) and not orig:
+            raise EditError(f"{fn} already exists in {folder}; edit that template instead")
+        writes.append((full, json.dumps(t, indent=2, ensure_ascii=False) + "\n"))
+        return writes, f"part template {name}", notes
+    if op == "template_delete":
+        full = os.path.join(lib_abs(root, f.get("folder")), os.path.basename(str(f.get("file") or "")))
+        if not os.path.exists(full):
+            raise EditError("no such template")
+        writes.append((full, None))
+        return writes, f"delete part template {f.get('file')}", notes
+    raise EditError(f"unknown library operation {op}")
+
+
+LIB_OPS = {"lib_folder", "lib_folder_remove", "lib_default", "template_save", "template_delete"}
