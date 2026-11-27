@@ -458,7 +458,8 @@ function panZoom(svg, W, H) {
   svg.addEventListener("pointermove", ev => { if (!drag) return; const r = svg.getBoundingClientRect(); const scale = Math.max(vb.w / r.width, vb.h / r.height);
     vb.x = drag.vb.x - (ev.clientX - drag.x) * scale; vb.y = drag.vb.y - (ev.clientY - drag.y) * scale; set(); });
   svg.addEventListener("pointerup", ev => {
-    const moved = drag && Math.hypot(ev.clientX - drag.x, ev.clientY - drag.y) > 4;
+    if (!drag) return;  // the press started elsewhere (e.g. selecting text in the panel): not a click on the canvas
+    const moved = Math.hypot(ev.clientX - drag.x, ev.clientY - drag.y) > 4;
     drag = null;
     if (!moved && !ev.target.closest(".leaf,.rosnode,.topic,.sysnode,.cont,.ehit,.addph")) { closeDrawer(); if (pend) cancelPend(); }
   });
@@ -680,7 +681,7 @@ function lightbox(f) {
     : x.kind === "pdf" ? `<iframe src="${u}" style="width:80vw;height:75vh;border:0;border-radius:8px;background:#fff"></iframe>` : `<pre id="lbtext">Loading…</pre>`;
   const d = document.createElement("div"); d.className = "lightbox";
   d.innerHTML = `<div class="in">${view}<div class="row"><b>${H(x.name)}</b><span style="opacity:.7">${H(x.date || "")}</span>${x.reqs.map(r => `<span class="chip" data-req="${H(r)}">${H(r)}</span>`).join("")}<span style="flex:1"></span><a href="${u}" target="_blank">Open file ↗</a></div></div>`;
-  d.onclick = ev => { if (ev.target === d) d.remove(); };
+  closeOnBackdrop(d);
   document.body.appendChild(d); wire(d);
   d.querySelectorAll("[data-req]").forEach(e => e.addEventListener("click", () => d.remove()));
   if ($("#lbtext")) fetch(u).then(r => r.text()).then(t => $("#lbtext").textContent = t.slice(0, 20000)).catch(() => $("#lbtext").textContent = "Preview needs doc serve (browsers block reading local files). Use Open file.");
@@ -759,6 +760,11 @@ function mediaPage() {
 }
 
 // ------------------------------------------------------------------ live server: polling, toasts, forms
+// Close an overlay only when the click both starts and ends on its backdrop: selecting text
+// in a field and releasing the mouse outside the box must not close it.
+function closeOnBackdrop(o) { let down = false;
+  o.addEventListener("mousedown", ev => { down = ev.target === o; });
+  o.addEventListener("click", ev => { if (ev.target === o && down) o.remove(); down = false; }); }
 function toast(msg, err) { const t = document.createElement("div"); t.className = "toast" + (err ? " err" : ""); t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), err ? 7000 : 3500); }
 function startPolling() {
   const check = () => fetch("api/version", {cache: "no-store"}).then(r => r.json()).then(v => {
@@ -930,7 +936,7 @@ function openForm(kind, data = {}) {
   m.innerHTML = `<div class="box"><h3>${H(spec.title)}</h3><div class="sub">${spec.sub}</div><form id="frm">${spec.html}</form>
     <div id="pvw" style="display:none"></div><div class="mfoot"><span class="sp dsub" id="fmsg"></span><button class="btn" id="fcancel">Cancel</button><button class="newbtn" id="fgo">Preview</button></div></div>`;
   document.body.appendChild(m);
-  m.onclick = ev => { if (ev.target === m) m.remove(); };
+  closeOnBackdrop(m);
   $("#fcancel").onclick = () => m.remove();
   const frm = $("#frm");
   // dependent fields
