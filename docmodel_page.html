@@ -1080,7 +1080,7 @@ function formSpec(kind, d) {
         .map(p => [p.path, p.depth === 1 ? p.name + ((M.prefix_names || {})[p.name] ? " · " + M.prefix_names[p.name] : "") : short(p.path)]);
       return {title: part ? `Edit ${short(d.orig)}` : "New part", sub: "A module, sensor, driver, battery or computer. Its ports are the pins, buses, power and mounts it connects with.", html:
       (!part && templates().length ? fld("tpl", "Start from the parts library", "Fills in the fields below.", `<select id="tplsel"><option value="">none</option>${templates().map((t, i) => `<option value="${i}">${H(t.name)}${t.doc ? " · " + H(t.doc.slice(0, 40)) : ""}</option>`).join("")}</select>`) : "") +
-      `<div class="two">${fld("parent", "Subsystem", "", (places.length ? sel("parent", places, parentPath) : sel("parent", [], "", "add subsystems in Setup first")))}${fld("name", "Name", "e.g. imu, lora, pi, battery", inp("name", part ? part.name : "", "imu"))}</div>` +
+      fld("parent", "Subsystem", "", (places.length ? sel("parent", places, parentPath) : sel("parent", [], "", "add subsystems in Setup first"))) + fld("name", "Name", "e.g. imu, lora, pi, battery", inp("name", part ? part.name : "", "imu")) +
       fld("doc", "What it is", "Part number or one line.", inp("doc", part ? part.doc : "", "ICM-42688-P IMU, SPI")) +
       `<div class="fld"><label>Details</label><div class="hint">For the BOM and the checks: part number, supplier, cost, I2C address… Add any field you like.</div>${kvBox(part ? part.attrs : {}, SUGGEST.part, "pattr")}</div>` +
       `<div class="fld"><label>Ports</label><div class="hint">${inherited.length ? `${inherited.length} come from ${part.board ? "its .ioc" : `its type ${H(part.type)}`} (name and type fixed, details editable). ` : ""}You can also add ports while connecting: click a port, then this part.</div>
@@ -1332,11 +1332,16 @@ function bomPage() {
 }
 function save(blob, name) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
 const printTable = g => `<table><tr>${g[0].map(c => `<th>${H(c)}</th>`).join("")}</tr>${g.slice(1).map(r => `<tr>${r.map(c => `<td>${H(c)}</td>`).join("")}</tr>`).join("")}</table>`;
-function printDoc(title, body) {
+async function printDoc(title, body) {
+  const page = `<!doctype html><html><head><meta charset="utf-8"><title>${H(title)}</title><style>body{font:12px/1.45 -apple-system,Segoe UI,Roboto,sans-serif;color:#141413;margin:28px}h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:26px 0 8px;border-bottom:1px solid #ddd;padding-bottom:4px;break-after:avoid}
+    table{border-collapse:collapse;width:100%;margin:6px 0 12px}th,td{border:1px solid #ddd;padding:4px 6px;text-align:left;vertical-align:top}th{background:#f4f4f1}tr{break-inside:avoid}.m{color:#666}.cover{margin-bottom:20px}@page{margin:14mm}</style></head><body>${body}</body></html>`;
+  if (SERVED) { toast("Making the PDF…");
+    try { const r = await fetch("api/pdf", {method: "POST", headers: {"X-Doc": "1", "Content-Type": "application/json"}, body: JSON.stringify({html: page})});
+      if (r.ok) return save(await r.blob(), `${title}.pdf`);
+      if (r.status !== 501) throw new Error((await r.json()).error); toast("No Chrome, Chromium or Edge on the server computer: use the print window and Save as PDF.", true); }
+    catch (e) { return toast(e.message, true); } }
   const w = window.open("", "_blank"); if (!w) return toast("Allow pop-ups to print", true);
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${H(title)}</title><style>body{font:12px/1.45 -apple-system,Segoe UI,Roboto,sans-serif;color:#141413;margin:28px}h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:26px 0 8px;border-bottom:1px solid #ddd;padding-bottom:4px;break-after:avoid}
-    table{border-collapse:collapse;width:100%;margin:6px 0 12px}th,td{border:1px solid #ddd;padding:4px 6px;text-align:left;vertical-align:top}th{background:#f4f4f1}tr{break-inside:avoid}.m{color:#666}.cover{margin-bottom:20px}@page{margin:14mm}</style></head><body>${body}<script>setTimeout(()=>print(),300)<\/script></body></html>`);
-  w.document.close();
+  w.document.write(page.replace("</body>", "<script>setTimeout(()=>print(),300)<\/script></body>")); w.document.close();
 }
 
 // ------------------------------------------------------------------ design review pack

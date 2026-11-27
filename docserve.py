@@ -25,7 +25,9 @@ import mimetypes
 import queue
 import os
 import re
+import shutil
 import subprocess
+import tempfile
 import sys
 import threading
 import time
@@ -683,6 +685,15 @@ def make_handler(S):
                     self.send_header("Content-Length", str(len(data)))
                     self.end_headers()
                     return self.wfile.write(data)
+                if path == "/api/pdf":
+                    data = html_pdf(json.loads(raw or b"{}").get("html", ""))
+                    if not data:
+                        return self.send(501, {"error": "no Chrome, Chromium or Edge found to make the PDF"})
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/pdf")
+                    self.send_header("Content-Length", str(len(data)))
+                    self.end_headers()
+                    return self.wfile.write(data)
                 if path == "/api/upload":
                     return self.send(200, S.upload(urllib.parse.unquote(self.headers.get("X-Filename", "upload")), raw))
                 m = re.match(r"^/api/(preview|apply)/(\w+)$", path)
@@ -694,6 +705,34 @@ def make_handler(S):
             except Exception as e:
                 return self.send(500, {"error": f"{type(e).__name__}: {e}"})
     return H
+
+
+BROWSERS = ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "microsoft-edge", "brave-browser",
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/Applications/Chromium.app/Contents/MacOS/Chromium",
+            "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge", "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+            r"C:\Program Files\Google\Chrome\Application\chrome.exe", r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"]
+
+
+def pdf_browser():
+    for b in [os.environ.get("DOC_PDF_BROWSER")] + BROWSERS:
+        if b and (shutil.which(b) or os.path.isfile(b)):
+            return shutil.which(b) or b
+    return None
+
+
+def html_pdf(html):
+    """Prints an HTML page to PDF with a headless Chrome/Chromium/Edge. None when there is no such browser."""
+    b = pdf_browser()
+    if not b:
+        return None
+    with tempfile.TemporaryDirectory() as d:
+        src, out = os.path.join(d, "page.html"), os.path.join(d, "page.pdf")
+        with open(src, "w", encoding="utf-8") as fh:
+            fh.write(html)
+        subprocess.run([b, "--headless=new", "--disable-gpu", "--no-sandbox", "--no-pdf-header-footer", "--hide-scrollbars",
+                        f"--user-data-dir={os.path.join(d, 'profile')}", f"--print-to-pdf={out}", "file://" + src],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=90)
+        return open(out, "rb").read() if os.path.exists(out) else None
 
 
 def serve(root, port=8765, push=True, interval=60, open_browser=True):

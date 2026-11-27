@@ -20,7 +20,7 @@ on it. Every change becomes a git commit.
   the module. No modelling language to learn, no boxes to arrange.
 - **Engineering numbers from the same model.** Power budget per rail, voltage
   and I²C address checks, a bill of materials (Excel, PNG, PDF) with wire
-  lengths per gauge, and a printable design review pack.
+  lengths per gauge, and a design review pack as a PDF.
 - **Reuse.** A parts library shared between projects, and launch files read
   for which computer runs what. One click to undo the last change.
 - **Record what happens, where it happens.** At the bench, on your phone:

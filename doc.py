@@ -16,7 +16,7 @@ These commands set a project up and run the checks:
 (doc = python3 tools/doc-kit/doc.py; see tools/doc-kit/guides/TERMINAL.md)
 """
 
-__version__ = "0.5.2"
+__version__ = "0.5.3"
 
 import datetime
 import html
@@ -940,7 +940,7 @@ def cmd_model(args):
               f"{len(m['gaps'])} gaps (listed in the page)")
     if m["problems"]:
         if hook:
-            print(c("\nCommit stopped. Fix the wiring on the page (doc serve > Edit), or commit anyway with: git commit --no-verify", "1"))
+            print(c("\nCommit stopped. Fix the wiring on the page (doc serve, Electrical view), or commit anyway with: git commit --no-verify", "1"))
         sys.exit(1)
     if not hook and "--check" not in args and "--no-open" not in args:
         _open(p("docs", "system.html"))

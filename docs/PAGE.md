@@ -220,8 +220,10 @@ connect the same MCU port to each.
 
 ![Part form](images/page-32-part-form.png)
 
-1. **Subsystem**: moving a part keeps its wires.
-2. **What it is**: part number or one line.
+1. **Subsystem**, then **Name** under it. Moving a part to another subsystem
+   keeps its wires. Parts sit directly in a subsystem, never inside another part.
+2. **What it is**: part number or one line. **Start from the parts library**
+   (above, when the library has parts) fills in everything below.
 3. **Ports**: a name and a type each. Renaming a port keeps its wires;
    removing one removes its wires.
 4. **+ Port.** Missing a type? *Add one* opens the port type form.
@@ -464,14 +466,20 @@ counted from the wires, plus **+ Item** for things that are not parts in the
 diagram (screws, heat-shrink, zip ties). Columns: quantity, item, part number,
 manufacturer, supplier, link, unit cost, total, where. **Columns** adds your own;
 a part fills a column from its detail of the same name. Export as **Excel**
-(`.xlsx`), **PNG** or **PDF** (print dialog). Without a server, Excel becomes a CSV.
+(`.xlsx`), **PNG** or **PDF**. Without a server, Excel becomes a CSV.
 
 ### Design review pack
 
-**Review pack** (top right) opens a printable document: summary, subsystems,
+**Review pack** (top right) downloads a PDF straight away: summary, subsystems,
 requirements with their evidence, faults, interfaces with wire details, power
-budget, decisions, BOM, and the open problems and gaps. Print it or save it as
-PDF, for a design review, a report or URC documentation.
+budget, decisions, BOM, and the open problems and gaps. Use it for a design
+review, a report or URC documentation.
+
+PDFs (the review pack and the BOM) are made by the computer running
+`doc serve`, with a headless Chrome, Chromium, Edge or Brave it finds there.
+Another browser can be named with the `DOC_PDF_BROWSER` environment variable.
+With none of them installed, or on a page opened without `doc serve`, the
+print window opens instead: choose **Save as PDF** there.
 
 ---
 

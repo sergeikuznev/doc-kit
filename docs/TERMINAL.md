@@ -77,7 +77,7 @@ through the repo, so each person who commits runs it once.
   ✕ docs/model/ROVER_arch.sysml:102: connect CTRL.mcu.nrf24_ce to COMM.radio.ce:
     rover.CTRL.mcu has no port 'nrf24_ce' (it is not in the .ioc any more - pin renamed or removed?)
 
-  Commit stopped. Fix the wiring on the page (doc serve > Edit), or commit anyway with: git commit --no-verify
+  Commit stopped. Fix the wiring on the page (doc serve, Electrical view), or commit anyway with: git commit --no-verify
   ```
 - **post-commit**: after a commit whose message closes an issue (`fixes #12`),
   prints a reminder to record what came out of it (a decision, a test result, a procedure) on the page.
@@ -100,6 +100,8 @@ doc serve [--port 8765] [--interval 60] [--no-push] [--no-open]
 - Each form writes files, commits them with a `doc: …` message and pushes
   (`--no-push`: commit only).
 - It refuses to write a file that has uncommitted changes in this clone.
+- PDFs (review pack, BOM) are made here with a headless Chrome, Chromium, Edge
+  or Brave; set `DOC_PDF_BROWSER=/path/to/browser` to use another one.
 - Ctrl+C stops it. It runs only while that terminal is open and the computer is awake.
 
 Details and the long-term setup on a lab PC: [PAGE.md](PAGE.md#14-running-the-server-long-term).
