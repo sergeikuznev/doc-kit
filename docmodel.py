@@ -971,7 +971,7 @@ def md_html(text):
     return "\n".join(out), heads
 
 
-GUIDE_IMAGES = "https://raw.githubusercontent.com/sergeikuznev/doc-kit/master/docs/images/"
+GUIDE_IMAGES = "https://raw.githubusercontent.com/sergeikuznev/doc-kit/HEAD/docs/images/"
 
 MEDIA_KIND = {".jpg": "image", ".jpeg": "image", ".png": "image", ".gif": "image", ".webp": "image", ".svg": "image",
               ".heic": "image", ".mp4": "video", ".mov": "video", ".webm": "video", ".m4v": "video",
