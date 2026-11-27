@@ -965,6 +965,13 @@ def op_ros_topic(cfg, A, f, ctx):
     t = _topic(f.get("topic"))
     typ = str(f.get("type") or "").strip()
     nodes = {n["name"]: n for n in (ctx["model"] or {}).get("nodes", [])}
+    have = [x for x in next((tp["types"] for tp in (ctx["model"] or {}).get("topics", []) if tp["topic"] == t), []) if x != "?"]
+    if have and typ and typ not in have:
+        raise EditError(f"{t} carries {have[0]}, not {typ}: both ends of a topic must use the same message type "
+                        f"(use another topic name for {typ.split('/')[-1]})")
+    typ = typ or (have[0] if have else "")
+    if f.get("from") and f.get("from") == f.get("to"):
+        raise EditError("A node cannot be both ends of the same new topic; pick two different nodes")
     done = []
     for who, io in ((f.get("from"), "out"), (f.get("to"), "in")):
         if not who:

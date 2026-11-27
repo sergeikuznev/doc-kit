@@ -4,7 +4,7 @@ The page is how you use doc-kit. It shows the whole robot in one place (wiring,
 software, requirements, faults, decisions, issues, docs, photos), and it is
 where you change it: subsystems and boards, parts and wires, test results with
 a photo, ideas, decisions, procedures. **Save** writes the change to plain
-files in your repo, commits and pushes it; **↶ Undo** reverses the last one.
+files in your repo, commits and pushes it; **↶ / ↷** undo and redo, any number of steps.
 
 Concepts (what a requirement is, what makes a good fault row) are in the
 [handbook](HANDBOOK.md). The few terminal commands (install, hooks, CI) are in
@@ -183,9 +183,9 @@ Raspberry Pi, a laptop) is an ordinary part: add it in the System views.
 
 ## 4. Building the robot: parts and wiring
 
-Parts and wires are added straight in the System, Electrical and Power
-views: there is no separate edit mode. Every part and every port of the
-view's kind is drawn, connected or not.
+Parts are added in the **Electrical** view (**+ Part**); wires are drawn in
+Electrical and Power. There is no separate edit mode: every part and every
+port of the view's kind is drawn, connected or not.
 
 ![Edit mode](images/page-29-edit-mode.png)
 
@@ -433,6 +433,11 @@ Gaps (Overview) keep the plan and the code honest:
 
 ## 6. The records
 
+Each record page has its own green **+** button at the top right (**+ Requirement**
+and **+ Test result**, **+ Fault**, **+ Decision**, **+ Connection**), the same
+forms as **+ New**. Buttons that add something are green, buttons that remove
+something are red.
+
 ### Interfaces (ICD)
 
 ![Interfaces](images/page-08-interfaces.png)
@@ -628,11 +633,16 @@ the push follows in the background (section 9). An upload is its own commit.
 If someone else pushed in the meantime, the server rebases onto their change
 and pushes again.
 
-### Undo
+### Undo and redo
 
-**↶ Undo** (top right) appears when the last commit was made by the page. It
-shows what that change was, then adds a commit that reverses it: the history
-keeps both. Anything older, or a commit made outside the page, is undone with git.
+**↶** (top right) undoes the newest change made by the page, **↷** redoes the
+newest one you undid; hover either to see which change it is. **▾** lists the
+history: click a line to go back to just before it, or forward to just after
+it, several steps at once. Each step is a new commit (`doc: undo …` /
+`doc: redo …`), so git history keeps everything and teammates' pages follow.
+Making a new change after undoing clears what could be redone, as in any editor.
+A step that conflicts with a later hand-made commit stops with a message
+instead of guessing.
 
 ### Who made a change
 
@@ -787,8 +797,8 @@ each commit.
 **It never writes** the `.ioc` (CubeMX owns it) or your code. It never deletes a
 record: a dropped requirement is marked Deleted with a reason, a replaced
 decision is Superseded, a subsystem whose prefix was used is kept as deleted.
-Parts and wires are really removed (git history keeps them, and **↶ Undo**
-brings back the last change).
+Parts and wires are really removed (git history keeps them, and **↶** brings
+them back).
 
 **It refuses** to write a file that has uncommitted changes on the machine
 running the server, so it never commits half of your own edit. Commit or stash

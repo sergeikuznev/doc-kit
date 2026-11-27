@@ -16,7 +16,7 @@ These commands set a project up and run the checks:
 (doc = python3 tools/doc-kit/doc.py; see tools/doc-kit/guides/TERMINAL.md)
 """
 
-__version__ = "0.6.0"
+__version__ = "0.6.1"
 
 import datetime
 import html

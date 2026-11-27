@@ -25,7 +25,7 @@ on it. Every change becomes a git commit.
   and I²C address checks, a bill of materials (Excel, PNG, PDF) with wire
   lengths per gauge, and a design review pack as a PDF.
 - **Reuse.** A parts library shared between projects, and launch files read
-  for which computer runs what. One click to undo the last change.
+  for which computer runs what. Undo and redo any number of steps.
 - **Record what happens, where it happens.** At the bench, on your phone:
   pick the requirement, Passed, what you measured, take the photo, *Write it*.
   Every change becomes a git commit.
@@ -70,8 +70,7 @@ doc serve               # the page, live, at http://127.0.0.1:8765
 
 `init` asks only for the project name; there are no default subsystems. On the
 page, open **Setup** and add your subsystems, boards (each with its `.ioc`) and
-ROS2 code folders, then add parts and wire them straight in the System, Electrical and
-Power views ([step by step](docs/PAGE.md#a-first-setup-on-a-project)).
+ROS2 code folders, then add parts in the Electrical view and wire them there and in Power ([step by step](docs/PAGE.md#a-first-setup-on-a-project)).
 
 **On your phone:** `doc serve` listens on this machine only. Share it with your
 own devices through [Tailscale](https://tailscale.com): `tailscale serve --bg 8765`.

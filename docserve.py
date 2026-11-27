@@ -156,7 +156,7 @@ class Server:
                                "firmware": self.git("describe", "--always", "--dirty").stdout.strip(),
                                "labels": doc.subsystems(), "prefixes": [(r[0], r[1]) for r in doc.subsystem_rows()],
                                "setup": docedit.setup_info(self.root, m), "checklist": doc.checklist_sections(),
-                               "last": self.git("log", "-1", "--format=%s%x00%an%x00%cr").stdout.strip().split("\0"),
+                               "history": (lambda h: {"undo": [c["subj"] for c in h[0][-30:]][::-1], "redo": [c["subj"] for c in h[1][-30:]][::-1]})(self.history()),
                                "repo": self.repo,
                                "procedures": sorted(os.listdir(os.path.join(self.root, "docs", "procedures")))
                                if os.path.isdir(os.path.join(self.root, "docs", "procedures")) else []}
@@ -227,8 +227,8 @@ class Server:
         """Run one form. dry=True returns the preview only. who = (name, login) from Tailscale, if any."""
         D = doc
         self.who = who
-        if op == "undo":
-            return self.undo(dry)
+        if op in ("undo", "redo"):
+            return self.undo(dry, redo=op == "redo")
         lines = lambda k: [x.strip() for x in str(f.get(k, "")).splitlines() if x.strip()]
         need = lambda k: (str(f.get(k, "")).strip() or (_ for _ in ()).throw(D.OpError(f"'{k}' is required")))
         warnings, msg = [], ""
@@ -486,26 +486,58 @@ class Server:
     def _show(self, path):
         return os.path.relpath(path, self.root) if self._inside(path) else path
 
-    def undo(self, dry):
-        """Revert the last commit, if the page made it ('doc: ...')."""
-        head = self.git("log", "-1", "--format=%h%x00%s%x00%an%x00%cr").stdout.strip().split("\0")
-        if len(head) < 4 or not head[1].startswith(("doc: ", 'Revert "doc: ')):
-            raise doc.OpError("The last commit was not made by the page, so there is nothing to undo here. Use git for that one.")
-        files = [x for x in self.git("show", "--name-only", "--format=", "HEAD").stdout.splitlines() if x.strip()]
-        self.guard([os.path.join(self.root, x) for x in files if os.path.exists(os.path.join(self.root, x))])
+    def history(self):
+        """The page's changes, oldest first, folded into what is applied now and what can be redone."""
+        rows = [l.split("\0") for l in reversed(self.git("log", "-400", "--format=%H%x00%s%x00%an%x00%cr").stdout.splitlines()) if l]
+        applied, redo = [], []
+
+        def take(stack, pred):
+            for k in range(len(stack) - 1, -1, -1):
+                if pred(stack[k]):
+                    return stack.pop(k)
+        for sha, subj, an, cr in rows:
+            m = re.match(r"^doc: (undo|redo) ([0-9a-f]{7,40})\b", subj)
+            if m:
+                src, dst = (applied, redo) if m.group(1) == "undo" else (redo, applied)
+                x = take(src, lambda c: c["sha"].startswith(m.group(2)))
+                if x:
+                    dst.append(x)
+            elif subj.startswith('Revert "doc: '):  # undo of doc-kit 0.4-0.6
+                x = take(applied, lambda c: 'Revert "doc: ' + c["subj"] + '"' == subj)
+                if x:
+                    redo.append(x)
+            elif subj.startswith("doc: "):
+                applied.append({"sha": sha, "subj": subj[5:], "who": an, "when": cr})
+                redo = []
+        return applied, redo
+
+    def undo(self, dry, redo=False):
+        """Undo the newest applied page change, or redo the newest undone one (each step is a new commit)."""
+        applied, back = self.history()
+        stack = back if redo else applied
+        if not stack:
+            raise doc.OpError("Nothing to redo." if redo else "Nothing to undo: no change made by the page.")
+        c = stack[-1]
         if dry:
-            stat = self.git("show", "--stat", "--format=", "HEAD").stdout.strip()
-            return {"preview": f"{head[0]}  {head[1]}\n{head[2]}, {head[3]}\n\n{stat}", "target": ", ".join(files),
-                    "warnings": ["This adds a new commit that reverses it; the history keeps both."]}
+            return {"preview": c["subj"], "target": c["sha"][:10], "warnings": []}
         with self.lock:
-            r = self.git("revert", "--no-edit", "HEAD")
+            files = [x for x in self.git("show", "--name-only", "--format=", c["sha"]).stdout.splitlines() if x.strip()]
+            self.guard([os.path.join(self.root, x) for x in files if os.path.exists(os.path.join(self.root, x))])
+            r = self.git("cherry-pick" if redo else "revert", "--no-commit", c["sha"])
             if r.returncode:
-                self.git("revert", "--abort")
-                raise doc.OpError("could not undo: " + (r.stderr or r.stdout).strip()[-300:])
+                self.git("cherry-pick" if redo else "revert", "--abort")
+                self.git("reset", "--hard", "HEAD")
+                raise doc.OpError(f"could not {'redo' if redo else 'undo'} '{c['subj']}': a later change touched the same lines")
+            who = getattr(self, "who", None)
+            author = ["--author", f"{who[0]} <{who[1] if '@' in who[1] else who[1] + '@tailscale'}>"] if who and who[1] else []
+            msg = f"doc: {'redo' if redo else 'undo'} {c['sha'][:10]} {c['subj']}"
+            r = self.git("commit", "--no-verify", "--allow-empty", *author, "-m", msg)
+            if r.returncode:
+                raise doc.OpError("commit stopped: " + (r.stdout + r.stderr).strip()[-400:])
             self.want_push()
-            self.note(f"undone: {head[1]}")
+            self.note(f"committed: {msg}")
             self.rebuild(force=True, issues=False)
-        return {"message": f"Undone: {head[1][5:] if head[1].startswith('doc: ') else head[1]}", "version": self.version}
+        return {"message": f"{'Redone' if redo else 'Undone'}: {c['subj']}", "version": self.version}
 
     def _push(self):
         if not (self.push and self.git("remote").stdout.strip()):
