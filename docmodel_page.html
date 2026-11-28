@@ -384,7 +384,7 @@ function loadHash() { const parts = decodeURIComponent(location.hash.slice(1)).s
 
 // ------------------------------------------------------------------ drawer
 let refit = null;
-const afterPanel = () => setTimeout(() => refit && refit(), 200);
+const afterPanel = () => {};  // the diagram keeps its scale when the panel opens or closes (the canvas just shows more or less of it)
 const SRC = s => s[2] ? ` <span class="src" title="${s[2].endsWith(".c") ? `Not in the .ioc (CubeMX default); read from the generated code in ${H(s[2])}` : H(s[2])}">${s[2].endsWith(".c") ? H(s[2]) : "computed"}</span>` : "";
 const SETV = s => `${H(s[1])}${SRC(s)}`;
 const G = html => html ? `<span class="bgrp">${html}</span>` : "";
@@ -531,7 +531,7 @@ function showNode(name) { panelAt(() => showNode(name), "Node:" + name);
   const row = (e, role) => `<tr class="row" data-topic="${H(e.topic)}"><td>${role}</td><td class="mono lnk">${H(e.topic)}</td><td class="mono">${H(e.type)}</td><td class="mono" style="white-space:nowrap">${e.planned ? `<span class="dsub">planned</span>${SERVED ? ` <button class="act dz" data-unplan="${H(n.name)}|${H(e.topic)}" title="Drop from the plan">✕</button>` : ""}` : e.unplanned ? `:${e.line} <span class="dsub">not in plan</span>` : `:${e.line}`}</td></tr>`;
   openDrawer(`<div class="dsub">ROS2 node · ${H(n.lang === "plan" ? "planned" : n.lang === "c" ? "micro-ROS (C)" : n.lang === "py" ? "Python" : "C++")}</div><div class="dh">${H(n.name)}</div>
     ${n.doc ? `<div class="dsub">${H(n.doc)}</div>` : ""}
-    ${SERVED ? `<div class="links" style="margin:8px 0"><button class="act" data-form="ros_node" data-orig="${H(n.name)}">${n.planned ? "Edit plan" : "Plan topics"}</button><button class="act" data-form="allocate" data-node="${H(n.name)}">${n.host ? "Run on another computer" : "Choose its computer"}</button>${n.planned ? `<button class="act dz" data-form="ros_node_delete" data-name="${H(n.name)}">${n.lang === "plan" ? "Delete" : "Drop plan"}</button>` : ""}</div>` : ""}
+    ${SERVED ? `<div class="links" style="margin:8px 0"><button class="act" data-form="ros_node" data-orig="${H(n.name)}">${n.planned ? "Edit plan" : "Plan topics"}</button><button class="act" data-form="allocate" data-node="${H(n.name)}">${n.host ? "Allocate to other hardware" : "Allocate to hardware"}</button>${n.planned ? `<button class="act dz" data-form="ros_node_delete" data-name="${H(n.name)}">${n.lang === "plan" ? "Delete" : "Drop plan"}</button>` : ""}</div>` : ""}
     <div class="kv" style="margin-top:8px"><div>Source</div><div class="mono">${n.file ? H(n.file) : `<span class="dsub">not in the code yet</span>`}</div><div>Runs on</div><div>${n.host ? `<span class="lnk" data-part="${n.host}">${H(short(n.host))}</span>` : `<span class="warnline">not allocated</span>`}</div></div>
     ${n.host_from === "launch" ? `<div class="dsub" style="margin-top:4px">placed by its launch file</div>` : n.host_from === "board" ? `<div class="dsub" style="margin-top:4px">placed by its folder: the firmware of this board</div>` : ""}
     <h4>Topics</h4><table class="ptab"><tr><th></th><th>Topic</th><th>Type</th><th>Line</th></tr>${n.pub.map(e => row(e, "pub")).join("")}${n.sub.map(e => row(e, "sub")).join("")}</table>
@@ -713,10 +713,25 @@ function portClick(part, q) {
 function cancelPend() { pend = null; document.querySelectorAll(".port.pend").forEach(r => r.classList.remove("pend")); if ($("#hint")) $("#hint").style.display = "none"; }
 function panZoom(svg, W, H) {
   let vb = {x: -20, y: -20, w: W + 40, h: H + 40};
-  const set = () => { svg.setAttribute("viewBox", `${vb.x} ${vb.y} ${vb.w} ${vb.h}`); vbMem[`${view}|${focus || ""}`] = {...vb}; };
+  const set = () => { svg.setAttribute("viewBox", `${vb.x} ${vb.y} ${vb.w} ${vb.h}`); const r = svg.getBoundingClientRect();
+    vbMem[`${view}|${focus || ""}`] = {x: vb.x, y: vb.y, k: r.width ? vb.w / r.width : null, w: vb.w, h: vb.h}; };  // k: drawing units per screen pixel
   const fit = () => { const r = svg.getBoundingClientRect(), k = Math.max((W + 40) / r.width, (H + 40) / r.height, 1 / 1.15);
     const w = r.width * k, h = r.height * k; vb = {x: W / 2 - w / 2, y: H / 2 - h / 2, w, h}; set(); };
-  if (vbMem[`${view}|${focus || ""}`]) { vb = {...vbMem[`${view}|${focus || ""}`]}; set(); } else fit();
+  const mem = vbMem[`${view}|${focus || ""}`];
+  if (mem) { const r = svg.getBoundingClientRect();  // same scale as before, whatever the canvas width is now
+    vb = mem.k && r.width ? {x: mem.x, y: mem.y, w: r.width * mem.k, h: r.height * mem.k} : {x: mem.x, y: mem.y, w: mem.w, h: mem.h}; set(); } else fit();
+  // the canvas narrows while the side panel slides in: the drawing is pinned to a pixel size and the visible
+  // area changes with it in the same step, so the picture never shrinks (the panel just covers the right edge)
+  if (window.cvRO) cvRO.disconnect();
+  const box = svg.parentElement; let last = box.getBoundingClientRect();
+  const pin = r => { svg.style.width = r.width + "px"; svg.style.height = r.height + "px"; };
+  pin(last);
+  window.cvRO = new ResizeObserver(() => { const r = box.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0 && last.width > 0 && last.height > 0 && (r.width !== last.width || r.height !== last.height)) {
+      vb.w *= r.width / last.width; vb.h *= r.height / last.height; pin(r); set(); }
+    else pin(r);
+    last = r; });
+  cvRO.observe(box);
   $("#fit").onclick = fit; refit = fit;
   const zoomBy = s => { const cx = vb.x + vb.w / 2, cy = vb.y + vb.h / 2; vb = {x: cx - vb.w * s / 2, y: cy - vb.h * s / 2, w: vb.w * s, h: vb.h * s}; set(); };
   $("#zin").onclick = () => zoomBy(0.75); $("#zout").onclick = () => zoomBy(1.33);
@@ -873,7 +888,7 @@ async function drawSoftware() {
   const cv = canvasShell("Software (ROS2)", "Nodes and topics found in the code (the robot does not need to be on), grouped by the computer each node runs on, plus the ones you planned.",
     `<div class="legend"><span><i class="box" style="background:var(--sunk);border:1px solid var(--faint);border-radius:6px;width:16px"></i>topic</span><span><i class="box" style="background:var(--surface);border:1px solid var(--faint)"></i>node</span><span><i class="box" style="background:var(--arch)"></i>micro-ROS</span><span><i style="border-color:var(--muted)"></i>publish → subscribe</span><span><i style="border-color:var(--muted);border-top-style:dashed"></i>planned, not in the code</span><span><i style="border-color:var(--facts);border-top-width:3px"></i>ROS link (wire)</span></div>` +
     (SERVED ? G(`<button class="act addbtn" data-form="ros_topic">+ Topic</button><button class="act addbtn" data-form="ros_node">+ Node</button>`) : ""),
-    SERVED ? "Drag computers and topics to move them; drag a node into another computer to run it there. Connect from the ● on a block's right edge: node → topic publishes, topic → node subscribes, node → node makes a new topic. Click a node, topic or arrow and press Delete to remove it. The wire that carries ROS is marked in Electrical (wire details: ros)." : null);
+    SERVED ? "Drag boards, computers and topics to move them; drag a node into another board or computer to allocate it there. Connect from the ● on a block's right edge: node → topic publishes, topic → node subscribes, node → node makes a new topic. Click a node, topic or arrow and press Delete to remove it. The wire that carries ROS is marked in Electrical (wire details: ros)." : null);
   if (!M.nodes.length && !SERVED) { cv.innerHTML = `<div class="empty">No ROS2 code found. Add ROS2 code folders in Setup (doc serve).</div>`; return; }
   const {graph} = buildSoftware(); const out = await lay(graph); const abs = absMap(out);
   const svg = el("svg", {}, cv), root = el("g", {}, svg);
@@ -1535,8 +1550,8 @@ function formSpec(kind, d) {
       fld("via", "Carries", "Empty removes the link.", `<input name="via" list="dlvia" value="${H(cur ? cur.attrs.ros : "micro-ROS agent")}"><datalist id="dlvia">${["micro-ROS agent (serial)", "micro-ROS agent (USB)", "micro-ROS agent (UDP)", "Ethernet", "Wi-Fi", "CAN"].map(v => `<option value="${v}">`).join("")}</datalist>`)
       : `<div class="warnline">No wire joins these two yet. Connect them in the Electrical view (e.g. USB or UART between the MCU and the computer), then come back.</div>`}; }
     case "allocate": { const n = M.nodes.find(x => x.name === d.node); const lf = [...new Set((n.launch || []).map(l => l.file))];
-      return {title: `Where does ${n.name} run?`, sub: "The computer or board that runs this ROS node. Shown in the Software view and the part's panel.", html:
-      fld("to", "Runs on", "", sel("to", leafParts().map(p => [p.path, short(p.path)]), n.host || "", "not allocated")) +
+      return {title: `Allocate ${n.name} to hardware`, sub: "The board (an MCU running micro-ROS) or the computer this ROS node runs on. Shown in the Software view and in that part's panel.", html:
+      fld("to", "Board or computer", "", sel("to", leafParts().map(p => [p.path, short(p.path)]), n.host || "", "not allocated")) +
       (lf.length ? fld("launch", "Apply to", "A launch file runs on one computer, so it can place all its nodes at once.", sel("launch", [["", `only ${n.name}`], ...lf.map(f => [f, `every node started by ${f.split("/").pop()}`])], "")) : ""), extra: {node: n.name}}; }
     case "satisfy": { const groups = {}; leafParts().forEach(p => (groups[p.subsystem] ||= []).push(p));
       return {title: `${r.id} belongs to…`, sub: `Without a pin, a requirement belongs to its subsystem (${H(r.prefix)}). Pin it when one part carries it, e.g. the battery for a runtime requirement.`, html:

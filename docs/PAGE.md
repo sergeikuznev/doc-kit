@@ -409,10 +409,12 @@ cable…) or to remove it. The connect form has the same fields, folded away.
 In a part's panel, **wire** next to each connection opens them; the details
 show under the connection, in the Interfaces table and in the BOM.
 
-### Which computer runs a ROS node
+### Which hardware runs a ROS node
 
-In the **Software** view, **drag the node into a computer's box** (or click it,
-then **Change** next to *Runs on*). Nodes that run nowhere yet are grouped
+Every node is allocated to the hardware it runs on: a board (an MCU running
+micro-ROS, such as the STM32) or a computer (a Raspberry Pi, a laptop). In the
+**Software** view, **drag the node into that board's or computer's box** (or
+click the node, then **Allocate to hardware**). Nodes that run nowhere yet are grouped
 under *Not allocated to hardware*. A micro-ROS node whose source file sits
 inside a board's folder (the folder of its `.ioc`) is placed on that board's
 part by itself.
@@ -457,7 +459,8 @@ anywhere else shows it, without the editing buttons. The one shortcut kept:
 **+ Part here** in a subsystem's panel.
 
 **Zoom.** − / + / Fit in the toolbar. On a laptop, scroll to zoom and drag
-empty space to pan. Clicking empty space closes the panel and drops the
+empty space to pan. The diagram keeps its size when the side panel opens or
+closes: the panel covers its right edge (pan to see it) instead of shrinking it. Clicking empty space closes the panel and drops the
 selection.
 
 ### System
@@ -555,9 +558,9 @@ for certain, so it is listed as a gap instead of guessed.
 
 #### Moving, connecting and deleting
 
-- **Drag a computer or a topic** to move it. A node stays inside its
-  computer: drag it into another computer to run it there (dropped anywhere
-  else, it goes back).
+- **Drag a board, a computer or a topic** to move it. A node stays inside its
+  box: drag it into another board's or computer's box to allocate it there
+  (dropped anywhere else, it goes back).
 - **Connect from the ● handle** on a block's right edge (it shows on hover):
 
 | Drag the ● of | onto | does |
