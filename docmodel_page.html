@@ -87,7 +87,7 @@ aside h4{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:va
 .mitem .h{display:flex;gap:8px;align-items:center}.mitem .id{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--muted)}
 /* pills */
 .pill{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-size:12px;font-weight:600}
-.pill i svg{display:block}.pill i{font-style:normal;display:inline-grid;place-items:center;width:15px;height:15px;border-radius:50%;font-size:9.5px;color:#fff}.pill{padding:3px 6px 2px 3px;line-height:1.2}.chip .pill{padding:0;border:0}
+.pill i svg{display:block}.pill i{font-style:normal;display:inline-grid;place-items:center;width:15px;height:15px;border-radius:50%;font-size:9.5px;color:#fff}.pill{box-sizing:border-box;height:21px;padding:0 6px 0 2px!important;line-height:1}.pill .pt{text-box:trim-both cap alphabetic;line-height:1}.chip .pill{height:auto}.chip .pill{padding:0;border:0}
 .Verified{color:var(--good-ink)}.Verified i{background:var(--good)}.Failed{color:var(--crit-ink)}.Failed i{background:var(--crit)}
 .Approved{color:var(--muted)}.Approved i{background:var(--appr)}.Draft{color:var(--muted)}.Draft i{background:transparent;border:1.5px solid var(--appr)}
 .Deleted{color:var(--faint);text-decoration:line-through}
@@ -314,7 +314,7 @@ const ICON = {Verified: SVGI('<path d="M2.2 5.2 4.2 7.2 7.8 3" fill="none" strok
   Failed: SVGI('<path d="M2.8 2.8 7.2 7.2M7.2 2.8 2.8 7.2" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>'),
   Approved: SVGI('<circle cx="5" cy="5" r="2.2" fill="#fff"/>'), Draft: "",
   Deleted: SVGI('<path d="M2.5 5h5" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>')};
-const pill = s => `<span class="pill ${H(s)}"><i>${ICON[s] ?? "?"}</i>${H(s)}</span>`;
+const pill = s => `<span class="pill ${H(s)}"><i>${ICON[s] ?? "?"}</i><span class="pt">${H(s)}</span></span>`;
 let reqById = Object.fromEntries(M.requirements.map(r => [r.id, r]));
 const partReqs = path => { const p = M.parts[path]; return M.requirements.filter(r => r.parts.includes(path) || (p.depth === 1 && r.subsystem === p.name) || (p.depth >= 2 && r.subsystem === p.subsystem && !r.parts.length) || (p.depth === 0 && r.subsystem === M.top)); };
 const faultsFor = ids => M.faults.filter(f => f.reqs.some(x => ids.includes(x)));
