@@ -381,6 +381,10 @@ Step by step:
    start unticked: they do not belong in the architecture. The name and kind
    are suggestions; a short name (`tof_left`, `pwr_in_3v3`) reads better in
    the diagrams than one built from the value.
+   Missing a subsystem or a kind? Pick **+ New subsystem…** or **+ New kind…**
+   at the bottom of that dropdown: its form opens on top, and when you save,
+   you are back in the import with the new one picked in that row (the rest of
+   the table keeps what you set).
 
    A connector that stands for something off the board (a motor plugged into
    `J1`, a battery into `J3`) can take that thing's kind (*actuator*,

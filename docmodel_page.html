@@ -1731,10 +1731,11 @@ function openSearch() {
   draw(); inp.focus();
 }
 document.addEventListener("keydown", e => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); openSearch(); } });
-let parked = null;
-function parkModal() { parked = document.querySelector(".modal"); parked.remove(); openForm("port_type"); }
+let parked = null, parkBack = null;
+function parkModal(kind = "port_type", back = null) { parked = document.querySelector(".modal"); parked.remove(); parkBack = back; openForm(kind); }
 function refreshTypeSelects(root) { root.querySelectorAll("select[data-pt]").forEach(x => { const v = x.value; x.innerHTML = `<option value="">select…</option>${typeOpts(v)}`; x.value = v; }); }
-new MutationObserver(() => { if (parked && !document.querySelector(".modal")) { const p = parked; parked = null; document.body.appendChild(p); refreshTypeSelects(p); setTimeout(() => refreshTypeSelects(p), 1500); } }).observe(document.body, {childList: true});
+new MutationObserver(() => { if (parked && !document.querySelector(".modal")) { const p = parked, back = parkBack; parked = null; parkBack = null; document.body.appendChild(p);
+  refreshTypeSelects(p); setTimeout(() => refreshTypeSelects(p), 1500); if (back) { back(p); setTimeout(() => back(p), 1500); } } }).observe(document.body, {childList: true});
 function openForm(kind, data = {}) {
   if (!SERVED) return toast("Forms need doc serve", true);
   const spec = formSpec(kind, data);
@@ -1781,14 +1782,25 @@ function openForm(kind, data = {}) {
   if (kind === "check" && frm.section.value === "+new") $("#newsec").style.display = "";
   if (kind === "kicad") {
     const subs = M.subsystems.map(x => [x, x]), parts = leafParts().map(p => [p.path, short(p.path)]);
+    const NEWS = ["+new", "+ New subsystem…"], NEWK = ["+new", "+ New kind…"];
+    const subOpts = () => [["", "subsystem…"], ...M.subsystems.map(x => [x, x]), NEWS], kindOpts = () => [...PKINDS.map(k => [k[0], k[0]]), NEWK];
+    const fill = (selEl, opts) => { const v = selEl.value; selEl.innerHTML = opts.map(([a, b]) => `<option value="${H(a)}">${H(b)}</option>`).join(""); selEl.value = opts.some(o => o[0] === v) ? v : opts[0][0]; };
+    // choosing "+ New…" opens that form on top; back here, the lists are refreshed and the new one is picked in that row
+    const addNew = (selEl, what) => { const prev = selEl.dataset.prev || "", before = what === "subsystem" ? [...M.subsystems] : PKINDS.map(k => k[0]);
+      selEl.value = prev;
+      parkModal(what, p => { p.querySelectorAll('select[data-k="subsystem"]').forEach(x => fill(x, subOpts())); p.querySelectorAll('select[data-k="kind"]').forEach(x => fill(x, kindOpts()));
+        const now = what === "subsystem" ? M.subsystems : PKINDS.map(k => k[0]), added = now.find(x => !before.includes(x));
+        if (added && selEl.isConnected) { selEl.value = added; selEl.dataset.prev = added; selEl.dispatchEvent(new Event("change")); } }); };
     const load = async () => { const fv = frm.file.value; if (!fv) return; $("#kprev").innerHTML = "Reading…";
       try { const r = await fetch("api/kicad?file=" + encodeURIComponent(fv), {headers: {"X-Doc": "1"}}).then(x => x.json()); if (r.error) throw new Error(r.error);
         $("#kprev").innerHTML = `<div style="margin:6px 0">${r.components.length} components, ${r.nets} nets (${r.power_nets} power). Passives (R, C, L…) are left out; tick any you want.</div>
           <table class="stab ktab"><tr><th></th><th>Ref</th><th>Value</th><th>Becomes</th><th>Subsystem / name</th><th>Kind</th></tr>${r.components.map(c => `<tr data-ref="${H(c.ref)}">
           <td><input type="checkbox" data-k="include" ${c.include ? "checked" : ""}></td><td class="mono">${H(c.ref)}</td><td>${H(c.value)}<div class="dsub">${H(c.sheet || "")}</div></td>
           <td>${sel("", [["", "a new part"], ...parts], c.target).replace("<select", '<select data-k="target"')}</td>
-          <td><div style="display:flex;gap:6px">${sel("", subs, c.subsystem || "", "subsystem…").replace("<select", '<select data-k="subsystem"')}<input data-k="name" value="${H(c.name)}" style="width:130px"></div></td>
-          <td>${sel("", PKINDS.map(k => [k[0], k[0]]), PKINDS.some(k => k[0] === c.kind) ? c.kind : "other").replace("<select", '<select data-k="kind"')}</td></tr>`).join("")}</table>`;
+          <td><div style="display:flex;gap:6px">${sel("", [...subs, NEWS], c.subsystem || "", "subsystem…").replace("<select", '<select data-k="subsystem"')}<input data-k="name" value="${H(c.name)}" style="width:130px"></div></td>
+          <td>${sel("", [...PKINDS.map(k => [k[0], k[0]]), NEWK], PKINDS.some(k => k[0] === c.kind) ? c.kind : "other").replace("<select", '<select data-k="kind"')}</td></tr>`).join("")}</table>`;
+        $("#kprev").querySelectorAll('select[data-k="subsystem"], select[data-k="kind"]').forEach(x => { x.dataset.prev = x.value;
+          x.addEventListener("change", () => { if (x.value === "+new") addNew(x, x.dataset.k === "subsystem" ? "subsystem" : "kind"); else x.dataset.prev = x.value; }); });
         const sync = tr => { const t = tr.querySelector('[data-k="target"]').value; tr.querySelectorAll('[data-k="subsystem"],[data-k="name"]').forEach(x => x.closest("div").style.opacity = t ? .35 : 1); };
         $("#kprev").querySelectorAll("tr[data-ref]").forEach(tr => { sync(tr); tr.querySelector('[data-k="target"]').addEventListener("change", () => sync(tr)); });
       } catch (e) { $("#kprev").innerHTML = `<span class="warnline">${H(e.message)}</span>`; } };
