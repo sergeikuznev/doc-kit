@@ -170,7 +170,7 @@ aside h4{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:va
 .prose pre{background:var(--sunk);padding:10px 12px;border-radius:8px;overflow:auto;font-size:12px}.prose code{background:var(--sunk);padding:1px 4px;border-radius:4px}
 .prose pre code{background:none;padding:0}.prose blockquote{border-left:3px solid var(--hair);margin:8px 0;padding:2px 12px;color:var(--muted)}
 .prose img{max-width:100%;border-radius:8px}.prose li.sub{margin-left:18px;list-style:circle}
-.xref,.lnk{color:var(--accent);cursor:pointer;border-bottom:1px dotted color-mix(in srgb,var(--accent) 75%,transparent);transition:filter .1s}.xref:hover,.lnk:hover{filter:brightness(1.35);border-bottom-style:solid;border-bottom-color:var(--accent)}.bom input.bcell{font:inherit;font-size:13px;width:100%;min-width:90px;background:var(--sunk);color:var(--ink);border:1px solid var(--hair);border-radius:5px;padding:4px 6px}.bom input.bcell:focus{outline:none;border-color:var(--accent)}.seg{display:inline-flex;border:1px solid var(--hair);border-radius:7px;overflow:hidden}.seg button{font:inherit;font-size:12.5px;padding:4px 10px;border:0;background:var(--surface);color:var(--muted);cursor:pointer}.seg button+button{border-left:1px solid var(--hair)}.seg button.on{background:var(--sunk);color:var(--ink);font-weight:600}.seg button:hover{color:var(--ink)}.src{font:10.5px var(--mono,ui-monospace,monospace);color:var(--faint);border:1px solid var(--hair);border-radius:4px;padding:0 4px;margin-left:4px;white-space:nowrap;cursor:help}
+.xref,.lnk{color:var(--accent);cursor:pointer;border-bottom:1px dotted color-mix(in srgb,var(--accent) 75%,transparent);transition:filter .1s}.xref:hover,.lnk:hover{filter:brightness(1.35);border-bottom-style:solid;border-bottom-color:var(--accent)}.bom .pcell{display:flex;gap:4px;min-width:130px}.bom .pcell input{min-width:60px}.bom .pcell .csel{min-width:58px;padding:4px 7px;font-size:12.5px}.bom select.bcur{font:inherit;font-size:12.5px;background:var(--sunk);color:var(--ink);border:1px solid var(--hair);border-radius:5px;padding:3px 4px;cursor:pointer}.bom input.bcell{font:inherit;font-size:13px;width:100%;min-width:90px;background:var(--sunk);color:var(--ink);border:1px solid var(--hair);border-radius:5px;padding:4px 6px}.bom input.bcell:focus{outline:none;border-color:var(--accent)}.seg{display:inline-flex;border:1px solid var(--hair);border-radius:7px;overflow:hidden}.seg button{font:inherit;font-size:12.5px;padding:4px 10px;border:0;background:var(--surface);color:var(--muted);cursor:pointer}.seg button+button{border-left:1px solid var(--hair)}.seg button.on{background:var(--sunk);color:var(--ink);font-weight:600}.seg button:hover{color:var(--ink)}.src{font:10.5px var(--mono,ui-monospace,monospace);color:var(--faint);border:1px solid var(--hair);border-radius:4px;padding:0 4px;margin-left:4px;white-space:nowrap;cursor:help}
 a,a:visited{color:var(--accent);text-decoration-color:color-mix(in srgb,var(--accent) 45%,transparent);text-underline-offset:2px}a:hover{text-decoration-color:var(--accent)}
 .toc{font-size:12.5px;margin-top:6px}.toc a{display:block;color:var(--muted);text-decoration:none;padding:2px 8px}.toc a:hover{color:var(--accent)}.toc a.l3{padding-left:20px}
 .mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
@@ -1802,7 +1802,9 @@ function bomPage() {
   const canEdit = (r, k) => bomEdit && (r.kind === "part" || r.kind === "extra") && (EDITABLE.has(k) || (r.kind === "extra" && (k === "item" || k === "qty")));
   const inp = (r, k, i) => { const raw = k === "item" ? r.item : k === "qty" ? r.qty : (r.values || {})[k] ?? "";
     return `<input class="bcell" data-row="${i}" data-k="${k}" data-orig="${H(raw)}" value="${H(raw)}" placeholder="${k === "unit_cost" && i === 0 ? "e.g. ¥20" : ""}" ${k === "qty" ? 'inputmode="decimal" style="width:60px"' : ""}>`; };
-  const cell = (r, c, k, i) => canEdit(r, k) ? inp(r, k, i)
+  const priceInp = (r, i) => { const raw = (r.values || {}).unit_cost ?? "", pr = parsePrice(raw, base), cur = pr ? pr.cur : base;
+    return `<span class="pcell"><select class="bcur" data-row="${i}" title="Currency of this price">${Object.entries(CUR).map(([k2, c2]) => `<option value="${k2}"${k2 === cur ? " selected" : ""}>${c2.sym.trim()}</option>`).join("")}</select><input class="bcell" data-row="${i}" data-k="unit_cost" data-orig="${H(raw)}" value="${pr ? H(String(pr.n)) : ""}" inputmode="decimal" placeholder="${i === 0 ? "price" : ""}"></span>`; };
+  const cell = (r, c, k, i) => canEdit(r, k) ? (k === "unit_cost" ? priceInp(r, i) : inp(r, k, i))
     : k === "link" && /^https?:/.test(c) ? `<a href="${H(c)}" target="_blank">link</a>`
     : k === "item" && r.parts.length ? `<span class="xref" data-part="${H(r.parts[0])}" title="Open ${H(short(r.parts[0]))}">${H(c)}</span>`
     : k === "where" && r.parts.length ? r.parts.map(q => `<span class="xref mono" data-part="${H(q)}">${H(short(q))}</span>`).join(", ")
@@ -1822,8 +1824,13 @@ function bomPage() {
   if ($("#bedit")) $("#bedit").onclick = () => { bomEdit = true; bomPage(); };
   if ($("#bcancel")) $("#bcancel").onclick = () => { bomEdit = false; bomPage(); };
   if ($("#bsave")) $("#bsave").onclick = async () => {
-    const changes = [...document.querySelectorAll("input.bcell")].filter(e => e.value.trim() !== e.dataset.orig.trim()).map(e => { const r = rows[+e.dataset.row].r;
-      return r.kind === "extra" ? {index: r.index, field: e.dataset.k, value: e.value} : {parts: r.parts, field: e.dataset.k, value: e.value}; });
+    const valOf = e => { if (e.dataset.k !== "unit_cost") return e.value.trim();  // a price is saved with the currency picked beside it
+      const n = e.value.trim().replace(",", "."); if (!n) return ""; const cur = e.parentElement.querySelector(".bcur").value;
+      return cur === "MYR" ? `RM ${n}` : cur === "USD" ? `US$${n}` : `¥${n}`; };
+    const same = (e, v) => { if (e.dataset.k !== "unit_cost") return v === e.dataset.orig.trim(); const a = parsePrice(v, base), b = parsePrice(e.dataset.orig, base);
+      return (!a && !b) || (a && b && a.n === b.n && a.cur === b.cur); };
+    const changes = [...document.querySelectorAll("input.bcell")].filter(e => !same(e, valOf(e))).map(e => { const r = rows[+e.dataset.row].r, value = valOf(e);
+      return r.kind === "extra" ? {index: r.index, field: e.dataset.k, value} : {parts: r.parts, field: e.dataset.k, value}; });
     if (!changes.length) { bomEdit = false; return bomPage(); }
     try { const res = await post("api/apply/bom_edit", {changes}); toast(res.message); bomEdit = false; await refreshModel(); if (window.syncNow) syncNow(); }
     catch (e) { toast(e.message, true); } };

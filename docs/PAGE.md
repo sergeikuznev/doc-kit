@@ -711,8 +711,10 @@ connectors counted from the wires.
 2. **A detail** of a part: part number, manufacturer, supplier, link or any
    column you added. It is saved on every part of the row (both encoders, for
    example), in the part's Details.
-3. **A price**, with its currency: `¥20`, `US$3.50` (or `$3.50`, `3.50 USD`),
-   `RM 12`, `20 CNY` or `20 RMB`.
+3. **A price and its currency.** Pick RM, US$ or ¥ for each row, then type
+   the amount. That price stays exactly as typed; the other currencies follow
+   the market rate. (In a part's Details you can write it the same way:
+   `¥20`, `US$3.50`, `RM 12`, `20 CNY`.)
 4. **Extra items** (+ Item) can change their name and quantity too.
 
 Wires and connectors are counted from the wiring, so they are not edited here.
