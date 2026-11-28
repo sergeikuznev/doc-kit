@@ -22,12 +22,21 @@ square "operations" look: black canvas, hairlines, monospace for IDs and
 values, and colour only where it means something (cyan: selected, links and
 MCUs; green: OK and add; red: problems and delete; amber: gaps and warnings;
 grey: signal wires; orange: power; violet: ROS). Everything clickable shows a
-pointing hand and lights up on hover; nothing else does. Names with a dotted
-underline are objects (parts, ports, subsystems, BOM items): click one to open
-it, and the underline turns solid as you point at it. Dropdowns are the page's own: ↑ / ↓,
-Enter and Esc work in them. Buttons that belong together sit in one block (add
-and edit; zoom; export; a filter or currency switch), a little apart from the
-next block; Delete always stands on its own.
+pointing hand and lights up on hover; nothing else does.
+
+- **Buttons.** An action lights up cyan as you point at it (text, border and a
+  light cyan tint, like the selected item in the sidebar); an add button
+  lights up green; Delete is red. Small controls (zoom − + Fit, switches)
+  just brighten.
+- **Blocks.** Buttons that belong together sit side by side in one block,
+  each with its own border (add and edit; zoom; export; a filter or currency
+  switch), a little apart from the next block. Delete always stands on its own.
+- **Object links.** Names with a dotted underline are objects (parts, ports,
+  subsystems, BOM items): click one to open it; the underline turns solid as
+  you point at it.
+- **Status badges** (Verified, Failed, Approved, Draft…) show an icon and the
+  status in the status colour.
+- **Dropdowns** are the page's own: ↑ / ↓, Enter and Esc work in them.
 
 Concepts (what a requirement is, what makes a good fault row) are in the
 [handbook](HANDBOOK.md). The few terminal commands (install, hooks, CI) are in
@@ -689,8 +698,11 @@ load and efficiency).
 2. **Currency**: RM, US$ or ¥ for unit cost and total. Every price carries its
    sign, so nobody mistakes one currency for another. The choice is remembered
    in your browser.
-3. **Export** as Excel (`.xlsx`), PNG or PDF, in the currency shown. Without a
-   server, Excel becomes a CSV.
+3. **Export** as Excel (`.xlsx`), PNG or PDF, in the currency shown. In Excel
+   the unit costs and totals are numbers with a currency format (RM, US$ or
+   ¥), so they can be summed and sorted, and the total is a `SUM` formula that
+   follows any change you make in the sheet. Without a server, Excel becomes a
+   CSV.
 4. **An item**: click it to open the part. A board shows just its chip.
 5. **A price.** It keeps the currency it was typed in: typed as `¥30`, it is
    ¥30.00 in yuan, and the ringgit and dollar figures follow the market rate.
