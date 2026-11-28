@@ -34,8 +34,11 @@ pointing hand and lights up on hover; nothing else does.
 - **Object links.** Names with a dotted underline are objects (parts, ports,
   subsystems, BOM items): click one to open it; the underline turns solid as
   you point at it.
-- **Status badges** (Verified, Failed, Approved, Draft…) show an icon and the
-  status in the status colour.
+- **Status badges** (Verified, Failed, Approved, Draft, Deleted) show an icon
+  and the status in the status colour: a tick, a cross, a dot, an empty circle,
+  a dash. The icon and the capitals are centred in the badge in any font (this
+  uses CSS `text-box`, in Safari 18.2+ and Chrome 133+; older browsers centre
+  the text approximately).
 - **Dropdowns** are the page's own: ↑ / ↓, Enter and Esc work in them.
 
 Concepts (what a requirement is, what makes a good fault row) are in the
