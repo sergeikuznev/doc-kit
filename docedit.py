@@ -64,8 +64,17 @@ def cfg_text(cfg):
         if b.get("def"):
             out.append(f"def = {_tq(b['def'])}")
     out += ["", "[ros]", "paths = [" + ", ".join(_tq(x) for x in cfg["ros"]["paths"]) + "]"]
-    if cfg.get("bom", {}).get("columns"):
-        out += ["", "[bom]", "columns = [" + ", ".join(_tq(x) for x in cfg["bom"]["columns"]) + "]"]
+    bc = cfg.get("bom", {})
+    if bc.get("columns") or bc.get("currency") or bc.get("rates"):
+        out += ["", "[bom]"]
+        if bc.get("columns"):
+            out.append("columns = [" + ", ".join(_tq(x) for x in bc["columns"]) + "]")
+        if bc.get("currency"):
+            out.append(f"currency = {_tq(bc['currency'])}   # prices written without a currency are in this one")
+        if bc.get("rates"):
+            out.append("rates = { " + ", ".join(f"{k} = {float(v):g}" for k, v in bc["rates"].items()) + " }   # ringgit per unit")
+        if bc.get("rates_date"):
+            out.append(f"rates_date = {_tq(bc['rates_date'])}")
     for e in cfg.get("bom_item", []):
         out += ["", "[[bom_item]]"] + [f"{k} = {_tq(v)}" for k, v in e.items()]
     for k in cfg.get("kind", []):
@@ -827,6 +836,26 @@ def op_bom_columns(cfg, A, f, ctx):
     return "BOM columns", []
 
 
+def op_bom_currency(cfg, A, f, ctx):
+    bc = cfg.setdefault("bom", {})
+    cur = str(f.get("currency") or "MYR").upper()
+    if cur not in ("MYR", "USD", "CNY"):
+        raise EditError("currency must be MYR, USD or CNY")
+    rates = {}
+    for k in ("USD", "CNY"):
+        try:
+            v = float(str(f.get(k, "")).replace(",", "."))
+        except ValueError:
+            raise EditError(f"1 {k} = how many ringgit? a number, e.g. 4.2")
+        if v <= 0:
+            raise EditError(f"the {k} rate must be above zero")
+        rates[k] = v
+    bc["currency"], bc["rates"] = cur, rates
+    import datetime
+    bc["rates_date"] = str(f.get("date") or datetime.date.today().isoformat())[:10]
+    return f"BOM currency {cur}, 1 USD = {rates['USD']:g} RM, 1 CNY = {rates['CNY']:g} RM", []
+
+
 def op_bom_item(cfg, A, f, ctx):
     items = cfg.setdefault("bom_item", [])
     idx = f.get("index")
@@ -1279,7 +1308,7 @@ OPS = {"kinds_standard": op_kinds_standard, "kind": op_kind, "kind_delete": op_k
        "subsystem_move": op_subsystem_move, "board": op_board, "board_remove": op_board_remove, "ros_paths": op_ros_paths,
        "port_type": op_port_type, "port_type_delete": op_port_type_delete, "part": op_part, "part_delete": op_part_delete,
        "connect": op_connect, "disconnect": op_disconnect, "allocate": op_allocate, "satisfy": op_satisfy,
-       "wire": op_wire, "bom_columns": op_bom_columns, "bom_item": op_bom_item, "pages": op_pages}
+       "wire": op_wire, "bom_columns": op_bom_columns, "bom_currency": op_bom_currency, "bom_item": op_bom_item, "pages": op_pages}
 
 
 def _pin_case(A, model):

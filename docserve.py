@@ -724,6 +724,15 @@ def make_handler(S):
             m_ = re.match(r"^/api/issue/(\d+)$", path)
             if m_:
                 return self.send(200, docmodel.issue_timeline(S.root, m_.group(1)))
+            if path == "/api/rates":  # today's rates for the BOM, in ringgit per unit
+                import json as _j, urllib.request as _u
+                try:
+                    with _u.urlopen("https://open.er-api.com/v6/latest/MYR", timeout=8) as r:
+                        d = _j.loads(r.read().decode())
+                    return self.send(200, {"USD": round(1 / d["rates"]["USD"], 4), "CNY": round(1 / d["rates"]["CNY"], 4),
+                                           "date": time.strftime("%Y-%m-%d")})
+                except Exception as e:
+                    return self.send(502, {"error": f"could not fetch rates ({e.__class__.__name__}); type them in"})
             if path == "/api/kicad":
                 import dockicad
                 q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)

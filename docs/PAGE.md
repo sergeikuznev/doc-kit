@@ -22,7 +22,9 @@ square "operations" look: black canvas, hairlines, monospace for IDs and
 values, and colour only where it means something (cyan: selected, links and
 MCUs; green: OK and add; red: problems and delete; amber: gaps and warnings;
 grey: signal wires; orange: power; violet: ROS). Everything clickable shows a
-pointing hand and lights up on hover. Dropdowns are the page's own: ↑ / ↓,
+pointing hand and lights up on hover; nothing else does. Names with a dotted
+underline are objects (parts, ports, subsystems, BOM items): click one to open
+it, and the underline turns solid as you point at it. Dropdowns are the page's own: ↑ / ↓,
 Enter and Esc work in them.
 
 Concepts (what a requirement is, what makes a good fault row) are in the
@@ -268,7 +270,8 @@ connect the same MCU port to each.
 
 ![Part panel](images/part-panel.png)
 
-Click a part to open its panel.
+Click a part to open its panel. Anything with a dotted underline is an
+object (a part, a port, a subsystem): click it to open it.
 
 1. **Where it comes from**: a board, from its `.ioc`, or a part you added.
 2. **Edit part**, **Connect ports…** (the Electrical view of its subsystem),
@@ -282,8 +285,15 @@ each connects to (**✕** removes that connection, **wire** opens the wire's
 details), and the requirements, faults, decisions, open issues and photos
 that belong to the part.
 
-CubeMX only saves values you changed; a missing one is shown as *CubeMX
-default*, never guessed. Settings are shown in plain words: speed, role, clock
+**Settings come from two places.** The `.ioc` keeps only the values you
+changed in CubeMX. The code CubeMX generates (`MX_SPI1_Init` and the like in
+`Core/Src/main.c`, `spi.c`, `usart.c`…, next to the `.ioc`) writes every field,
+defaults included, so doc-kit reads it too: clock polarity and phase, data
+size, first bit, chip select, frame format, timer counting, channel pulses. A
+value read from the code is tagged with its file (`main.c`); a speed worked
+out from the APB clock and the prescaler is tagged *computed*. When neither
+the `.ioc` nor the code has a value it says *CubeMX default*, never guessed.
+Regenerate the code in CubeMX after changing the `.ioc`, and both stay in step. Settings are shown in plain words: speed, role, clock
 polarity and phase, and derived facts such as *SPI mode 3*.
 
 ![Part form](images/part-form.png)
@@ -514,6 +524,8 @@ A typical chain: `battery.out → buck.vin`, `buck.vout → mcu.vin`,
 7. **A planned topic** (dashed), or one with only one side.
 
 Nodes no computer runs yet sit in *Not allocated to hardware* (a dashed box).
+Where two arrows cross, the horizontal one has a small gap, so you can follow
+each line through the crossing.
 
 Everything solid is read from the code in the ROS2 code folders, so the robot
 can be off. A topic name built at runtime (`'debug/' + name`) cannot be read
@@ -585,7 +597,9 @@ something are red.
 3. **One link** and its kind.
 4. **Both ends**. Click to open the part.
 5. **Pins** on the MCU side.
-6. **Bus settings** that matter at the interface: speed, role, SPI mode.
+6. **Bus settings** that matter at the interface: speed, role, SPI mode, data
+   size, first bit, UART frame. A value tagged `main.c` was read from the
+   generated init code, because the `.ioc` leaves defaults out (section 4).
 
 Nobody types this table. It is generated from the wiring, so it cannot drift
 from it.
@@ -670,15 +684,29 @@ load and efficiency).
 1. **+ Item** for things that are not parts in the diagram (screws,
    heat-shrink, zip ties); **+ Column** adds your own column, filled from the
    part detail of the same name.
-2. **Export** as Excel (`.xlsx`), PNG or PDF. Without a server, Excel becomes a CSV.
-3. **Category**, from the part's kind; rows are ordered by group.
-4. **Where** each part is in the model.
-5. **Wires**, totalled by gauge from their lengths; connectors counted from the wires.
-6. **An extra item** (+ Item).
+2. **Currency**: RM, US$ or ¥ for unit cost and total. Every price carries its
+   currency sign, so nobody mistakes one for another. The choice is remembered
+   in your browser.
+3. **Export** as Excel (`.xlsx`), PNG or PDF, in the currency shown. Without a
+   server, Excel becomes a CSV.
+4. **An item**: click it to open the part.
+5. **A price**, converted to the currency shown. Hover it to see the price as
+   it was entered.
+6. **Category**, from the part's kind; rows are ordered by group.
+7. **Where** each part is in the model; each name opens that part.
+8. **Rates…**: the exchange rates and the currency of prices written without one.
 
 The bill of materials is built from the model: parts grouped by part number
 (or description), with quantity, item, part number, manufacturer, supplier,
-link, unit cost and total.
+link, unit cost and total. Wires are totalled by gauge from their lengths,
+connectors counted from the wires.
+
+**Prices and currencies.** Write a part's `unit_cost` with its currency:
+`RM 12.50`, `US$3.50` (or `$3.50`, `3.50 USD`), `¥20` (or `20 CNY`, `20 RMB`).
+A price with no sign is in the BOM's own currency (ringgit unless you change
+it in **Rates…**). **Rates…** holds 1 US$ and 1 ¥ in ringgit; **Fetch today's
+rates** fills them in from the internet (open.er-api.com), or type them. They
+are saved in `model.toml`, with the date, so everyone converts the same way.
 
 ### Design review pack
 

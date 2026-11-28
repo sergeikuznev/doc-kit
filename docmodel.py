@@ -188,13 +188,13 @@ def meaning_of(ptype, port_defs):
 
 def _derived(ip, settings):
     """Facts that follow directly from saved settings; say 'CubeMX default' when not saved."""
-    s = dict(settings)
+    s = {x[0]: x[1] for x in settings}
     notes = []
     if ip.startswith("SPI"):
         cp, ch = s.get("Clock polarity (CPOL)"), s.get("Clock phase (CPHA)")
         if cp or ch:
             pol = 1 if "high" in (cp or "low") else 0
-            pha = 1 if "2edge" in (ch or "1edge") else 0
+            pha = 1 if ("2edge" in (ch or "") or "2nd" in (ch or "")) else 0
             notes.append(["SPI mode", f"{pol * 2 + pha} (CPOL={pol}, CPHA={pha})"])
         else:
             notes.append(["CPOL / CPHA", "not saved (CubeMX default)"])
@@ -270,6 +270,126 @@ def parse_ioc(path, board):
     defname = board.get("def") or re.sub(r"\W", "_", board["name"]).upper()
     return {"def": defname, "mcu": mcu, "package": kv.get("Mcu.Package", ""), "source": os.path.basename(path),
             "ports": ports, "internal": internal, "clocks": clocks, "cubemx": kv.get("MxCube.Version", "")}
+
+
+# ================================================================ peripheral settings from the generated C code
+# The .ioc keeps only what was changed from CubeMX's defaults. The generated init code
+# (MX_<IP>_Init in main.c, spi.c, usart.c ...) writes every field, defaults included.
+
+APB2_IPS = re.compile(r"^(SPI1|SPI4|SPI5|SPI6|USART1|USART6|TIM1|TIM8|TIM9|TIM10|TIM11|TIM15|TIM16|TIM17|ADC\d?|SDIO|SAI\d)$")
+C_FIELDS = {  # Init field -> label (NICE names where the .ioc uses the same setting)
+    "Mode": "Role", "Direction": "Lines", "DataSize": "Data size", "CLKPolarity": "Clock polarity (CPOL)",
+    "CLKPhase": "Clock phase (CPHA)", "NSS": "Chip select (NSS)", "BaudRatePrescaler": "Clock prescaler",
+    "FirstBit": "First bit", "BaudRate": "Baud rate", "WordLength": "Word length", "StopBits": "Stop bits",
+    "Parity": "Parity", "HwFlowCtl": "Flow control", "OverSampling": "Oversampling", "ClockSpeed": "Clock speed",
+    "Timing": "Timing", "DutyCycle": "Fast-mode duty cycle", "AddressingMode": "Addressing", "OwnAddress1": "Own address",
+    "Prescaler": "Prescaler", "Period": "Period (counts)", "CounterMode": "Counting", "ClockDivision": "Clock division",
+    "AutoReloadPreload": "Auto-reload preload", "EncoderMode": "Encoder mode", "Resolution": "Resolution",
+    "ScanConvMode": "Scan mode", "ContinuousConvMode": "Continuous conversion",
+}
+C_SKIP_VALUES = {"Instance"}
+
+
+def _c_value(field, v):
+    v = v.strip().rstrip("U").strip()
+    if re.fullmatch(r"\d+", v):
+        n = int(v)
+        if field == "ClockSpeed":
+            return f"{n / 1000:g} kHz"
+        if field == "BaudRate":
+            return f"{n} baud"
+        return str(n)
+    if v in ("ENABLE", "DISABLE"):
+        return "on" if v == "ENABLE" else "off"
+    toks = v.split("_")
+    if toks[-1] in ("ENABLE", "DISABLE"):
+        return "on" if toks[-1] == "ENABLE" else "off"
+    if len(toks) >= 3:  # SPI_POLARITY_LOW -> low, SPI_BAUDRATEPRESCALER_16 -> 16, UART_WORDLENGTH_8B -> 8 bit
+        r = " ".join(toks[2:]).lower()
+        r = re.sub(r"^(\d+)\s*b(it)?$", r"\1 bit", r)
+        r = re.sub(r"^(\d)lines?$", r"\1 lines", r)
+        return {"msb": "MSB first", "lsb": "LSB first", "1edge": "1st edge", "2edge": "2nd edge"}.get(r, r)
+    return v
+
+
+def parse_init_code(ioc_path):
+    """{IP: {field: value}} from MX_*_Init functions next to the .ioc (Core/Src/*.c)."""
+    src = os.path.join(os.path.dirname(ioc_path), "Core", "Src")
+    out = {}
+    if not os.path.isdir(src):
+        return out
+    for n in sorted(os.listdir(src)):
+        if not n.endswith(".c"):
+            continue
+        try:
+            text = open(os.path.join(src, n), encoding="utf-8", errors="replace").read()
+        except OSError:
+            continue
+        handles = dict(re.findall(r"\b(\w+)\.Instance\s*=\s*(\w+)\s*;", text))
+        for h, field, val in re.findall(r"\b(\w+)\.Init\.(\w+)\s*=\s*([^;]+);", text):
+            ip = handles.get(h)
+            if ip and field in C_FIELDS:
+                out.setdefault(ip, {})[field] = (_c_value(field, val), n)
+        for fn, body in re.findall(r"void\s+MX_(\w+?)_Init\s*\(\s*void\s*\)\s*\{(.*?)\n\}", text, re.S):
+            ip = next((v for k, v in handles.items() if re.search(r"\b" + re.escape(k) + r"\b", body)), None)
+            if not ip:
+                continue
+            for ch_m in re.finditer(r"HAL_TIM_\w+_ConfigChannel\s*\([^,]+,\s*&(\w+)\s*,\s*TIM_CHANNEL_(\d)\s*\)", body):
+                cfgv, ch = ch_m.group(1), ch_m.group(2)
+                pulses = re.findall(r"\b" + cfgv + r"\.Pulse\s*=\s*([^;]+);", body[:ch_m.start()])
+                if pulses:
+                    out.setdefault(ip, {})[f"CH{ch} pulse"] = (_c_value("Pulse", pulses[-1]), n)
+    return out
+
+
+def _speed(ip, fields, clocks):
+    """SPI clock from the APB clock and the prescaler, when the .ioc did not save it."""
+    pre = fields.get("BaudRatePrescaler")
+    if not ip.startswith("SPI") or not pre or not pre[0].isdigit():
+        return None
+    apb = dict(clocks).get("APB2" if APB2_IPS.match(ip) else "APB1")
+    if not apb:
+        return None
+    hz = float(apb.split()[0]) * 1e6 / int(pre[0])
+    return f"{hz / 1e6:g} MBits/s" if hz >= 1e6 else f"{hz / 1e3:g} kBits/s"
+
+
+def merge_init_code(info, ioc_path):
+    """Fill in settings the .ioc leaves out (CubeMX defaults) from the generated init code."""
+    code = parse_init_code(ioc_path)
+    info["code_files"] = sorted({f for d in code.values() for _, f in d.values()})
+    if not code:
+        return info
+
+    def fill(ip, settings):
+        fields = code.get(ip)
+        if not fields:
+            return settings
+        have = {s[0] for s in settings}
+        for field, (val, f) in fields.items():
+            label = C_FIELDS.get(field, field)
+            if label not in have:
+                settings.append([label, val, f])
+                have.add(label)
+        if "Speed" not in have:
+            sp = _speed(ip, {k: v for k, v in fields.items()}, info.get("clocks", []))
+            if sp:
+                settings.append(["Speed", sp, "computed from APB clock and prescaler"])
+        if ip.startswith(("USART", "UART")) and "Frame" not in have:
+            w = re.sub(r"\D", "", fields.get("WordLength", ("8",))[0]) or "8"
+            par = {"none": "N", "even": "E", "odd": "O"}.get(fields.get("Parity", ("none",))[0], "?")
+            st = re.sub(r"\D", "", fields.get("StopBits", ("1",))[0]) or "1"
+            settings.append(["Frame", f"{w}{par}{st}", fields.get("WordLength", ("", "code"))[1]])
+        return settings
+
+    for p in info["ports"]:
+        if p.get("ip"):
+            base = [s for s in p["settings"] if s[0] not in ("CPOL / CPHA", "SPI mode")]
+            st = fill(p["ip"], base)
+            p["settings"] = st + _derived(p["ip"], st)
+    for it in info["internal"]:
+        it["settings"] = fill(it["ip"], it["settings"])
+    return info
 
 
 # ================================================================ ROS2 static scan
@@ -808,7 +928,8 @@ def build(root, overrides=None):
     for b in cfg["board"]:
         if "name" not in b or "ioc" not in b:
             raise ModelError("each [[board]] in model.toml needs name and ioc")
-        boards.append(parse_ioc(resolve_ioc(root, b["ioc"]), b) | {"board": b["name"], "board_cfg": b})
+        ioc_file = resolve_ioc(root, b["ioc"])
+        boards.append(merge_init_code(parse_ioc(ioc_file, b), ioc_file) | {"board": b["name"], "board_cfg": b})
     nodes, ros_unknown = scan_ros(root, cfg["ros"]["paths"])
     launches = scan_launch(root, cfg["ros"]["paths"])
     for n in nodes:
@@ -1131,7 +1252,7 @@ def build(root, overrides=None):
             icd.append({"pair": sorted([sa, sb]), "from": ".".join(c["a"]), "to": ".".join(c["b"]),
                         "kind": c["kind"], "type": c["type"], "meaning": fact.get("meaning", c["type"]),
                         "pins": fact.get("pins", []), "settings": [s for s in fact.get("settings", [])
-                                                                    if s[0] in ("Speed", "SPI mode", "Role", "Baud rate", "Clock speed", "Timing")]})
+                                                                    if s[0] in ("Speed", "SPI mode", "Role", "Data size", "First bit", "Baud rate", "Frame", "Clock speed", "Timing", "Addressing")]})
 
     kinds = kinds_of(cfg)
     assign_kinds(parts, kinds)
@@ -1275,7 +1396,9 @@ def build_bom(cfg, parts, connections):
     extra = [{"kind": "extra", "item": e.get("item", ""), "qty": num(e.get("qty")) or 1, "parts": [], "subsystems": [],
               "values": {k: v for k, v in e.items() if k not in ("item", "qty")}, "index": i}
              for i, e in enumerate(cfg.get("bom_item", []))]
-    return {"columns": list(cfg.get("bom", {}).get("columns", [])), "rows": rows + list(wires.values()) + list(conns.values()) + extra}
+    bc = cfg.get("bom", {})
+    return {"currency": bc.get("currency", "MYR"), "rates": {"USD": 4.2, "CNY": 0.59, **(bc.get("rates") or {})},
+            "rates_date": bc.get("rates_date", ""), "columns": list(bc.get("columns", [])), "rows": rows + list(wires.values()) + list(conns.values()) + extra}
 
 
 # ================================================================ ROS2 launch files

@@ -52,7 +52,7 @@ main{overflow:auto;min-width:0;position:relative}
 .dtool{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid var(--hair);background:var(--surface)}
 .dtool>div:first-child{min-width:0;flex:1 1 auto}.dtool h2{font-size:15px;margin:0}.dtool .lead{color:var(--muted);font-size:12.5px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dtool .legend{flex:none}.dtool .legend span{white-space:nowrap}
 .dtool .sp{flex:0}.btn{font:inherit;font-size:12.5px;padding:5px 10px;border-radius:7px;border:1px solid var(--hair);background:var(--surface);color:var(--ink);cursor:pointer}
-.btn:hover{border-color:var(--faint)}.chip{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;font-size:12px;border:1px solid var(--hair);background:var(--surface);cursor:pointer;color:var(--ink);white-space:nowrap}
+.btn:hover{border-color:var(--faint)}.chip{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;font-size:12px;border:1px solid var(--hair);background:var(--surface);cursor:default;color:var(--ink);white-space:nowrap}
 .chip.focus{border-color:var(--accent);color:var(--accent)}
 .canvas{flex:1;overflow:hidden;cursor:grab;background:radial-gradient(circle,var(--hair) 1px,transparent 1px) 0 0/22px 22px}
 .canvas:active{cursor:grabbing}.canvas svg{display:block;width:100%;height:100%;user-select:none;-webkit-user-select:none;touch-action:none}
@@ -72,7 +72,7 @@ svg text{fill:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI"
 .topic>rect{fill:var(--sunk);stroke:var(--hair)}.topic text{font-size:11.5px}.topic text.ty{fill:var(--muted);font-size:10px}.topic{cursor:pointer}
 .rosnode>rect.b{fill:var(--surface);stroke:var(--ring)}.rosnode{cursor:pointer}
 .rosedge{fill:none;stroke:var(--muted);stroke-width:1.4;opacity:.8}.rosedge.plan{stroke-dasharray:5 4}.topic>rect{fill:color-mix(in srgb,var(--pwr) 10%,var(--surface));stroke:color-mix(in srgb,var(--pwr) 45%,transparent)}.topic text.mono{fill:var(--ink)}
-.roshost:not(.none)>rect{fill:color-mix(in srgb,var(--sig) 5%,var(--surface))}.roshost:not(.none)>text.t{fill:var(--sig)}.roslink{fill:none;stroke:var(--facts);stroke-width:3;opacity:.55;cursor:pointer}.roslink:hover{opacity:.9}.rosghost{fill:none;stroke:var(--accent);stroke-width:2;stroke-dasharray:6 4;pointer-events:none}.roshost:not(.none)>rect{stroke:var(--ring);stroke-dasharray:none}.roshost.none>rect{stroke-dasharray:5 4}.roshost:not(.none){cursor:grab}.rosnode.plan>rect.b{stroke-dasharray:5 4;fill:var(--sunk)}.rosnode{cursor:grab}.topic{cursor:grab}.dragsrc{opacity:.55}.droptgt>rect,.droptgt>rect.b{stroke:var(--accent)!important;stroke-width:2.2;stroke-dasharray:none!important}.rosdragging{cursor:grabbing}
+.roshost:not(.none)>rect{fill:color-mix(in srgb,var(--sig) 5%,var(--surface))}.roshost:not(.none)>text.t{fill:var(--sig)}.roslink{fill:none;stroke:var(--facts);stroke-width:3;opacity:.55;cursor:help}.roslink:hover{opacity:.9}.rosghost{fill:none;stroke:var(--accent);stroke-width:2;stroke-dasharray:6 4;pointer-events:none}.roshost:not(.none)>rect{stroke:var(--ring);stroke-dasharray:none}.roshost.none>rect{stroke-dasharray:5 4}.roshost:not(.none){cursor:grab}.rosnode.plan>rect.b{stroke-dasharray:5 4;fill:var(--sunk)}.rosnode{cursor:grab}.topic{cursor:grab}.dragsrc{opacity:.55}.droptgt>rect,.droptgt>rect.b{stroke:var(--accent)!important;stroke-width:2.2;stroke-dasharray:none!important}.rosdragging{cursor:grabbing}
 /* drawer */
 aside{width:0;overflow:hidden;border-left:1px solid var(--hair);background:var(--surface);transition:width .18s}
 aside.open{width:440px;overflow:auto}aside .in{padding:18px 20px 40px;width:440px}
@@ -170,7 +170,7 @@ aside h4{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:va
 .prose pre{background:var(--sunk);padding:10px 12px;border-radius:8px;overflow:auto;font-size:12px}.prose code{background:var(--sunk);padding:1px 4px;border-radius:4px}
 .prose pre code{background:none;padding:0}.prose blockquote{border-left:3px solid var(--hair);margin:8px 0;padding:2px 12px;color:var(--muted)}
 .prose img{max-width:100%;border-radius:8px}.prose li.sub{margin-left:18px;list-style:circle}
-.xref{color:var(--accent);cursor:pointer;border-bottom:1px dotted var(--accent)}
+.xref,.lnk{color:var(--accent);cursor:pointer;border-bottom:1px dotted color-mix(in srgb,var(--accent) 75%,transparent);transition:filter .1s}.xref:hover,.lnk:hover{filter:brightness(1.35);border-bottom-style:solid;border-bottom-color:var(--accent)}.seg{display:inline-flex;border:1px solid var(--hair);border-radius:7px;overflow:hidden}.seg button{font:inherit;font-size:12.5px;padding:4px 10px;border:0;background:var(--surface);color:var(--muted);cursor:pointer}.seg button+button{border-left:1px solid var(--hair)}.seg button.on{background:var(--sunk);color:var(--ink);font-weight:600}.seg button:hover{color:var(--ink)}.src{font:10.5px var(--mono,ui-monospace,monospace);color:var(--faint);border:1px solid var(--hair);border-radius:4px;padding:0 4px;margin-left:4px;white-space:nowrap;cursor:help}
 a,a:visited{color:var(--accent);text-decoration-color:color-mix(in srgb,var(--accent) 45%,transparent);text-underline-offset:2px}a:hover{text-decoration-color:var(--accent)}
 .toc{font-size:12.5px;margin-top:6px}.toc a{display:block;color:var(--muted);text-decoration:none;padding:2px 8px}.toc a:hover{color:var(--accent)}.toc a.l3{padding-left:20px}
 .mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
@@ -219,8 +219,8 @@ nav button .lbl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-
 .cont.sel>rect{stroke:var(--accent)!important;stroke-width:2!important;stroke-dasharray:none!important}
 .navi path{stroke:var(--muted)!important}
 /* everything clickable: a pointing hand and a slight highlight */
-a,button:not(:disabled),select,summary,.lnk,.xref,.ilink,.chip[data-part],.chip[data-node],.chip[data-focus],.chip[data-topic],[data-form],[data-part],[data-node],[data-topic],[data-go],[data-iss],[data-req],[data-fault],[data-dec],[data-v],.issl,.leaf,.sysnode,.rosnode,.topic,.cont,.ehit,.rhit,.roslink,.addph,.counter,.icard .t,tr.row{cursor:pointer}
-:is(.lnk,.xref,.ilink,a,.icard .t):hover{filter:brightness(1.3);text-decoration:underline;text-underline-offset:2px}
+a,button:not(:disabled),select,summary,.lnk,.xref,.ilink,.chip[data-part],.chip[data-node],.chip[data-focus],.chip[data-topic],[data-form],[data-part],[data-node],[data-topic],[data-go],[data-iss],[data-req],[data-fault],[data-dec],[data-v],.issl,.leaf,.sysnode,.rosnode,.topic,.cont,.ehit,.rhit,.addph,.counter,.icard .t,tr.row{cursor:pointer}
+:is(.ilink,a,.icard .t):hover{filter:brightness(1.3);text-decoration:underline;text-underline-offset:2px}
 :is(.chip[data-part],.chip[data-node],.chip[data-focus],.chip[data-topic],.chip[data-iss],.counter,.lab,.stpill,.fchip,.itab):hover{filter:brightness(1.25);border-color:var(--accent)}
 tr.row:hover td,.rcard:hover,.icard:hover,.dcard:hover,.fcard:hover{background:color-mix(in srgb,var(--accent) 5%,transparent)}
 .counter:hover{border-color:var(--faint)!important;filter:brightness(1.2)}.counter.gap:hover{border-color:var(--warn)!important}.counter.bad:hover{border-color:var(--crit)!important}
@@ -356,7 +356,12 @@ function chrome() {
     `<button data-v="${id}" class="${id === view ? "on" : ""}">${navIcon(id)}<span class="lbl">${label}</span><span class="n">${n()}</span></button>`).join("")).join("");
   document.querySelectorAll("nav button").forEach(b => b.onclick = () => go(b.dataset.v));
 }
-function go(v, opts = {}) { focus = opts.focus ?? null; view = v; pend = null; chrome(); render(); saveHash(); }
+const scrollMem = {};  // each page (and each doc) keeps its scroll position
+const scrollKey = () => view === "docs" ? `docs:${curDoc}` : view;
+function keepScroll() { scrollMem[scrollKey()] = $("#main").scrollTop; }
+function restoreScroll() { const y = scrollMem[scrollKey()] || 0, m = $("#main"); m.scrollTop = y;
+  if (y) [60, 250, 700].forEach(t => setTimeout(() => { if (m.scrollTop < y - 2 && m.scrollHeight > y) m.scrollTop = y; }, t)); }  // images load late
+function go(v, opts = {}) { keepScroll(); focus = opts.focus ?? null; view = v; pend = null; chrome(); render(); saveHash(); restoreScroll(); }
 function saveHash() { const h = [view, focus ? "focus:" + focus : "", selected ? "sel:" + selected : "", ""].filter(Boolean).join("/"); history.replaceState(null, "", "#" + h); }
 function loadHash() { const parts = decodeURIComponent(location.hash.slice(1)).split("/"); const v = parts[0];
   if (v && document.querySelector) { view = VIEWS.flatMap(g => g[1]).some(x => x[0] === v) ? v : view; }
@@ -365,6 +370,8 @@ function loadHash() { const parts = decodeURIComponent(location.hash.slice(1)).s
 // ------------------------------------------------------------------ drawer
 let refit = null;
 const afterPanel = () => setTimeout(() => refit && refit(), 200);
+const SRC = s => s[2] ? ` <span class="src" title="${s[2].endsWith(".c") ? `Not in the .ioc (CubeMX default); read from the generated code in ${H(s[2])}` : H(s[2])}">${s[2].endsWith(".c") ? H(s[2]) : "computed"}</span>` : "";
+const SETV = s => `${H(s[1])}${SRC(s)}`;
 function openDrawer(html) { afterPanel(); $("#drawer-in").innerHTML = `<button class="xbtn" id="dx" title="Close (Esc)" aria-label="Close">✕</button>` + html; $("#drawer").classList.add("open"); $("#dx").onclick = closeDrawer; wire($("#drawer-in")); }
 let reopen = null;
 function closeDrawer() { reopen = null; if ($("#drawer").classList.contains("open")) afterPanel(); $("#drawer").classList.remove("open"); const had = selected; selected = null; if (had) saveHash(); document.querySelectorAll(".sel").forEach(e => e.classList.remove("sel")); }
@@ -410,20 +417,20 @@ function showPart(path) { setTimeout(() => reopen = () => showPart(path), 0);
   conns.forEach(c => { if (c.a[0] === path) (linked[c.a[1]] ||= []).push(c.b); if (c.b[0] === path) (linked[c.b[1]] ||= []).push(c.a); });
   let h = `<div class="dsub">${p.depth === 1 ? "Subsystem" : p.depth === 0 ? "System" : `Part in <span class="lnk" data-part="${M.top}.${p.subsystem}">${H(p.subsystem)}</span>`}${p.type ? ` · <span class="mono">${H(p.type)}</span>` : ""}</div>
     <div class="dh">${H(p.name)}${p.depth === 1 && (M.prefix_names || {})[p.name] ? ` <span style="font-weight:400;color:var(--muted)">${H(M.prefix_names[p.name])}</span>` : ""}</div>`;
-  h += `<div class="links" style="margin:6px 0 4px"><span class="chip" style="color:var(--${p.source})">${p.source === "facts" ? "board, from its .ioc" : p.depth === 1 ? "subsystem" : "part"}</span>${p.depth === 1 ? `<span class="chip focus" data-focus="${H(p.name)}">Open in Electrical</span>` : ""}</div>`;
-  if (SERVED && p.depth === 1 && view === "system") h += `<div class="links" style="margin:10px 0"><button class="act" data-form="part" data-parent="${H(path)}">+ Part here</button><button class="act" onclick="go('setup')">Edit in Setup</button></div>`;
+  h += `<div class="links" style="margin:6px 0 4px"><span class="chip" style="color:var(--${p.source})">${p.source === "facts" ? "board, from its .ioc" : p.depth === 1 ? "subsystem" : "part"}</span></div>`;
+  if (p.depth === 1) h += `<div class="links" style="margin:10px 0">${SERVED && view === "system" ? `<button class="act" data-form="part" data-parent="${H(path)}">+ Part here</button><button class="act" onclick="go('setup')">Edit in Setup</button>` : ""}<button class="act" data-focus="${H(p.name)}">Open in Electrical</button></div>`;
   if (SERVED && p.depth >= 2 && view === "electrical") h += `<div class="links" style="margin:10px 0"><button class="act" data-form="part" data-orig="${H(path)}">Edit part</button><button class="act" data-focus="${H(p.subsystem)}" data-view="electrical" data-edit="1">Connect ports…</button><button class="act" data-form="template" data-from="${H(path)}">Save to parts library</button><button class="act dz" data-form="part_delete" data-path="${H(path)}">Delete</button></div>`;
   if (p.doc) h += `<p>${H(p.doc)}</p>`;
   if (Object.keys(p.attrs || {}).length) h += `<h4>Details</h4><div class="kv">${attrsKv(p.attrs)}</div>`;
   const b = M.boards.find(b => b.board === p.board);
   if (b) {
-    h += `<h4>Chip</h4><div class="kv"><div>Part number</div><div>${H(b.mcu)} ${H(b.package)}</div><div>Source</div><div class="mono">${H(b.source)}</div>${b.clocks.map(c => `<div>${H(c[0])}</div><div>${H(c[1])}</div>`).join("")}</div>`;
-    b.internal.forEach(i => { h += `<h4>${H(i.ip)}</h4><div class="kv">${i.settings.map(s => `<div>${H(s[0])}</div><div>${H(s[1])}</div>`).join("")}</div>`; });
+    h += `<h4>Chip</h4><div class="kv"><div>Part number</div><div>${H(b.mcu)} ${H(b.package)}</div><div>Source</div><div class="mono">${H(b.source)}${b.code_files?.length ? ` + ${b.code_files.map(H).join(", ")}` : ""}</div>${b.clocks.map(c => `<div>${H(c[0])}</div><div>${H(c[1])}</div>`).join("")}</div>`;
+    b.internal.forEach(i => { h += `<h4>${H(i.ip)}</h4><div class="kv">${i.settings.map(s => `<div>${H(s[0])}</div><div>${SETV(s)}</div>`).join("")}</div>`; });
   }
   if (p.depth === 1) {
     h += `<h4>Parts</h4><div class="links">${p.children.map(c => `<span class="chip" data-part="${c}">${H(M.parts[c].name)}</span>`).join("") || "<span class='dsub'>none</span>"}</div>`;
     const ifs = M.icd.filter(i => i.pair.includes(p.name));
-    h += `<h4>Interfaces to other subsystems</h4>` + (ifs.length ? `<table class="ptab"><tr><th>With</th><th>Via</th><th>Ends</th></tr>${ifs.map(i => `<tr><td>${H(i.pair.find(x => x !== p.name))}</td><td><span class="kdot" style="background:${KCOL[i.kind]}"></span>${H(i.meaning)}</td><td class="mono">${H(short(i.from))}<br>${H(short(i.to))}</td></tr>`).join("")}</table>` : `<div class="dsub">None.</div>`);
+    h += `<h4>Interfaces to other subsystems</h4>` + (ifs.length ? `<table class="ptab"><tr><th>With</th><th>Via</th><th>Ends</th></tr>${ifs.map(i => `<tr><td>${(() => { const o = i.pair.find(x => x !== p.name); return M.parts[`${M.top}.${o}`] ? `<span class="xref" data-part="${M.top}.${H(o)}">${H(o)}</span>` : H(o); })()}</td><td><span class="kdot" style="background:${KCOL[i.kind]}"></span>${H(i.meaning)}</td><td class="mono"><span class="xref" data-part="${H(i.from.split(".").slice(0, -1).join("."))}">${H(short(i.from))}</span><br><span class="xref" data-part="${H(i.to.split(".").slice(0, -1).join("."))}">${H(short(i.to))}</span></td></tr>`).join("")}</table>` : `<div class="dsub">None.</div>`);
   }
   if (p.ports.length) {
     h += `<h4>Ports</h4><table class="ptab"><tr><th>Port</th><th>What</th><th>Pins</th><th>Connected to</th></tr>`;
@@ -434,7 +441,7 @@ function showPart(path) { setTimeout(() => reopen = () => showPart(path), 0);
         <td class="mono">${(q.pins || []).map(x => `${H(x[0])} <span style="color:var(--faint)">${H(x[1])}</span>`).join("<br>") || "—"}</td>
         <td>${to.map(t => { const cw = conns.find(c => [c.a.join("."), c.b.join(".")].sort().join() === [path + "." + q.name, t.join(".")].sort().join()); const wa = cw && cw.attrs || {};
           return `<span class="lnk mono" data-part="${t[0]}">${H(short(t[0]))}.${H(t[1])}</span>${Object.keys(wa).length ? `<div class="dsub" style="margin:0">${Object.values(wa).map(H).join(" · ")}</div>` : ""}${WIREV() ? ` <button class="act" style="padding:0 6px" title="Wire details" data-form="wire" data-a="${H(path + "." + q.name)}" data-b="${H(t.join("."))}">wire</button>` : ""}${WIREV() ? ` <button class="act dz" style="padding:0 6px" title="Remove this connection" data-form="disconnect" data-a="${H(path + "." + q.name)}" data-b="${H(t.join("."))}">✕</button>` : ""}`; }).join("<br>") || "—"}</td></tr>`;
-      if (det) h += `<tr class="det" data-d="${i}" style="display:none"><td colspan="4"><div class="kv">${q.settings.map(s => `<div>${H(s[0])}</div><div>${H(s[1])}</div>`).join("")}</div></td></tr>`;
+      if (det) h += `<tr class="det" data-d="${i}" style="display:none"><td colspan="4"><div class="kv">${q.settings.map(s => `<div>${H(s[0])}</div><div>${SETV(s)}</div>`).join("")}</div></td></tr>`;
     });
     h += `</table>`;
   }
@@ -590,6 +597,22 @@ function absMap(n, ox = 0, oy = 0, out = {}, par = null, cx = 0, cy = 0) {
   (n.children || []).forEach(c => absMap(c, out[n.id].x, out[n.id].y, out, n.id, X, Y)); return out; }
 const layCache = new Map();
 async function lay(g) { const k = JSON.stringify(g); if (!layCache.has(k)) { if (layCache.size > 30) layCache.clear(); layCache.set(k, JSON.stringify(await elk.layout(g))); } return JSON.parse(layCache.get(k)); }
+function crossGaps(lines, G = 5) {  // where two arrows cross, the horizontal one gets a gap, so the vertical one passes over it
+  const seg = lines.map(pts => pts.slice(1).map((b, i) => ({a: pts[i], b})));
+  const gaps = lines.map(() => ({}));
+  const hz = s => Math.abs(s.a.y - s.b.y) < 0.5, vt = s => Math.abs(s.a.x - s.b.x) < 0.5;
+  for (let i = 0; i < seg.length; i++) for (let j = 0; j < seg.length; j++) { if (i === j) continue;
+    seg[i].forEach((h, hi) => { if (!hz(h)) return; const x0 = Math.min(h.a.x, h.b.x), x1 = Math.max(h.a.x, h.b.x);
+      seg[j].forEach(v => { if (!vt(v)) return; const y0 = Math.min(v.a.y, v.b.y), y1 = Math.max(v.a.y, v.b.y), x = v.a.x, y = h.a.y;
+        if (x > x0 + G + 2 && x < x1 - G - 2 && y > y0 + 2 && y < y1 - 2) (gaps[i][hi] ||= []).push(x); }); }); }
+  return gaps;
+}
+function gapPath(pts, g = {}, G = 5) {
+  let d = `M${pts[0].x},${pts[0].y}`;
+  pts.slice(1).forEach((b, i) => { const a = pts[i], xs = (g[i] || []).slice().sort((p, q) => b.x > a.x ? p - q : q - p), dir = Math.sign(b.x - a.x);
+    xs.forEach(x => { d += ` L${x - dir * G},${a.y} M${x + dir * G},${a.y}`; }); d += ` L${b.x},${b.y}`; });
+  return d;
+}
 function routePts(e, cont, abs, s) {  // ELK's route, or a fresh elbow when one end was moved by hand
   const base = abs[e.container || cont.id] || {x: 0, y: 0, cx: 0, cy: 0};
   const ow = id => { let k = id; while (k && !abs[k]) k = k.includes(".") ? k.slice(0, k.lastIndexOf(".")) : ""; return abs[k] || base; };
@@ -622,7 +645,7 @@ function movable(svg, root, onDrop) {  // drag any block to move it (and what is
 function resetLayout() { delete LAYOUT[view + (focus ? ":" + focus : "")]; saveLayout(); render(); }
 function allEdges(n, out = []) { (n.edges || []).forEach(e => out.push([e, n])); (n.children || []).forEach(c => allEdges(c, out)); return out; }
 
-let zoom = null, keepVB = null;
+let zoom = null; const vbMem = {};  // each view (and focus) keeps its own zoom and pan
 function canvasShell(title, lead, extra = "", edit = null) {
   const eb = SERVED && edit && view === "electrical" ? `<button class="act addbtn" data-form="port_type">+ Port type</button><button class="act addbtn" data-form="part">+ Part</button><button class="act" data-form="kicad" title="Parts and wires from a KiCad netlist">Import from KiCad</button>` : "";
   $("#main").innerHTML = `<div class="diagram"><div class="dtool"><div><h2>${title}</h2><p class="lead">${lead}</p></div><span class="sp"></span>${extra}${eb}<button class="btn" id="zout" title="Zoom out">−</button><button class="btn" id="zin" title="Zoom in">+</button><button class="btn" id="fit">Fit</button>${Object.keys(curOff()).length ? `<button class="btn" onclick="resetLayout()" title="Forget where you moved blocks in this view">Auto layout</button>` : ""}</div>${SERVED && edit ? `<div class="dhint">${edit}</div><div class="hintbar" id="hint" style="display:none"></div>` : ""}<div class="canvas ${editing && edit ? "editing" : ""}" id="cv"></div></div>`;
@@ -645,10 +668,10 @@ function portClick(part, q) {
 function cancelPend() { pend = null; document.querySelectorAll(".port.pend").forEach(r => r.classList.remove("pend")); if ($("#hint")) $("#hint").style.display = "none"; }
 function panZoom(svg, W, H) {
   let vb = {x: -20, y: -20, w: W + 40, h: H + 40};
-  const set = () => { svg.setAttribute("viewBox", `${vb.x} ${vb.y} ${vb.w} ${vb.h}`); keepVB = {view, focus, vb: {...vb}}; };
+  const set = () => { svg.setAttribute("viewBox", `${vb.x} ${vb.y} ${vb.w} ${vb.h}`); vbMem[`${view}|${focus || ""}`] = {...vb}; };
   const fit = () => { const r = svg.getBoundingClientRect(), k = Math.max((W + 40) / r.width, (H + 40) / r.height, 1 / 1.15);
     const w = r.width * k, h = r.height * k; vb = {x: W / 2 - w / 2, y: H / 2 - h / 2, w, h}; set(); };
-  if (keepVB && keepVB.view === view && keepVB.focus === focus) { vb = {...keepVB.vb}; set(); } else fit();
+  if (vbMem[`${view}|${focus || ""}`]) { vb = {...vbMem[`${view}|${focus || ""}`]}; set(); } else fit();
   $("#fit").onclick = fit; refit = fit;
   const zoomBy = s => { const cx = vb.x + vb.w / 2, cy = vb.y + vb.h / 2; vb = {x: cx - vb.w * s / 2, y: cy - vb.h * s / 2, w: vb.w * s, h: vb.h * s}; set(); };
   $("#zin").onclick = () => zoomBy(0.75); $("#zout").onclick = () => zoomBy(1.33);
@@ -812,8 +835,12 @@ async function drawSoftware() {
     if (!src.none) g.addEventListener("click", ev => { if (!ev.target.closest(".rosnode") && !dragged) showPart(src.host); }); });
   const defs = el("defs", {}, svg); const AID = "arr" + Math.random().toString(36).slice(2, 7); const mk = el("marker", {id: AID, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse"}, defs);
   el("path", {d: "M0,0 L10,5 L0,10 z", fill: "var(--muted)"}, mk);
+  const routes = [];  // every arrow's polyline first, so crossings can be found
+  allEdges(out).forEach(([e, cont]) => (e.sections || []).forEach(s => routes.push({e, cont, pts: routePts(e, cont, abs, s).pts})));
+  const gaps = crossGaps(routes.map(r => r.pts));
   allEdges(out).forEach(([e, cont]) => { const off = abs[e.container || cont.id] || {x: 0, y: 0};
-    (e.sections || []).forEach(s => { const r = routePts(e, cont, abs, s); const d = "M" + r.pts.map(p => `${p.x},${p.y}`).join(" L");
+    (e.sections || []).forEach(s => { const ri = routes.findIndex(r => r.e === e && !r.used); routes[ri].used = true; const r = routes[ri];
+      const d = gapPath(r.pts, gaps[ri]);
       if (e.link) { const p = el("path", {d, class: "roslink"}, root); el("title", {}, p).textContent = `${e.link.wire}: ${e.link.via} (set in the wire's details, Electrical view)`; return; }
       const pub = e.id.startsWith("p:"), nn = e.id.split(":")[1], tp = e.e.topic;
       const p = el("path", {d, class: "rosedge" + (e.e.planned ? " plan" : ""), "marker-end": `url(#${AID})`}, root); p.dataset.redge = `${nn}|${tp}|${pub ? "out" : "in"}`;
@@ -931,8 +958,7 @@ function interfaces() {
   page(`<h2>Interfaces between subsystems${addB([["connect", "Connection"]])}</h2><p class="lead">Generated from the wiring: every connection that crosses a subsystem boundary is an interface. Nobody types this table, so it cannot go out of date.</p>
   ${Object.entries(pairs).map(([k, is]) => `<div class="panel"><h3>${H(k)} <span class="chip">${is.length}</span></h3><table class="icd"><tr><th>Via</th><th>From</th><th>To</th><th>Pins</th><th>Settings</th></tr>
     ${is.map(i => `<tr><td><span class="kdot" style="background:${KCOL[i.kind]}"></span>${H(i.meaning)}</td><td class="mono"><span class="lnk" data-part="${i.from.split(".").slice(0, -1).join(".")}">${H(short(i.from))}</span></td><td class="mono"><span class="lnk" data-part="${i.to.split(".").slice(0, -1).join(".")}">${H(short(i.to))}</span></td>
-    <td class="mono">${i.pins.map(p => H(p.join(" "))).join("<br>") || "—"}</td><td>${i.settings.map(s => `${H(s[0])}: ${H(s[1])}`).join("<br>") || "—"}</td></tr>`).join("")}</table></div>`).join("") || `<div class="empty">No connections cross a subsystem boundary yet.</div>`}`);
-  document.querySelectorAll(".lnk").forEach(e => e.style.cssText = "color:var(--accent);cursor:pointer");
+    <td class="mono">${i.pins.map(p => H(p.join(" "))).join("<br>") || "—"}</td><td>${i.settings.map(s => `${H(s[0])}: ${SETV(s)}`).join("<br>") || "—"}</td></tr>`).join("")}</table></div>`).join("") || `<div class="empty">No connections cross a subsystem boundary yet.</div>`}`);
 }
 let rfilter = "All", rsearch = "";
 function requirements() {
@@ -1197,7 +1223,7 @@ function docsPage() {
   page(`<div class="docs"><div class="dlist">${groups.map(g => `<div class="g">${H(g)}</div>` + ds.map((x, i) => x.group === g ? `<button class="${i === curDoc ? "on" : ""}" data-doc="${i}">${H(x.title)}</button>` : "").join("")).join("")}
     ${d.toc.length ? `<div class="g">On this page</div><div class="toc">${d.toc.map(t => `<a href="#" data-anchor="${H(t[2])}" class="l${t[0]}">${H(t[1])}</a>`).join("")}</div>` : ""}</div>
     <div><div class="dsub mono" style="margin-bottom:8px">${H(d.file)}</div><div class="prose" id="prose">${d.html}</div></div></div>`);
-  document.querySelectorAll("[data-doc]").forEach(b => b.onclick = () => { curDoc = +b.dataset.doc; docsPage(); $("#main").scrollTop = 0; });
+  document.querySelectorAll("[data-doc]").forEach(b => b.onclick = () => { keepScroll(); curDoc = +b.dataset.doc; docsPage(); restoreScroll(); });
   document.querySelectorAll("[data-anchor]").forEach(a => a.onclick = ev => { ev.preventDefault(); document.getElementById(a.dataset.anchor)?.scrollIntoView({behavior: "smooth"}); });
   document.querySelectorAll("#prose pre.code.mermaid").forEach(drawMermaid);
   // requirement and fault IDs in the text become links
@@ -1212,7 +1238,7 @@ function docsPage() {
   $("#prose").querySelectorAll("a[href]").forEach(a => { const href = a.getAttribute("href");
     if (href.startsWith("#")) a.onclick = ev => { ev.preventDefault(); document.getElementById(href.slice(1))?.scrollIntoView({behavior: "smooth"}); };
     else if (/\.md(#.*)?$/.test(href) && !/^https?:/.test(href)) { const name = href.split("#")[0].split("/").pop(), i = ds.findIndex(x => x.file.split("/").pop() === name);
-      if (i >= 0) a.onclick = ev => { ev.preventDefault(); curDoc = i; docsPage(); $("#main").scrollTop = 0; }; else a.target = "_blank"; }
+      if (i >= 0) a.onclick = ev => { ev.preventDefault(); keepScroll(); curDoc = i; docsPage(); restoreScroll(); }; else a.target = "_blank"; }
     else a.target = "_blank"; });
   $("#prose").querySelectorAll("img").forEach(img => { const src = img.getAttribute("src") || ""; if (src.startsWith("media/") || src.startsWith("./media/")) img.style.cursor = "zoom-in"; });
   wire($("#prose"));
@@ -1420,6 +1446,12 @@ function formSpec(kind, d) {
       (e ? `<label class="act dz" style="display:inline-block"><input type="checkbox" name="delete" style="width:auto"> remove this item</label>` : ""), extra: e ? {index: d.index} : {}}; }
     case "bom_columns": return {title: "BOM columns", sub: "Extra columns after the standard ones (qty, item, part number, manufacturer, supplier, link, unit cost, total). A part fills a column from its detail of the same name.", html:
       `<div id="rplist">${(M.bom?.columns || []).map(c => `<div class="prow" style="grid-template-columns:1fr auto"><input name="columns[]" value="${H(c)}"><button class="act dz" type="button" data-rm>✕</button></div>`).join("")}</div><button class="act" type="button" id="addcol">+ Column</button>`};
+    case "bom_currency": { const b = M.bom || {}, r = b.rates || {};
+      return {title: "BOM currency", sub: "Prices are converted with these rates. A price can carry its own currency (RM 12, US$3.50, ¥20); one without uses the currency below.", html:
+      fld("currency", "Prices without a currency are in", "", sel("currency", [["MYR", "RM · Malaysian ringgit"], ["USD", "US$ · US dollar"], ["CNY", "¥ · Chinese yuan"]], b.currency || "MYR")) +
+      fld("USD", "1 US dollar =", "in ringgit", `<input name="USD" inputmode="decimal" value="${H(r.USD ?? "")}">`) +
+      fld("CNY", "1 Chinese yuan =", "in ringgit", `<input name="CNY" inputmode="decimal" value="${H(r.CNY ?? "")}">`) +
+      `<input type="hidden" name="date" value="${H(b.rates_date || "")}"><button class="act" type="button" onclick="fetchRates(this)">Fetch today's rates</button> <span class="dsub" id="ratemsg">${b.rates_date ? `Rates from ${H(b.rates_date)}.` : "Rates not set yet: these are rough defaults."}</span>`}; }
     case "disconnect": return {title: "Remove connection", sub: "", html: `<div class="pv">${H(short(d.a))}  ↔  ${H(short(d.b))}</div>`, extra: {a: d.a, b: d.b}};
     case "ros_node": { const n = d.orig ? M.nodes.find(x => x.name === d.orig) : null;
       const outs = n ? n.pub.filter(e => !e.unplanned || !n.planned) : [], ins = n ? n.sub.filter(e => !e.unplanned || !n.planned) : [];
@@ -1743,25 +1775,41 @@ function budgetPage() {
 
 // ------------------------------------------------------------------ BOM
 const BOM_STD = [["qty", "Qty"], ["item", "Item"], ["part_number", "Part number"], ["manufacturer", "Manufacturer"], ["supplier", "Supplier"], ["link", "Link"], ["unit_cost", "Unit cost"], ["total", "Total"]];
+const CUR = {MYR: {sym: "RM ", name: "ringgit"}, USD: {sym: "US$", name: "US dollars"}, CNY: {sym: "¥", name: "yuan"}};
+let bomCur = (() => { try { return localStorage.getItem("doc.bomCur"); } catch (e) { return null; } })();
+function parsePrice(t, base) {  // "RM 12", "US$3.50", "$3.5", "20 CNY", "¥20", "12" -> {n, cur}
+  const x = String(t ?? "").trim(); if (!x) return null;
+  const n = parseFloat(x.replace(/,/g, "").replace(/[^0-9.]/g, "")); if (!isFinite(n)) return null;
+  const cur = /\b(rm|myr)\b|^rm/i.test(x) ? "MYR" : /us\$|\busd\b|\$/i.test(x) ? "USD" : /¥|元|\b(cny|rmb)\b/i.test(x) ? "CNY" : base;
+  return {n, cur};
+}
+const toRM = (p, rates) => p.cur === "MYR" ? p.n : p.n * (rates[p.cur] || NaN);
+const money = (n, cur) => isFinite(n) ? `${CUR[cur].sym}${n.toLocaleString("en-MY", {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : "";
 function bomTable() {
-  const cols = [...BOM_STD, ...(M.bom?.columns || []).map(c => [c, c.replace(/_/g, " ")]), ["category", "Category"], ["where", "Where"]];
-  const rows = (M.bom?.rows || []).map(r => { const v = r.values || {}, cost = parseFloat(String(v.unit_cost || "").replace(/[^0-9.]/g, ""));
+  const B = M.bom || {}, base = B.currency || "MYR", rates = B.rates || {}, show = CUR[bomCur] ? bomCur : base;
+  const conv = p => p ? (p.cur === show ? p.n : toRM(p, rates) / (show === "MYR" ? 1 : rates[show])) : NaN;
+  const cols = [...BOM_STD, ...(B.columns || []).map(c => [c, c.replace(/_/g, " ")]), ["category", "Category"], ["where", "Where"]];
+  const rows = (B.rows || []).map(r => { const v = r.values || {}, pr = parsePrice(v.unit_cost, base), cost = conv(pr);
     const qty = r.kind === "wire" ? (r.length ? `${+r.length.toFixed(2)} m${r.unmeasured ? ` + ${r.unmeasured} unmeasured` : ""}` : `${r.qty} wire(s)`) : r.qty;
-    return {r, cells: cols.map(([k]) => k === "qty" ? qty : k === "item" ? r.item : k === "total" ? (isFinite(cost) && typeof r.qty === "number" ? +(cost * r.qty).toFixed(2) : "")
+    const tot = isFinite(cost) && typeof r.qty === "number" ? cost * r.qty : NaN;
+    return {r, num: tot, src: pr && pr.cur !== show ? `${money(pr.n, pr.cur)} as entered` : "", cells: cols.map(([k]) => k === "qty" ? qty : k === "item" ? r.item : k === "total" ? money(tot, show) : k === "unit_cost" ? money(cost, show)
       : k === "category" ? (r.category || (r.kind === "wire" || r.kind === "connector" ? "Interconnect" : "")) : k === "where" ? (r.parts.length ? r.parts.map(short).join(", ") : r.kind === "extra" ? "extra item" : r.kind) : (v[k] ?? ""))}; });
-  const total = rows.reduce((t, x) => t + (+x.cells[7] || 0), 0);
-  return {cols, rows, total};
+  const total = rows.reduce((t, x) => t + (isFinite(x.num) ? x.num : 0), 0);
+  return {cols, rows, total: total ? money(total, show) : "", show, base, rates, date: B.rates_date};
 }
 function bomPage() {
-  const {cols, rows, total} = bomTable();
+  const {cols, rows, total, show, base, rates, date} = bomTable();
   page(`<div class="ibar"><h2 style="margin:0">Bill of materials</h2><span style="flex:1"></span>
     ${SERVED ? `<button class="act" data-form="bom_item">+ Item</button><button class="act" data-form="bom_columns">+ Column</button>` : ""}
+    <span class="seg" title="Currency for unit cost and total">${Object.entries(CUR).map(([k, c]) => `<button class="${k === show ? "on" : ""}" data-cur="${k}">${c.sym.trim()}</button>`).join("")}</span>
     <button class="act" id="bx">Excel</button><button class="act" id="bp">PNG</button><button class="act" id="bf">PDF</button></div>
     <p class="lead">Built from the parts (grouped by part number), wires (total length per gauge), connectors, and extra items. Fill it in from each part's Details: part number, supplier, cost, or any column you add.</p>
     <div class="panel" style="overflow:auto"><table class="icd bom"><tr>${cols.map(c => `<th>${H(c[1])}</th>`).join("")}</tr>
-    ${rows.map(({r, cells}) => `<tr>${cells.map((c, i) => `<td class="${cols[i][0] === "item" || cols[i][0] === "where" ? "w" : ""}">${cols[i][0] === "link" && /^https?:/.test(c) ? `<a href="${H(c)}" target="_blank">link</a>` : H(c)}${cols[i][0] === "item" && r.kind === "extra" && SERVED ? ` <span class="xref" data-form="bom_item" data-index="${r.index}">edit</span>` : ""}${cols[i][0] === "item" && r.parts.length ? ` <span class="xref" data-part="${H(r.parts[0])}">open</span>` : ""}</td>`).join("")}</tr>`).join("")}
-    <tr><td></td><td><b>Total</b></td>${cols.slice(2).map(c => `<td>${c[0] === "total" && total ? `<b>${+total.toFixed(2)}</b>` : ""}</td>`).join("")}</tr></table></div>`);
-  const grid = () => [cols.map(c => c[1]), ...rows.map(x => x.cells.map(c => typeof c === "number" ? c : String(c)))];
+    ${rows.map(({r, cells}) => `<tr>${cells.map((c, i) => `<td class="${cols[i][0] === "item" || cols[i][0] === "where" ? "w" : ""}">${cols[i][0] === "link" && /^https?:/.test(c) ? `<a href="${H(c)}" target="_blank">link</a>` : cols[i][0] === "item" && r.parts.length ? `<span class="xref" data-part="${H(r.parts[0])}" title="Open ${H(short(r.parts[0]))}">${H(c)}</span>` : cols[i][0] === "where" && r.parts.length ? r.parts.map(q => `<span class="xref mono" data-part="${H(q)}">${H(short(q))}</span>`).join(", ") : cols[i][0] === "unit_cost" && rows.length && (r.values || {}).unit_cost ? `<span title="${H(rows.find(x => x.r === r)?.src || "")}">${H(c)}</span>` : H(c)}${cols[i][0] === "item" && r.kind === "extra" && SERVED ? ` <span class="xref" data-form="bom_item" data-index="${r.index}">edit</span>` : ""}</td>`).join("")}</tr>`).join("")}
+    <tr><td></td><td><b>Total</b></td>${cols.slice(2).map(c => `<td>${c[0] === "total" && total ? `<b>${H(total)}</b>` : ""}</td>`).join("")}</tr></table></div>
+    <p class="dsub">Prices in ${CUR[show].name}. Prices written without a currency are in ${CUR[base].name}; others are converted at 1 US$ = RM ${rates.USD} and 1 ¥ = RM ${rates.CNY}${date ? ` (rates from ${H(date)})` : " (rough defaults: set the real ones)"}.${SERVED ? ` <span class="xref" data-form="bom_currency">Rates…</span>` : ""}</p>`);
+  document.querySelectorAll("[data-cur]").forEach(b => b.onclick = () => { bomCur = b.dataset.cur; try { localStorage.setItem("doc.bomCur", bomCur); } catch (e) {} bomPage(); });
+  const grid = () => [cols.map(c => c[1]), ...rows.map(x => x.cells.map(c => typeof c === "number" ? c : String(c))), cols.map(c => c[0] === "item" ? "Total" : c[0] === "total" ? total : "")];
   $("#bx").onclick = async () => { if (!SERVED) { const csv = grid().map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n"); return save(new Blob([csv], {type: "text/csv"}), `${M.name}_BOM.csv`); }
     const r = await fetch("api/bom.xlsx", {method: "POST", headers: {"X-Doc": "1", "Content-Type": "application/json"}, body: JSON.stringify(grid())}); save(await r.blob(), `${M.name}_BOM.xlsx`); };
   $("#bp").onclick = () => { const g = grid(), c = document.createElement("canvas"), x = c.getContext("2d"); x.font = "13px -apple-system,Segoe UI,sans-serif";
@@ -1771,6 +1819,14 @@ function bomPage() {
       x.fillStyle = "#141413"; x.font = (ri ? "" : "600 ") + "13px -apple-system,Segoe UI,sans-serif"; r.forEach((v, i) => { let t = String(v); while (t && x.measureText(t).width > w[i] - 14) t = t.slice(0, -2) + "…"; x.fillText(t, cx + 6, y + 17); cx += w[i]; }); });
     c.toBlob(b => save(b, `${M.name}_BOM.png`)); };
   $("#bf").onclick = () => printDoc(`${M.name} bill of materials`, `<h1>${H(M.name)}: bill of materials</h1>` + printTable(grid()));
+}
+async function fetchRates(btn) {
+  const msg = $("#ratemsg"); btn.disabled = true; msg.textContent = "Fetching…";
+  try { const r = await fetch("api/rates"), d = await r.json(); if (!r.ok) throw new Error(d.error);
+    const f = btn.closest("form") || document; f.querySelector("[name=USD]").value = d.USD; f.querySelector("[name=CNY]").value = d.CNY; f.querySelector("[name=date]").value = d.date;
+    msg.textContent = `Today's rates (${d.date}). Save to keep them.`; }
+  catch (e) { msg.textContent = e.message || "Could not fetch rates; type them in."; }
+  btn.disabled = false;
 }
 function save(blob, name) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
 const printTable = g => `<table><tr>${g[0].map(c => `<th>${H(c)}</th>`).join("")}</tr>${g.slice(1).map(r => `<tr>${r.map(c => `<td>${H(c)}</td>`).join("")}</tr>`).join("")}</table>`;
@@ -1804,10 +1860,10 @@ function reviewPack() {
     sec("Architecture coverage", (c => printTable([c.head, ...c.rows.map(r => r.map(x => x === 0 ? "–" : x))]))(coverage())) +
     sec("Requirements and verification", printTable([["ID", "Requirement", "Method", "Status", "Evidence"], ...rs.map(r => [r.id, r.text, METHOD[r.method] || r.method, r.status, r.evidence.join(" | ")])])) +
     sec("Faults (FDIR)", printTable([["ID", "Failure", "Effect", "Detection", "Response", "Recovery", "Sev", "Covered by"], ...[...M.faults].sort((a, b) => b.sev - a.sev).map(f => [f.id, f.failure, f.effect, f.detection, f.response, f.recovery, f.sev, f.reqs.map(x => `${x} (${reqById[x]?.status || "?"})`).join(", ") || "NOT COVERED"])])) +
-    sec("Interfaces between subsystems", printTable([["Between", "Via", "From", "To", "Pins", "Settings", "Wire"], ...M.icd.map(i => { const c = conns.find(x => x.a.join(".") === i.from || x.b.join(".") === i.from); return [i.pair.join(" ↔ "), i.meaning, short(i.from), short(i.to), i.pins.map(p => p.join(" ")).join(", "), i.settings.map(s => s.join(": ")).join(", "), Object.values(c?.attrs || {}).join(", ")]; })])) +
+    sec("Interfaces between subsystems", printTable([["Between", "Via", "From", "To", "Pins", "Settings", "Wire"], ...M.icd.map(i => { const c = conns.find(x => x.a.join(".") === i.from || x.b.join(".") === i.from); return [i.pair.join(" ↔ "), i.meaning, short(i.from), short(i.to), i.pins.map(p => p.join(" ")).join(", "), i.settings.map(s => `${s[0]}: ${s[1]}${s[2] ? ` (${s[2].endsWith(".c") ? s[2] : "computed"})` : ""}`).join(", "), Object.values(c?.attrs || {}).join(", ")]; })])) +
     ((M.power || []).length ? sec("Power budget", printTable([["Rail", "Voltage", "Available", "Drawn", "Margin"], ...M.power.map(r => [short(r.name), r.voltages.map(v => v + " V").join(" / ") || "—", r.capacity === null ? "—" : r.capacity + " A", r.load + " A", r.capacity ? `${((1 - r.load / r.capacity) * 100).toFixed(0)}%` : "—"])])) : "") +
     sec("Decisions", printTable([["No.", "Decision", "Status", "Why"], ...M.decisions.map(d => [d.num, `${d.title}: ${d.decision}`, d.status, d.why])])) +
-    sec("Bill of materials", printTable([b.cols.map(c => c[1]), ...b.rows.map(x => x.cells)])) +
+    sec("Bill of materials", printTable([b.cols.map(c => c[1]), ...b.rows.map(x => x.cells), b.cols.map(c => c[0] === "item" ? "Total" : c[0] === "total" ? b.total : "")])) +
     ((M.problems.length + M.gaps.length) ? sec("Open problems and review questions", printTable([["Kind", "Text"], ...M.problems.map(p => ["model problem", p]), ...M.gaps.map(g => [g.kind, g.text])])) : ""));
 }
 
