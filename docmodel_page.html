@@ -106,7 +106,7 @@ aside h4{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:va
 .fchip{font:inherit;font-size:12.5px;padding:4px 11px;border-radius:999px;border:1px solid var(--hair);background:var(--surface);color:var(--ink);cursor:pointer}
 .fchip.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
 .sgroup{margin:22px 0 10px;display:flex;align-items:baseline;gap:10px}.sgroup h3{margin:0;font-size:15px}.sgroup .c{color:var(--faint);font-size:12.5px}
-.rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,400px));gap:12px}
+.rgrid{display:grid;grid-template-columns:1fr;gap:12px}
 .rcard{background:var(--surface);border:1px solid var(--ring);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:8px}
 .rcard .top{display:flex;align-items:center;gap:10px}.rcard .id{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;font-weight:600}
 .rcard .meth{margin-left:auto;font-size:11.5px;color:var(--muted);border:1px solid var(--hair);border-radius:6px;padding:1px 7px}
@@ -184,7 +184,7 @@ aside h4{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:va
 .seg{display:inline-flex}.seg button{font:inherit;font-size:12.5px;padding:4px 10px;border:0;background:var(--surface);color:var(--muted);cursor:pointer}.seg button.on{background:var(--sunk);color:var(--ink);font-weight:600}.filters .seg{align-self:center}.filters .seg button{padding:6px 12px;font-size:13px}.seg button:hover{color:var(--ink)}.src{font:10.5px var(--mono,ui-monospace,monospace);color:var(--faint);border:1px solid var(--hair);border-radius:4px;padding:0 4px;margin-left:4px;white-space:nowrap;cursor:help}
 a,a:visited{color:var(--accent);text-decoration-color:color-mix(in srgb,var(--accent) 45%,transparent);text-underline-offset:2px}a:hover{text-decoration-color:var(--accent)}
 .toc{font-size:12.5px;margin-top:6px}.toc a{display:block;color:var(--muted);text-decoration:none;padding:2px 8px}.toc a:hover{color:var(--accent)}.toc a.l3{padding-left:20px}
-.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,240px));gap:12px}
+.crumbs{display:flex;width:fit-content;align-items:center;gap:6px;margin:4px 0 14px;font-size:13px}.crumbs .sep{color:var(--faint)}.mfold .th{display:grid;place-items:center;color:var(--accent);background:var(--sunk)}.mfold{cursor:pointer}.dropok{outline:2px dashed var(--accent);outline-offset:2px}.mmove{font-size:11.5px!important;padding:1px 7px!important;margin-left:auto}.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,240px));gap:12px}
 .mcard{background:var(--surface);border:1px solid var(--ring);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);cursor:pointer;display:flex;flex-direction:column}
 .mcard .th{height:140px;background:var(--sunk);display:grid;place-items:center;overflow:hidden}.mcard .th img,.mcard .th video{width:100%;height:100%;object-fit:cover}
 .mcard .th .ext{font-family:ui-monospace,Menlo,monospace;font-size:20px;color:var(--faint)}.mcard .cap{padding:8px 10px;font-size:12.5px}
@@ -428,7 +428,7 @@ function wire(root) {
   root.querySelectorAll("[data-topic]").forEach(e => e.onclick = ev => { ev.stopPropagation(); showTopic(e.dataset.topic); });
   root.querySelectorAll("[data-dec]").forEach(e => e.onclick = ev => { ev.stopPropagation(); go("decisions"); setTimeout(() => document.getElementById("d" + e.dataset.dec)?.scrollIntoView({behavior: "smooth"}), 50); });
   root.querySelectorAll("[data-form]").forEach(e => e.onclick = ev => { ev.stopPropagation(); openForm(e.dataset.form, {...e.dataset}); });
-  root.querySelectorAll("[data-media]").forEach(e => e.onclick = ev => { ev.stopPropagation(); lightbox(e.dataset.media); });
+  root.querySelectorAll("[data-media]").forEach(e => e.onclick = ev => { if (ev.target.closest("button, .chip, [data-form]") && ev.target.closest("button, .chip, [data-form]") !== e) return; ev.stopPropagation(); lightbox(e.dataset.media); });
   root.querySelectorAll("[data-issue]").forEach(e => e.onclick = ev => { ev.stopPropagation(); showIssue(+e.dataset.issue); });
   root.querySelectorAll("[data-focus]").forEach(e => e.onclick = ev => { ev.stopPropagation(); go(e.dataset.view || "electrical", {focus: e.dataset.focus, edit: e.dataset.edit ? true : undefined}); });
 }
@@ -1308,18 +1308,40 @@ function docsPage() {
   wire($("#prose"));
 }
 
-let mkind = "all";
+let mkind = "all", mfolder = "";  // mfolder: the folder of docs/media being shown ("" = docs/media itself)
+const mdirOf = f => f.includes("/") ? f.slice(0, f.lastIndexOf("/")) : "";
+const FOLDER_SVG = `<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v8.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/></svg>`;
 function mediaPage() {
-  const all = M.media || [];
-  const kinds = ["all", ...new Set(all.map(x => x.kind))];
-  const vis = all.filter(x => mkind === "all" || x.kind === mkind);
-  page(`<div class="ibar"><h2 style="margin:0">Media</h2><span style="flex:1"></span>${SERVED ? `<label class="act">Upload<input type="file" id="up" multiple style="display:none"></label>` : ""}</div>
-    <p class="lead">Files in docs/media/. A file whose name appears in a requirement's evidence shows up on that requirement and its part.</p>
-    <div class="filters"><span class="seg">${kinds.map(k => `<button class="${k === mkind ? "on" : ""}" data-mk="${k}">${k} <span style="opacity:.6">${k === "all" ? all.length : all.filter(x => x.kind === k).length}</span></button>`).join("")}</span></div>
-    <div class="mgrid">${vis.map(x => `<div class="mcard" data-media="${H(x.file)}"><div class="th">${x.kind === "image" ? `<img loading="lazy" src="${murl(x.file)}">` : x.kind === "video" ? `<video muted preload="metadata" src="${murl(x.file)}#t=0.5"></video>` : `<span class="ext">.${H(x.name.split(".").pop())}</span>`}</div>
-      <div class="cap"><div class="n">${H(x.name)}</div><div class="d">${H(x.date)} · ${(x.size / 1024).toFixed(0)} KB</div><div class="links" style="margin-top:4px">${x.reqs.map(r => `<span class="chip" data-req="${H(r)}">${H(r)}</span>`).join("")}</div></div></div>`).join("") || `<div class="empty">No media yet. Put photos, videos and logs in docs/media/.</div>`}</div>`);
+  const all = M.media || [], folders = M.media_folders || [];
+  if (mfolder && !folders.includes(mfolder)) mfolder = "";
+  const here = all.filter(x => mdirOf(x.file) === mfolder);
+  const subs = folders.filter(f => mdirOf(f) === mfolder);
+  const inside = f => all.filter(x => x.file.startsWith(f + "/")).length;
+  const kinds = ["all", ...new Set(here.map(x => x.kind))];
+  if (!kinds.includes(mkind)) mkind = "all";
+  const vis = here.filter(x => mkind === "all" || x.kind === mkind);
+  const crumbs = [["", "media"], ...mfolder.split("/").filter(Boolean).map((n, k, a) => [a.slice(0, k + 1).join("/"), n])];
+  const empty = mfolder && !here.length && !subs.length;
+  page(`<h2>Media<span class="h2acts">${SERVED ? G(`<label class="act" title="Upload into ${H(mfolder ? "media/" + mfolder : "media")}">Upload<input type="file" id="up" multiple style="display:none"></label><button class="act addb" data-form="media_folder">+ Folder</button>`) + (empty ? G(`<button class="act dz" data-form="media_folder_delete">Delete this folder</button>`) : "") : ""}</span></h2>
+    <p class="lead">Files in docs/media/, in folders if you like. A file whose name appears in a requirement's evidence shows up on that requirement and its part, whatever folder it is in.</p>
+    <div class="crumbs">${crumbs.map(([f, n], k) => k === crumbs.length - 1 ? `<b class="mono">${H(n)}</b>` : `<span class="xref mono" data-mf="${H(f)}" data-drop="${H(f)}">${H(n)}</span>`).join(`<span class="sep">/</span>`)}</div>
+    ${here.length ? `<div class="filters"><span class="seg">${kinds.map(k => `<button class="${k === mkind ? "on" : ""}" data-mk="${k}">${k} <span style="opacity:.6">${k === "all" ? here.length : here.filter(x => x.kind === k).length}</span></button>`).join("")}</span></div>` : ""}
+    <div class="mgrid">${subs.map(f => `<div class="mcard mfold" data-mf="${H(f)}" data-drop="${H(f)}" title="Open media/${H(f)}"><div class="th">${FOLDER_SVG}</div>
+      <div class="cap"><div class="n">${H(f.split("/").pop())}</div><div class="d">${inside(f)} file${inside(f) === 1 ? "" : "s"}</div></div></div>`).join("")}
+    ${vis.map(x => `<div class="mcard" data-media="${H(x.file)}"${SERVED ? ` draggable="true" data-drag="${H(x.file)}"` : ""}><div class="th">${x.kind === "image" ? `<img loading="lazy" src="${murl(x.file)}">` : x.kind === "video" ? `<video muted preload="metadata" src="${murl(x.file)}#t=0.5"></video>` : `<span class="ext">.${H(x.name.split(".").pop())}</span>`}</div>
+      <div class="cap"><div class="n">${H(x.name)}</div><div class="d">${H(x.date)} · ${(x.size / 1024).toFixed(0)} KB</div><div class="links" style="margin-top:4px">${x.reqs.map(r => `<span class="chip" data-req="${H(r)}">${H(r)}</span>`).join("")}${SERVED ? `<button class="act mmove" data-form="media_move" data-file="${H(x.file)}" title="Move to another folder">Move</button>` : ""}</div></div></div>`).join("")}</div>
+    ${!subs.length && !vis.length ? `<div class="empty">${mfolder ? "This folder is empty. Upload files here, or drag files onto it from another folder." : "No media yet. Put photos, videos and logs in docs/media/, or upload them here."}</div>` : ""}
+    ${SERVED && (subs.length || mfolder) && vis.length ? `<p class="dsub" style="margin-top:12px">Drag a file onto a folder (or onto a name in the path above) to move it there.</p>` : ""}`);
   document.querySelectorAll("[data-mk]").forEach(b => b.onclick = () => { mkind = b.dataset.mk; mediaPage(); });
-  if ($("#up")) $("#up").onchange = async e => { for (const f of e.target.files) { const r = await upload(f); if (r) toast(r.message); } await refreshModel(); if (window.syncNow) syncNow(); };
+  document.querySelectorAll("[data-mf]").forEach(b => b.onclick = ev => { ev.stopPropagation(); keepScroll(); mfolder = b.dataset.mf; mkind = "all"; mediaPage(); $("#main").scrollTop = 0; });
+  // drag a file onto a folder card or a crumb to move it there
+  document.querySelectorAll("[data-drag]").forEach(c => c.ondragstart = ev => { ev.dataTransfer.setData("text/x-media", c.dataset.drag); ev.dataTransfer.effectAllowed = "move"; });
+  document.querySelectorAll("[data-drop]").forEach(t => {
+    t.ondragover = ev => { if ([...ev.dataTransfer.types].includes("text/x-media")) { ev.preventDefault(); t.classList.add("dropok"); } };
+    t.ondragleave = () => t.classList.remove("dropok");
+    t.ondrop = async ev => { ev.preventDefault(); t.classList.remove("dropok"); const file = ev.dataTransfer.getData("text/x-media"); if (!file || mdirOf(file) === t.dataset.drop) return;
+      try { const r = await post("api/apply/media_move", {file, to: t.dataset.drop}); toast(r.message); await refreshModel(); if (window.syncNow) syncNow(); } catch (e) { toast(e.message, true); } }; });
+  if ($("#up")) $("#up").onchange = async e => { for (const f of e.target.files) { const r = await upload(f, mfolder); if (r) toast(r.message); } await refreshModel(); if (window.syncNow) syncNow(); };
 }
 
 // ------------------------------------------------------------------ live server: polling, toasts, forms
@@ -1364,8 +1386,8 @@ async function post(url, body) {
   if (!r.ok) throw new Error(j.error || r.statusText);
   return j;
 }
-async function upload(file) {
-  try { const r = await fetch("api/upload", {method: "POST", headers: {"X-Doc": "1", "X-Filename": encodeURIComponent(file.name)}, body: file});
+async function upload(file, folder = "") {
+  try { const r = await fetch("api/upload", {method: "POST", headers: {"X-Doc": "1", "X-Filename": encodeURIComponent(file.name), "X-Folder": encodeURIComponent(folder)}, body: file});
     const j = await r.json(); if (!r.ok) throw new Error(j.error); return j; } catch (e) { toast("Upload failed: " + e.message, true); return null; }
 }
 let stepping = false;
@@ -1510,6 +1532,12 @@ function formSpec(kind, d) {
       (e ? `<label class="act dz" style="display:inline-block"><input type="checkbox" name="delete" style="width:auto"> remove this item</label>` : ""), extra: e ? {index: d.index} : {}}; }
     case "bom_columns": return {title: "BOM columns", sub: "Extra columns after the standard ones (qty, item, part number, manufacturer, supplier, link, unit cost, total). A part fills a column from its detail of the same name.", html:
       `<div id="rplist">${(M.bom?.columns || []).map(c => `<div class="prow" style="grid-template-columns:1fr auto"><input name="columns[]" value="${H(c)}"><button class="act dz" type="button" data-rm>✕</button></div>`).join("")}</div><button class="act" type="button" id="addcol">+ Column</button>`};
+    case "media_folder": return {title: "New folder", sub: `Inside ${mfolder ? "media/" + mfolder : "docs/media"}. Folders are only for tidiness: a file is still found by its name in a requirement's evidence.`, html:
+      fld("name", "Folder name", "e.g. tests, wiring photos, 2026-11 field run", `<input name="name" autofocus>`), extra: {parent: mfolder}};
+    case "media_move": { const opts = [["", "media (top level)"], ...(M.media_folders || []).map(f => [f, "media/" + f])];
+      return {title: `Move ${d.file.split("/").pop()}`, sub: "Moves the file inside docs/media and commits it. Requirements that name it keep finding it.", html:
+        fld("to", "To folder", "", sel("to", opts, mdirOf(d.file))), extra: {file: d.file}}; }
+    case "media_folder_delete": return {title: `Delete media/${mfolder}`, sub: "The folder is empty. Deleting it removes it from the repo.", html: "", extra: {folder: mfolder}, danger: true};
     case "bom_currency": return {title: "BOM currency", sub: "Each price keeps the currency it was typed in (¥20, US$3.50, RM 12). Prices typed without a currency are in:", html:
       fld("currency", "Currency of prices without a sign", "", sel("currency", [["MYR", "RM · Malaysian ringgit"], ["USD", "US$ · US dollar"], ["CNY", "¥ · Chinese yuan"]], (M.bom || {}).currency || "MYR"))};
     case "disconnect": return {title: "Remove connection", sub: "", html: `<div class="pv">${H(short(d.a))}  ↔  ${H(short(d.b))}</div>`, extra: {a: d.a, b: d.b}};

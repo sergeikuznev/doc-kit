@@ -1724,10 +1724,13 @@ def collect_extras(root, m, with_issues=True):
             title = next((h[1] for h in heads if h[0] == 1), f[:-3].replace("_", " "))
             docs.append({"group": group, "file": os.path.relpath(path, root) if group != "How to use doc-kit" else f"doc-kit/{f}",
                          "title": title, "html": body, "toc": [h for h in heads if h[0] in (2, 3)]})
-    media = []
+    media, media_folders = [], []
     mdir = os.path.join(root, "docs", "media")
     if os.path.isdir(mdir):
-        for base, _, files in os.walk(mdir):
+        for base, dirs, files in os.walk(mdir):
+            dirs[:] = sorted(d for d in dirs if not d.startswith("."))
+            if base != mdir:
+                media_folders.append(os.path.relpath(base, mdir).replace(os.sep, "/"))
             for f in sorted(files):
                 if f.startswith("."):
                     continue
@@ -1744,7 +1747,7 @@ def collect_extras(root, m, with_issues=True):
                 med["reqs"].append(r["id"])
                 r.setdefault("media", []).append(med["file"])
     issues, issue_error = ([], "skipped") if not with_issues else fetch_issues(root)
-    m.update({"docs": docs, "media": media, "issues": issues, "issue_error": issue_error,
+    m.update({"docs": docs, "media": media, "media_folders": media_folders, "issues": issues, "issue_error": issue_error,
               "built": datetime.datetime.now().isoformat(timespec="seconds")})
     collect_extras_link_issues(m)
     return m

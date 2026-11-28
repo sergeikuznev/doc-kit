@@ -822,10 +822,22 @@ GitHub draws them) are drawn as diagrams here too.
 
 ![Media](images/media.png)
 
-1. **Filter by kind**: image, video, data, PDF.
-2. **A file.** Click for full size: photos and videos play, logs and CSVs show their text.
-3. **The requirement** whose evidence names this file.
-4. **Upload** adds files to `docs/media/` and commits them.
+1. **Upload** puts files in the folder you are looking at; **+ Folder** makes a
+   folder inside it.
+2. **The path**: where you are inside docs/media. Click a name to go back up.
+3. **Filter by kind** (image, video, data, PDF) within this folder.
+4. **A folder**, with how many files it holds. Click to open it.
+5. **A file.** Click for full size: photos and videos play, logs and CSVs show their text.
+6. **The requirement** whose evidence names this file.
+7. **Move** sends the file to another folder. You can also drag a file onto a
+   folder, or onto a name in the path.
+
+Folders are only for keeping things tidy (one per test campaign, per
+subsystem, per field trip). A file is still linked by its name: a requirement
+whose evidence says `comm_20m.png` finds it in any folder, also after a move.
+Each change (new folder, upload, move) is one commit. An empty folder shows
+**Delete this folder**; a folder with files in it cannot be deleted from the
+page, move them out first.
 
 ---
 

@@ -268,6 +268,8 @@ class Server:
         warnings, msg = [], ""
         if op.startswith("issue_"):
             return self.issue_op(op, f, dry)
+        if op in ("media_folder", "media_move", "media_folder_delete"):
+            return self.media_op(op, f, dry)
         if op == "idea" or op == "bug":
             if op == "idea":
                 body, labels = D.issue_body("idea", {"what": lines("what"), "why": lines("why"), "sub": need("sub"),
@@ -652,10 +654,85 @@ class Server:
             warn.append(f"the model would not build: {e}")
         return "\n\n".join(out), warn
 
-    def upload(self, name, data):
+    def media_dir(self, rel=""):
+        """A folder inside docs/media (rel like 'tests/2026-11'); refuses anything that would leave it."""
+        base = os.path.realpath(os.path.join(self.root, "docs", "media"))
+        parts = [x for x in str(rel or "").replace("\\", "/").split("/") if x not in ("", ".")]
+        if any(x == ".." or x.startswith(".") for x in parts):
+            raise doc.OpError("folder names cannot start with a dot or be ..")
+        full = os.path.realpath(os.path.join(base, *parts))
+        if full != base and not full.startswith(base + os.sep):
+            raise doc.OpError("that folder is outside docs/media")
+        return full
+
+    def media_op(self, op, f, dry):
+        """Folders for media: create, move a file, delete an empty folder. Each is one commit."""
+        base = self.media_dir()
+        os.makedirs(base, exist_ok=True)
+        tracked = lambda p: bool(self.git("ls-files", "--", os.path.relpath(p, self.root)).stdout.strip())
+        if op == "media_folder":
+            name = re.sub(r"[^\w.\- ]+", "_", str(f.get("name") or "")).strip(" ._")
+            if not name:
+                raise doc.OpError("Give the folder a name")
+            path = os.path.join(self.media_dir(f.get("parent")), name)
+            rel = os.path.relpath(path, base).replace(os.sep, "/")
+            if os.path.exists(path):
+                raise doc.OpError(f"media/{rel} already exists")
+            if dry:
+                return {"preview": f"New folder docs/media/{rel}", "warnings": []}
+            os.makedirs(path)
+            keep = os.path.join(path, ".gitkeep")  # git keeps no empty folders
+            open(keep, "w").close()
+            with self.lock:
+                self.commit([keep], f"doc: media folder {rel}")
+                self.rebuild(force=True, issues=False)
+            return {"message": f"Folder media/{rel} created", "folder": rel}
+        if op == "media_move":
+            src = os.path.realpath(os.path.join(base, str(f.get("file") or "")))
+            if not src.startswith(base + os.sep) or not os.path.isfile(src):
+                raise doc.OpError("that file is not in docs/media")
+            dest_dir = self.media_dir(f.get("to"))
+            dest = os.path.join(dest_dir, os.path.basename(src))
+            if os.path.realpath(dest) == src:
+                raise doc.OpError("It is already in that folder")
+            if os.path.exists(dest):
+                raise doc.OpError(f"a file named {os.path.basename(src)} is already in that folder")
+            rel_src, rel_dest = (os.path.relpath(x, base).replace(os.sep, "/") for x in (src, dest))
+            if dry:
+                return {"preview": f"Move media/{rel_src} to media/{rel_dest}", "warnings": []}
+            was = tracked(src)
+            os.makedirs(dest_dir, exist_ok=True)
+            os.rename(src, dest)  # the commit records the old path as deleted (git add on a removed, tracked path)
+            with self.lock:
+                self.commit([src, dest] if was else [dest], f"doc: move media/{rel_src} to media/{rel_dest}")
+                self.rebuild(force=True, issues=False)
+            return {"message": f"Moved to media/{rel_dest}", "file": rel_dest}
+        if op == "media_folder_delete":
+            path = self.media_dir(f.get("folder"))
+            rel = os.path.relpath(path, base).replace(os.sep, "/")
+            if path == base or not os.path.isdir(path):
+                raise doc.OpError("no such folder")
+            left = [x for x in os.listdir(path) if x != ".gitkeep"]
+            if left:
+                raise doc.OpError(f"media/{rel} is not empty: move or delete its {len(left)} item(s) first")
+            if dry:
+                return {"preview": f"Delete the empty folder docs/media/{rel}", "warnings": []}
+            keep = os.path.join(path, ".gitkeep")
+            was = os.path.exists(keep) and tracked(keep)
+            if os.path.exists(keep):
+                os.remove(keep)
+            os.rmdir(path)
+            with self.lock:
+                if was:
+                    self.commit([keep], f"doc: delete media folder {rel}")
+                self.rebuild(force=True, issues=False)
+            return {"message": f"Folder media/{rel} deleted"}
+        raise doc.OpError(f"unknown media operation {op}")
+
+    def upload(self, name, data, folder_rel=""):
         safe = re.sub(r"[^\w.\-]+", "_", os.path.basename(name)).strip("._") or "upload"
         stem, ext = os.path.splitext(safe)
-        folder = os.path.join(self.root, "docs", "media")
+        folder = self.media_dir(folder_rel)
         os.makedirs(folder, exist_ok=True)
         fname = f"{time.strftime('%Y-%m-%d')}_{stem}{ext.lower()}"
         n = 2
@@ -664,10 +741,11 @@ class Server:
         path = os.path.join(folder, fname)
         with open(path, "wb") as fh:
             fh.write(data)
+        rel = os.path.relpath(path, self.media_dir()).replace(os.sep, "/")
         with self.lock:
-            self.commit([path], f"doc: add media {fname}")
+            self.commit([path], f"doc: add media {rel}")
             self.rebuild(force=True, issues=False)
-        return {"file": fname, "message": f"Uploaded {fname}"}
+        return {"file": rel, "message": f"Uploaded {rel}"}
 
 
 CUR_STYLE = {"MYR": 2, "USD": 3, "CNY": 4}  # cellXfs index of each currency format (+3 = bold, for the total)
@@ -827,7 +905,8 @@ def make_handler(S):
                 if path == "/api/pick_folder":
                     return self.send(200, {"path": pick_folder()})
                 if path == "/api/upload":
-                    return self.send(200, S.upload(urllib.parse.unquote(self.headers.get("X-Filename", "upload")), raw))
+                    return self.send(200, S.upload(urllib.parse.unquote(self.headers.get("X-Filename", "upload")), raw,
+                                                   urllib.parse.unquote(self.headers.get("X-Folder", ""))))
                 m = re.match(r"^/api/(preview|apply)/(\w+)$", path)
                 if not m:
                     return self.send(404, {"error": "not found"})
