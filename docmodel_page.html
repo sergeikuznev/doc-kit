@@ -1791,7 +1791,7 @@ function bomTable() {
   const rows = (B.rows || []).map(r => { const v = r.values || {}, pr = parsePrice(v.unit_cost, base), cost = conv(pr);
     const qty = r.kind === "wire" ? (r.length ? `${+r.length.toFixed(2)} m${r.unmeasured ? ` + ${r.unmeasured} unmeasured` : ""}` : `${r.qty} wire(s)`) : r.qty;
     const tot = isFinite(cost) && typeof r.qty === "number" ? cost * r.qty : NaN;
-    return {r, num: tot, src: pr && pr.cur !== show ? `${money(pr.n, pr.cur)} as entered` : "", cells: cols.map(([k]) => k === "qty" ? qty : k === "item" ? r.item : k === "total" ? money(tot, show) : k === "unit_cost" ? money(cost, show)
+    return {r, num: tot, cost, src: pr && pr.cur !== show ? `${money(pr.n, pr.cur)} as entered` : "", cells: cols.map(([k]) => k === "qty" ? qty : k === "item" ? r.item : k === "total" ? money(tot, show) : k === "unit_cost" ? money(cost, show)
       : k === "category" ? (r.category || (r.kind === "wire" || r.kind === "connector" ? "Interconnect" : "")) : k === "where" ? (r.parts.length ? r.parts.map(short).join(", ") : r.kind === "extra" ? "extra item" : r.kind) : (v[k] ?? ""))}; });
   const total = rows.reduce((t, x) => t + (isFinite(x.num) ? x.num : 0), 0);
   return {cols, rows, total: total ? money(total, show) : "", show, base, rates};
@@ -1838,7 +1838,11 @@ function bomPage() {
   document.querySelectorAll("[data-cur]").forEach(b => b.onclick = () => { bomCur = b.dataset.cur; try { localStorage.setItem("doc.bomCur", bomCur); } catch (e) {} bomPage(); });
   const grid = () => [cols.map(c => c[1]), ...rows.map(x => x.cells.map(c => typeof c === "number" ? c : String(c))), cols.map(c => c[0] === "item" ? "Total" : c[0] === "total" ? total : "")];
   $("#bx").onclick = async () => { if (!SERVED) { const csv = grid().map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n"); return save(new Blob([csv], {type: "text/csv"}), `${M.name}_BOM.csv`); }
-    const r = await fetch("api/bom.xlsx", {method: "POST", headers: {"X-Doc": "1", "Content-Type": "application/json"}, body: JSON.stringify(grid())}); save(await r.blob(), `${M.name}_BOM.xlsx`); };
+    const ci = k => cols.findIndex(c => c[0] === k), uc = ci("unit_cost"), tc = ci("total"), qc = ci("qty"), L = i => { let s = ""; i++; while (i) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; };
+    const xg = [cols.map(c => c[1]), ...rows.map(x => x.cells.map((c, i) => i === uc ? (isFinite(x.cost) ? {n: +x.cost.toFixed(4), cur: show} : "")
+      : i === tc ? (isFinite(x.num) ? {n: +x.num.toFixed(4), cur: show} : "") : i === qc && typeof x.r.qty === "number" && x.r.kind !== "wire" ? x.r.qty : typeof c === "number" ? c : String(c))),
+      cols.map((c, i) => c[0] === "item" ? "Total" : i === tc ? {f: `SUM(${L(tc)}2:${L(tc)}${rows.length + 1})`, cur: show, b: 1} : "")];
+    const r = await fetch("api/bom.xlsx", {method: "POST", headers: {"X-Doc": "1", "Content-Type": "application/json"}, body: JSON.stringify(xg)}); save(await r.blob(), `${M.name}_BOM.xlsx`); };
   $("#bp").onclick = () => { const g = grid(), c = document.createElement("canvas"), x = c.getContext("2d"); x.font = "13px -apple-system,Segoe UI,sans-serif";
     const w = g[0].map((_, i) => Math.min(320, Math.max(...g.map(r => x.measureText(String(r[i])).width)) + 20)); c.width = w.reduce((a, b) => a + b, 0) + 20; c.height = g.length * 26 + 56;
     x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.fillStyle = "#141413"; x.font = "600 15px -apple-system,Segoe UI,sans-serif"; x.fillText(`${M.name} bill of materials`, 10, 24);

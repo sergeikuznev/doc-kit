@@ -670,6 +670,9 @@ class Server:
         return {"file": fname, "message": f"Uploaded {fname}"}
 
 
+CUR_STYLE = {"MYR": 2, "USD": 3, "CNY": 4}  # cellXfs index of each currency format (+3 = bold, for the total)
+
+
 def xlsx(rows):
     """A one-sheet .xlsx from a list of rows (first row = header), standard library only."""
     import io
@@ -688,7 +691,11 @@ def xlsx(rows):
         cells = []
         for ci, v in enumerate(row):
             ref = f"{col(ci)}{ri}"
-            if isinstance(v, (int, float)) and not isinstance(v, bool):
+            if isinstance(v, dict) and ("n" in v or "f" in v):  # money: {"n": 12.5, "cur": "MYR"} or {"f": "SUM(H2:H9)", ...}
+                st = CUR_STYLE.get(v.get("cur"), 0) + (3 if v.get("b") else 0)
+                body = f"<f>{escape(v['f'])}</f>" if "f" in v else f"<v>{float(v['n'])}</v>"
+                cells.append(f'<c r="{ref}" s="{st}">{body}</c>')
+            elif isinstance(v, (int, float)) and not isinstance(v, bool):
                 cells.append(f'<c r="{ref}"><v>{v}</v></c>')
             else:
                 style = ' s="1"' if ri == 1 else ""
@@ -708,8 +715,15 @@ def xlsx(rows):
         '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
         '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>',
         "xl/styles.xml": '<?xml version="1.0" encoding="UTF-8"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-        '<fonts count="2"><font/><font><b/></font></fonts><fills count="1"><fill/></fills><borders count="1"><border/></borders>'
-        '<cellStyleXfs count="1"><xf/></cellStyleXfs><cellXfs count="2"><xf/><xf fontId="1" applyFont="1"/></cellXfs></styleSheet>',
+        '<numFmts count="3"><numFmt numFmtId="164" formatCode="[$RM-43E] #,##0.00"/><numFmt numFmtId="165" formatCode="[$US$-409]#,##0.00"/>'
+        '<numFmt numFmtId="166" formatCode="[$\u00a5-804]#,##0.00"/></numFmts>'
+        '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>'
+        '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>'
+        '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="8"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>'
+        '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="166" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'
+        '<xf numFmtId="164" fontId="1" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/><xf numFmtId="165" fontId="1" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>'
+        '<xf numFmtId="166" fontId="1" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>',
         "xl/worksheets/sheet1.xml": '<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
         f'<sheetData>{"".join(sheet)}</sheetData></worksheet>'}
     buf = io.BytesIO()
