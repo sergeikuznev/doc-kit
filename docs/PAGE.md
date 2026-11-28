@@ -683,30 +683,39 @@ load and efficiency).
 
 1. **+ Item** for things that are not parts in the diagram (screws,
    heat-shrink, zip ties); **+ Column** adds your own column, filled from the
-   part detail of the same name.
+   part detail of the same name; **Edit** turns the table into a form (below).
 2. **Currency**: RM, US$ or ¥ for unit cost and total. Every price carries its
-   currency sign, so nobody mistakes one for another. The choice is remembered
+   sign, so nobody mistakes one currency for another. The choice is remembered
    in your browser.
 3. **Export** as Excel (`.xlsx`), PNG or PDF, in the currency shown. Without a
    server, Excel becomes a CSV.
-4. **An item**: click it to open the part.
-5. **A price**, converted to the currency shown. Hover it to see the price as
-   it was entered.
+4. **An item**: click it to open the part. A board shows just its chip.
+5. **A price.** It keeps the currency it was typed in: typed as `¥30`, it is
+   ¥30.00 in yuan, and the ringgit and dollar figures follow the market rate.
+   Hover a converted price to see it as typed.
 6. **Category**, from the part's kind; rows are ordered by group.
 7. **Where** each part is in the model; each name opens that part.
-8. **Rates…**: the exchange rates and the currency of prices written without one.
+8. **The rates**: live market rates (open.er-api.com), fetched by `doc serve`
+   when the page opens and every hour after, and kept for offline use (then
+   marked *last known*). **Currency of unmarked prices…** sets the currency
+   of prices typed without a sign (ringgit unless you change it).
 
 The bill of materials is built from the model: parts grouped by part number
 (or description), with quantity, item, part number, manufacturer, supplier,
 link, unit cost and total. Wires are totalled by gauge from their lengths,
 connectors counted from the wires.
 
-**Prices and currencies.** Write a part's `unit_cost` with its currency:
-`RM 12.50`, `US$3.50` (or `$3.50`, `3.50 USD`), `¥20` (or `20 CNY`, `20 RMB`).
-A price with no sign is in the BOM's own currency (ringgit unless you change
-it in **Rates…**). **Rates…** holds 1 US$ and 1 ¥ in ringgit; **Fetch today's
-rates** fills them in from the internet (open.er-api.com), or type them. They
-are saved in `model.toml`, with the date, so everyone converts the same way.
+![Editing the BOM](images/bom-edit.png)
+
+1. **Cancel** or **Save changes** (Enter saves, Esc cancels).
+2. **A detail** of a part: part number, manufacturer, supplier, link or any
+   column you added. It is saved on every part of the row (both encoders, for
+   example), in the part's Details.
+3. **A price**, with its currency: `¥20`, `US$3.50` (or `$3.50`, `3.50 USD`),
+   `RM 12`, `20 CNY` or `20 RMB`.
+4. **Extra items** (+ Item) can change their name and quantity too.
+
+Wires and connectors are counted from the wiring, so they are not edited here.
 
 ### Design review pack
 

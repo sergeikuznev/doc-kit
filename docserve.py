@@ -37,7 +37,37 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import docedit
 import docmodel
 
-doc = sys.modules.get("__main__")  # doc.py, which imports this module
+doc = sys.modules.get("__main__")
+
+RATES_TTL = 3 * 3600
+_rates_lock = threading.Lock()
+
+
+def live_rates(force=False):
+    """1 USD and 1 CNY in ringgit from open.er-api.com (free, no key). Cached in memory and in
+    ~/.config/doc-kit/rates.json, so an offline start still has the last known rates (marked stale)."""
+    import urllib.request
+    path = os.path.join(os.path.expanduser("~"), ".config", "doc-kit", "rates.json")
+    with _rates_lock:
+        cached = None
+        try:
+            cached = json.load(open(path))
+        except (OSError, ValueError):
+            pass
+        if cached and not force and time.time() - cached.get("fetched", 0) < RATES_TTL:
+            return cached | {"stale": False}
+        try:
+            with urllib.request.urlopen("https://open.er-api.com/v6/latest/MYR", timeout=8) as r:
+                d = json.loads(r.read().decode())
+            out = {"USD": round(1 / d["rates"]["USD"], 4), "CNY": round(1 / d["rates"]["CNY"], 4),
+                   "updated": d.get("time_last_update_utc", ""), "source": "open.er-api.com", "fetched": time.time()}
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            json.dump(out, open(path, "w"))
+            return out | {"stale": False}
+        except Exception:
+            return cached | {"stale": True} if cached else None
+
+  # doc.py, which imports this module
 
 
 class Server:
@@ -724,15 +754,9 @@ def make_handler(S):
             m_ = re.match(r"^/api/issue/(\d+)$", path)
             if m_:
                 return self.send(200, docmodel.issue_timeline(S.root, m_.group(1)))
-            if path == "/api/rates":  # today's rates for the BOM, in ringgit per unit
-                import json as _j, urllib.request as _u
-                try:
-                    with _u.urlopen("https://open.er-api.com/v6/latest/MYR", timeout=8) as r:
-                        d = _j.loads(r.read().decode())
-                    return self.send(200, {"USD": round(1 / d["rates"]["USD"], 4), "CNY": round(1 / d["rates"]["CNY"], 4),
-                                           "date": time.strftime("%Y-%m-%d")})
-                except Exception as e:
-                    return self.send(502, {"error": f"could not fetch rates ({e.__class__.__name__}); type them in"})
+            if path == "/api/rates":  # market rates for the BOM, ringgit per unit, cached for 3 hours
+                r = live_rates()
+                return self.send(200, r) if r else self.send(502, {"error": "live rates unavailable"})
             if path == "/api/kicad":
                 import dockicad
                 q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)

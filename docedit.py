@@ -841,19 +841,60 @@ def op_bom_currency(cfg, A, f, ctx):
     cur = str(f.get("currency") or "MYR").upper()
     if cur not in ("MYR", "USD", "CNY"):
         raise EditError("currency must be MYR, USD or CNY")
-    rates = {}
-    for k in ("USD", "CNY"):
-        try:
-            v = float(str(f.get(k, "")).replace(",", "."))
-        except ValueError:
-            raise EditError(f"1 {k} = how many ringgit? a number, e.g. 4.2")
-        if v <= 0:
-            raise EditError(f"the {k} rate must be above zero")
-        rates[k] = v
-    bc["currency"], bc["rates"] = cur, rates
-    import datetime
-    bc["rates_date"] = str(f.get("date") or datetime.date.today().isoformat())[:10]
-    return f"BOM currency {cur}, 1 USD = {rates['USD']:g} RM, 1 CNY = {rates['CNY']:g} RM", []
+    bc["currency"] = cur
+    names = {"MYR": "ringgit", "USD": "US dollars", "CNY": "yuan"}
+    return f"BOM: prices without a currency are in {names[cur]}", []
+
+
+BOM_FIELDS = ("part_number", "manufacturer", "supplier", "link", "unit_cost")
+
+
+def op_bom_edit(cfg, A, f, ctx):
+    """Edits from the BOM table: details of parts (every part of a row) and extra items."""
+    tn = A["top"]["name"]
+    extra_cols = list(cfg.get("bom", {}).get("columns", []))
+    allowed = set(BOM_FIELDS) | set(extra_cols)
+    changed = 0
+    for ch in f.get("changes") or []:
+        field, val = str(ch.get("field") or ""), str(ch.get("value") or "").strip()
+        if ch.get("index") not in (None, ""):
+            items = cfg.setdefault("bom_item", [])
+            i = int(ch["index"])
+            if not 0 <= i < len(items):
+                raise EditError("that BOM item no longer exists; reload")
+            if field == "item":
+                if not val:
+                    raise EditError("An extra item needs a name")
+                items[i]["item"] = val
+            elif field == "qty":
+                if not re.fullmatch(r"\d+(\.\d+)?", val or "x"):
+                    raise EditError(f"Qty must be a number ({items[i]['item']})")
+                items[i]["qty"] = val
+            elif field in allowed:
+                if val:
+                    items[i][field] = val
+                else:
+                    items[i].pop(field, None)
+            else:
+                raise EditError(f"{field} cannot be edited here")
+            changed += 1
+            continue
+        if field not in allowed:
+            raise EditError(f"{field} cannot be edited in the BOM; edit the part")
+        for full in ch.get("parts") or []:
+            p = node(A, split_path(tn, full))
+            if p is None:
+                raise EditError(f"no part {full}")
+            attrs = dict(p.get("attrs") or {})
+            if val:
+                attrs[field] = val
+            else:
+                attrs.pop(field, None)
+            p["attrs"] = attrs
+            changed += 1
+    if not changed:
+        raise EditError("No change")
+    return f"edit BOM ({changed} value{'s' if changed != 1 else ''})", []
 
 
 def op_bom_item(cfg, A, f, ctx):
@@ -1308,7 +1349,7 @@ OPS = {"kinds_standard": op_kinds_standard, "kind": op_kind, "kind_delete": op_k
        "subsystem_move": op_subsystem_move, "board": op_board, "board_remove": op_board_remove, "ros_paths": op_ros_paths,
        "port_type": op_port_type, "port_type_delete": op_port_type_delete, "part": op_part, "part_delete": op_part_delete,
        "connect": op_connect, "disconnect": op_disconnect, "allocate": op_allocate, "satisfy": op_satisfy,
-       "wire": op_wire, "bom_columns": op_bom_columns, "bom_currency": op_bom_currency, "bom_item": op_bom_item, "pages": op_pages}
+       "wire": op_wire, "bom_columns": op_bom_columns, "bom_currency": op_bom_currency, "bom_edit": op_bom_edit, "bom_item": op_bom_item, "pages": op_pages}
 
 
 def _pin_case(A, model):

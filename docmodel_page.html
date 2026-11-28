@@ -170,7 +170,7 @@ aside h4{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:va
 .prose pre{background:var(--sunk);padding:10px 12px;border-radius:8px;overflow:auto;font-size:12px}.prose code{background:var(--sunk);padding:1px 4px;border-radius:4px}
 .prose pre code{background:none;padding:0}.prose blockquote{border-left:3px solid var(--hair);margin:8px 0;padding:2px 12px;color:var(--muted)}
 .prose img{max-width:100%;border-radius:8px}.prose li.sub{margin-left:18px;list-style:circle}
-.xref,.lnk{color:var(--accent);cursor:pointer;border-bottom:1px dotted color-mix(in srgb,var(--accent) 75%,transparent);transition:filter .1s}.xref:hover,.lnk:hover{filter:brightness(1.35);border-bottom-style:solid;border-bottom-color:var(--accent)}.seg{display:inline-flex;border:1px solid var(--hair);border-radius:7px;overflow:hidden}.seg button{font:inherit;font-size:12.5px;padding:4px 10px;border:0;background:var(--surface);color:var(--muted);cursor:pointer}.seg button+button{border-left:1px solid var(--hair)}.seg button.on{background:var(--sunk);color:var(--ink);font-weight:600}.seg button:hover{color:var(--ink)}.src{font:10.5px var(--mono,ui-monospace,monospace);color:var(--faint);border:1px solid var(--hair);border-radius:4px;padding:0 4px;margin-left:4px;white-space:nowrap;cursor:help}
+.xref,.lnk{color:var(--accent);cursor:pointer;border-bottom:1px dotted color-mix(in srgb,var(--accent) 75%,transparent);transition:filter .1s}.xref:hover,.lnk:hover{filter:brightness(1.35);border-bottom-style:solid;border-bottom-color:var(--accent)}.bom input.bcell{font:inherit;font-size:13px;width:100%;min-width:90px;background:var(--sunk);color:var(--ink);border:1px solid var(--hair);border-radius:5px;padding:4px 6px}.bom input.bcell:focus{outline:none;border-color:var(--accent)}.seg{display:inline-flex;border:1px solid var(--hair);border-radius:7px;overflow:hidden}.seg button{font:inherit;font-size:12.5px;padding:4px 10px;border:0;background:var(--surface);color:var(--muted);cursor:pointer}.seg button+button{border-left:1px solid var(--hair)}.seg button.on{background:var(--sunk);color:var(--ink);font-weight:600}.seg button:hover{color:var(--ink)}.src{font:10.5px var(--mono,ui-monospace,monospace);color:var(--faint);border:1px solid var(--hair);border-radius:4px;padding:0 4px;margin-left:4px;white-space:nowrap;cursor:help}
 a,a:visited{color:var(--accent);text-decoration-color:color-mix(in srgb,var(--accent) 45%,transparent);text-underline-offset:2px}a:hover{text-decoration-color:var(--accent)}
 .toc{font-size:12.5px;margin-top:6px}.toc a{display:block;color:var(--muted);text-decoration:none;padding:2px 8px}.toc a:hover{color:var(--accent)}.toc a.l3{padding-left:20px}
 .mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
@@ -1446,12 +1446,8 @@ function formSpec(kind, d) {
       (e ? `<label class="act dz" style="display:inline-block"><input type="checkbox" name="delete" style="width:auto"> remove this item</label>` : ""), extra: e ? {index: d.index} : {}}; }
     case "bom_columns": return {title: "BOM columns", sub: "Extra columns after the standard ones (qty, item, part number, manufacturer, supplier, link, unit cost, total). A part fills a column from its detail of the same name.", html:
       `<div id="rplist">${(M.bom?.columns || []).map(c => `<div class="prow" style="grid-template-columns:1fr auto"><input name="columns[]" value="${H(c)}"><button class="act dz" type="button" data-rm>✕</button></div>`).join("")}</div><button class="act" type="button" id="addcol">+ Column</button>`};
-    case "bom_currency": { const b = M.bom || {}, r = b.rates || {};
-      return {title: "BOM currency", sub: "Prices are converted with these rates. A price can carry its own currency (RM 12, US$3.50, ¥20); one without uses the currency below.", html:
-      fld("currency", "Prices without a currency are in", "", sel("currency", [["MYR", "RM · Malaysian ringgit"], ["USD", "US$ · US dollar"], ["CNY", "¥ · Chinese yuan"]], b.currency || "MYR")) +
-      fld("USD", "1 US dollar =", "in ringgit", `<input name="USD" inputmode="decimal" value="${H(r.USD ?? "")}">`) +
-      fld("CNY", "1 Chinese yuan =", "in ringgit", `<input name="CNY" inputmode="decimal" value="${H(r.CNY ?? "")}">`) +
-      `<input type="hidden" name="date" value="${H(b.rates_date || "")}"><button class="act" type="button" onclick="fetchRates(this)">Fetch today's rates</button> <span class="dsub" id="ratemsg">${b.rates_date ? `Rates from ${H(b.rates_date)}.` : "Rates not set yet: these are rough defaults."}</span>`}; }
+    case "bom_currency": return {title: "BOM currency", sub: "Each price keeps the currency it was typed in (¥20, US$3.50, RM 12). Prices typed without a currency are in:", html:
+      fld("currency", "Currency of prices without a sign", "", sel("currency", [["MYR", "RM · Malaysian ringgit"], ["USD", "US$ · US dollar"], ["CNY", "¥ · Chinese yuan"]], (M.bom || {}).currency || "MYR"))};
     case "disconnect": return {title: "Remove connection", sub: "", html: `<div class="pv">${H(short(d.a))}  ↔  ${H(short(d.b))}</div>`, extra: {a: d.a, b: d.b}};
     case "ros_node": { const n = d.orig ? M.nodes.find(x => x.name === d.orig) : null;
       const outs = n ? n.pub.filter(e => !e.unplanned || !n.planned) : [], ins = n ? n.sub.filter(e => !e.unplanned || !n.planned) : [];
@@ -1776,6 +1772,9 @@ function budgetPage() {
 // ------------------------------------------------------------------ BOM
 const BOM_STD = [["qty", "Qty"], ["item", "Item"], ["part_number", "Part number"], ["manufacturer", "Manufacturer"], ["supplier", "Supplier"], ["link", "Link"], ["unit_cost", "Unit cost"], ["total", "Total"]];
 const CUR = {MYR: {sym: "RM ", name: "ringgit"}, USD: {sym: "US$", name: "US dollars"}, CNY: {sym: "¥", name: "yuan"}};
+let LIVE = null;  // market rates from the server (ringgit per unit), refreshed hourly
+async function loadRates() { if (!SERVED) return; try { const r = await fetch("api/rates"); if (r.ok) { LIVE = await r.json(); if (view === "bom" && !bomEdit) bomPage(); } } catch (e) {} }
+let bomEdit = false;
 let bomCur = (() => { try { return localStorage.getItem("doc.bomCur"); } catch (e) { return null; } })();
 function parsePrice(t, base) {  // "RM 12", "US$3.50", "$3.5", "20 CNY", "¥20", "12" -> {n, cur}
   const x = String(t ?? "").trim(); if (!x) return null;
@@ -1786,7 +1785,7 @@ function parsePrice(t, base) {  // "RM 12", "US$3.50", "$3.5", "20 CNY", "¥20",
 const toRM = (p, rates) => p.cur === "MYR" ? p.n : p.n * (rates[p.cur] || NaN);
 const money = (n, cur) => isFinite(n) ? `${CUR[cur].sym}${n.toLocaleString("en-MY", {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : "";
 function bomTable() {
-  const B = M.bom || {}, base = B.currency || "MYR", rates = B.rates || {}, show = CUR[bomCur] ? bomCur : base;
+  const B = M.bom || {}, base = B.currency || "MYR", rates = LIVE ? {USD: LIVE.USD, CNY: LIVE.CNY} : (B.rates || {}), show = CUR[bomCur] ? bomCur : base;
   const conv = p => p ? (p.cur === show ? p.n : toRM(p, rates) / (show === "MYR" ? 1 : rates[show])) : NaN;
   const cols = [...BOM_STD, ...(B.columns || []).map(c => [c, c.replace(/_/g, " ")]), ["category", "Category"], ["where", "Where"]];
   const rows = (B.rows || []).map(r => { const v = r.values || {}, pr = parsePrice(v.unit_cost, base), cost = conv(pr);
@@ -1795,19 +1794,40 @@ function bomTable() {
     return {r, num: tot, src: pr && pr.cur !== show ? `${money(pr.n, pr.cur)} as entered` : "", cells: cols.map(([k]) => k === "qty" ? qty : k === "item" ? r.item : k === "total" ? money(tot, show) : k === "unit_cost" ? money(cost, show)
       : k === "category" ? (r.category || (r.kind === "wire" || r.kind === "connector" ? "Interconnect" : "")) : k === "where" ? (r.parts.length ? r.parts.map(short).join(", ") : r.kind === "extra" ? "extra item" : r.kind) : (v[k] ?? ""))}; });
   const total = rows.reduce((t, x) => t + (isFinite(x.num) ? x.num : 0), 0);
-  return {cols, rows, total: total ? money(total, show) : "", show, base, rates, date: B.rates_date};
+  return {cols, rows, total: total ? money(total, show) : "", show, base, rates};
 }
 function bomPage() {
-  const {cols, rows, total, show, base, rates, date} = bomTable();
+  const {cols, rows, total, show, base, rates} = bomTable();
+  const EDITABLE = new Set(["part_number", "manufacturer", "supplier", "link", "unit_cost", ...(M.bom?.columns || [])]);
+  const canEdit = (r, k) => bomEdit && (r.kind === "part" || r.kind === "extra") && (EDITABLE.has(k) || (r.kind === "extra" && (k === "item" || k === "qty")));
+  const inp = (r, k, i) => { const raw = k === "item" ? r.item : k === "qty" ? r.qty : (r.values || {})[k] ?? "";
+    return `<input class="bcell" data-row="${i}" data-k="${k}" data-orig="${H(raw)}" value="${H(raw)}" placeholder="${k === "unit_cost" && i === 0 ? "e.g. ¥20" : ""}" ${k === "qty" ? 'inputmode="decimal" style="width:60px"' : ""}>`; };
+  const cell = (r, c, k, i) => canEdit(r, k) ? inp(r, k, i)
+    : k === "link" && /^https?:/.test(c) ? `<a href="${H(c)}" target="_blank">link</a>`
+    : k === "item" && r.parts.length ? `<span class="xref" data-part="${H(r.parts[0])}" title="Open ${H(short(r.parts[0]))}">${H(c)}</span>`
+    : k === "where" && r.parts.length ? r.parts.map(q => `<span class="xref mono" data-part="${H(q)}">${H(short(q))}</span>`).join(", ")
+    : k === "unit_cost" && (r.values || {}).unit_cost ? `<span title="${H(rows.find(x => x.r === r)?.src || "")}">${H(c)}</span>` : H(c);
+  const rateNote = LIVE ? `Live market rates${LIVE.stale ? " (offline: last known)" : ""}, ${H(LIVE.source || "")}${LIVE.updated ? `, updated ${H(LIVE.updated.replace(/ \+0000$/, " UTC"))}` : ""}`
+    : SERVED ? "Rates not loaded yet: rough defaults" : "Rough default rates (live rates need doc serve)";
   page(`<div class="ibar"><h2 style="margin:0">Bill of materials</h2><span style="flex:1"></span>
-    ${SERVED ? `<button class="act" data-form="bom_item">+ Item</button><button class="act" data-form="bom_columns">+ Column</button>` : ""}
+    ${SERVED ? bomEdit ? `<button class="act" id="bcancel">Cancel</button><button class="newbtn" id="bsave">Save changes</button>` : `<button class="act" data-form="bom_item">+ Item</button><button class="act" data-form="bom_columns">+ Column</button><button class="act" id="bedit">Edit</button>` : ""}
     <span class="seg" title="Currency for unit cost and total">${Object.entries(CUR).map(([k, c]) => `<button class="${k === show ? "on" : ""}" data-cur="${k}">${c.sym.trim()}</button>`).join("")}</span>
     <button class="act" id="bx">Excel</button><button class="act" id="bp">PNG</button><button class="act" id="bf">PDF</button></div>
     <p class="lead">Built from the parts (grouped by part number), wires (total length per gauge), connectors, and extra items. Fill it in from each part's Details: part number, supplier, cost, or any column you add.</p>
     <div class="panel" style="overflow:auto"><table class="icd bom"><tr>${cols.map(c => `<th>${H(c[1])}</th>`).join("")}</tr>
-    ${rows.map(({r, cells}) => `<tr>${cells.map((c, i) => `<td class="${cols[i][0] === "item" || cols[i][0] === "where" ? "w" : ""}">${cols[i][0] === "link" && /^https?:/.test(c) ? `<a href="${H(c)}" target="_blank">link</a>` : cols[i][0] === "item" && r.parts.length ? `<span class="xref" data-part="${H(r.parts[0])}" title="Open ${H(short(r.parts[0]))}">${H(c)}</span>` : cols[i][0] === "where" && r.parts.length ? r.parts.map(q => `<span class="xref mono" data-part="${H(q)}">${H(short(q))}</span>`).join(", ") : cols[i][0] === "unit_cost" && rows.length && (r.values || {}).unit_cost ? `<span title="${H(rows.find(x => x.r === r)?.src || "")}">${H(c)}</span>` : H(c)}${cols[i][0] === "item" && r.kind === "extra" && SERVED ? ` <span class="xref" data-form="bom_item" data-index="${r.index}">edit</span>` : ""}</td>`).join("")}</tr>`).join("")}
+    ${rows.map(({r, cells}, ri) => `<tr>${cells.map((c, i) => `<td class="${cols[i][0] === "item" || cols[i][0] === "where" ? "w" : ""}">${cell(r, c, cols[i][0], ri)}${!bomEdit && cols[i][0] === "item" && r.kind === "extra" && SERVED ? ` <span class="xref" data-form="bom_item" data-index="${r.index}">edit</span>` : ""}</td>`).join("")}</tr>`).join("")}
     <tr><td></td><td><b>Total</b></td>${cols.slice(2).map(c => `<td>${c[0] === "total" && total ? `<b>${H(total)}</b>` : ""}</td>`).join("")}</tr></table></div>
-    <p class="dsub">Prices in ${CUR[show].name}. Prices written without a currency are in ${CUR[base].name}; others are converted at 1 US$ = RM ${rates.USD} and 1 ¥ = RM ${rates.CNY}${date ? ` (rates from ${H(date)})` : " (rough defaults: set the real ones)"}.${SERVED ? ` <span class="xref" data-form="bom_currency">Rates…</span>` : ""}</p>`);
+    <p class="dsub">${bomEdit ? "Editing: change any white cell, then <b>Save changes</b>. A part's value is saved on every part of its row. Write a price with its currency (¥20, US$3.50, RM 12); that price stays exactly as typed and the other currencies follow the market rate." : `Shown in ${CUR[show].name}. Each price keeps the currency it was typed in; the others are converted: 1 US$ = RM ${(+rates.USD).toFixed(4)}, 1 ¥ = RM ${(+rates.CNY).toFixed(4)}. ${rateNote}. Prices typed without a currency are in ${CUR[base].name}.${SERVED ? ` <span class="xref" data-form="bom_currency">Currency of unmarked prices…</span>` : ""}`}</p>`);
+  if (SERVED && !LIVE) loadRates();
+  if ($("#bedit")) $("#bedit").onclick = () => { bomEdit = true; bomPage(); };
+  if ($("#bcancel")) $("#bcancel").onclick = () => { bomEdit = false; bomPage(); };
+  if ($("#bsave")) $("#bsave").onclick = async () => {
+    const changes = [...document.querySelectorAll("input.bcell")].filter(e => e.value.trim() !== e.dataset.orig.trim()).map(e => { const r = rows[+e.dataset.row].r;
+      return r.kind === "extra" ? {index: r.index, field: e.dataset.k, value: e.value} : {parts: r.parts, field: e.dataset.k, value: e.value}; });
+    if (!changes.length) { bomEdit = false; return bomPage(); }
+    try { const res = await post("api/apply/bom_edit", {changes}); toast(res.message); bomEdit = false; await refreshModel(); if (window.syncNow) syncNow(); }
+    catch (e) { toast(e.message, true); } };
+  document.querySelectorAll("input.bcell").forEach(e => e.addEventListener("keydown", ev => { if (ev.key === "Enter") $("#bsave").click(); if (ev.key === "Escape") { ev.stopPropagation(); $("#bcancel").click(); } }));
   document.querySelectorAll("[data-cur]").forEach(b => b.onclick = () => { bomCur = b.dataset.cur; try { localStorage.setItem("doc.bomCur", bomCur); } catch (e) {} bomPage(); });
   const grid = () => [cols.map(c => c[1]), ...rows.map(x => x.cells.map(c => typeof c === "number" ? c : String(c))), cols.map(c => c[0] === "item" ? "Total" : c[0] === "total" ? total : "")];
   $("#bx").onclick = async () => { if (!SERVED) { const csv = grid().map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n"); return save(new Blob([csv], {type: "text/csv"}), `${M.name}_BOM.csv`); }
@@ -1819,14 +1839,6 @@ function bomPage() {
       x.fillStyle = "#141413"; x.font = (ri ? "" : "600 ") + "13px -apple-system,Segoe UI,sans-serif"; r.forEach((v, i) => { let t = String(v); while (t && x.measureText(t).width > w[i] - 14) t = t.slice(0, -2) + "…"; x.fillText(t, cx + 6, y + 17); cx += w[i]; }); });
     c.toBlob(b => save(b, `${M.name}_BOM.png`)); };
   $("#bf").onclick = () => printDoc(`${M.name} bill of materials`, `<h1>${H(M.name)}: bill of materials</h1>` + printTable(grid()));
-}
-async function fetchRates(btn) {
-  const msg = $("#ratemsg"); btn.disabled = true; msg.textContent = "Fetching…";
-  try { const r = await fetch("api/rates"), d = await r.json(); if (!r.ok) throw new Error(d.error);
-    const f = btn.closest("form") || document; f.querySelector("[name=USD]").value = d.USD; f.querySelector("[name=CNY]").value = d.CNY; f.querySelector("[name=date]").value = d.date;
-    msg.textContent = `Today's rates (${d.date}). Save to keep them.`; }
-  catch (e) { msg.textContent = e.message || "Could not fetch rates; type them in."; }
-  btn.disabled = false;
 }
 function save(blob, name) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
 const printTable = g => `<table><tr>${g[0].map(c => `<th>${H(c)}</th>`).join("")}</tr>${g.slice(1).map(r => `<tr>${r.map(c => `<td>${H(c)}</td>`).join("")}</tr>`).join("")}</table>`;
@@ -1908,6 +1920,6 @@ async function quick(op, body) {
 }
 
 loadHash(); const _sel = selected; chrome(); render(); if (_sel && M.parts[_sel]) setTimeout(() => showPart(_sel), 500);
-if (SERVED) startPolling();
+if (SERVED) { startPolling(); loadRates(); setInterval(loadRates, 3600e3); }
 document.addEventListener("keydown", e => { if (e.key === "Escape") { if (pend) cancelPend(); else closeDrawer(); } });
 </script></body></html>

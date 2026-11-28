@@ -1367,7 +1367,8 @@ def build_bom(cfg, parts, connections):
             continue
         a = p["attrs"]
         key = a.get("part_number") or p["doc"] or p["type"] or p["name"]
-        g = groups.setdefault(key, {"kind": "part", "item": p["doc"] or p["type"] or p["name"], "qty": 0, "parts": [],
+        item = re.sub(r"\s+-\s+from\s+.+\.ioc$", "", p["doc"] or "") or p["type"] or p["name"]  # a board: just its chip
+        g = groups.setdefault(key, {"kind": "part", "item": item, "qty": 0, "parts": [],
                                     "subsystems": [], "values": {}, "category": dict(KIND_GROUPS).get(p.get("pgroup"), "")})
         g["qty"] += num(a.get("quantity")) or 1
         g["parts"].append(k)
