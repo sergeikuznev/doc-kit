@@ -422,7 +422,9 @@ computer, so *Apply to: every node started by …* places all its nodes at once.
 
 A requirement belongs to the subsystem of its prefix. When one part carries it
 (the battery for a runtime requirement), open the requirement and click
-**Pin to a part**.
+**Pin to a part**. Once it is pinned, the same button reads **Pin to other
+parts**: pick different parts, or none to give it back to its subsystem. A
+pinned requirement also counts on the box of the subsystem its part sits in.
 
 ### What gets written
 
