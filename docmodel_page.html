@@ -232,7 +232,7 @@ nav button .lbl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-
 /* everything clickable: a pointing hand and a slight highlight */
 a,button:not(:disabled),select,summary,.lnk,.xref,.ilink,.chip[data-part],.chip[data-node],.chip[data-focus],.chip[data-topic],[data-form],[data-part],[data-node],[data-topic],[data-go],[data-iss],[data-req],[data-fault],[data-dec],[data-v],.issl,.leaf,.sysnode,.rosnode,.topic,.cont,.ehit,.rhit,.addph,.counter,.icard .t,tr.row{cursor:pointer}
 :is(.ilink,a,.icard .t):hover{filter:brightness(1.3);text-decoration:underline;text-underline-offset:2px}
-:is(.chip[data-part],.chip[data-node],.chip[data-focus],.chip[data-topic],.chip[data-iss],.counter,.lab,.stpill,.fchip,.itab):hover{filter:brightness(1.25);border-color:var(--accent)}:is(.chip[data-req],.chip[data-fault],.chip[data-dec],.chip[data-issue]){cursor:pointer}:is(.chip[data-req],.chip[data-dec],.chip[data-issue]):hover{background:var(--sunk);border-color:var(--faint)!important;filter:brightness(1.2)}.chip[data-fault]:hover{color:var(--sc,var(--ink));border-color:var(--sc)!important;background:color-mix(in srgb,var(--sc,var(--faint)) 14%,transparent)}
+:is(.chip[data-part],.chip[data-node],.chip[data-focus],.chip[data-topic],.chip[data-iss],.counter,.lab,.stpill,.fchip,.itab):hover{filter:brightness(1.25);border-color:var(--accent)}:is(.chip[data-req],.chip[data-fault],.chip[data-dec],.chip[data-issue]){cursor:pointer}:is(.chip[data-req]:not(.rc),.chip[data-dec],.chip[data-issue]):hover{background:var(--sunk);border-color:var(--faint)!important;filter:brightness(1.2)}.chip.rc[data-req]:hover{color:var(--sc);border-color:var(--sc)!important;background:color-mix(in srgb,var(--sc) 14%,transparent)}.chip[data-fault]:hover{color:var(--sc,var(--ink));border-color:var(--sc)!important;background:color-mix(in srgb,var(--sc,var(--faint)) 14%,transparent)}
 tr.row:hover td,
 .counter:hover{border-color:var(--faint)!important;filter:brightness(1.2)}.counter.gap:hover{border-color:var(--warn)!important}.counter.bad:hover{border-color:var(--crit)!important}
 .issl:hover text{text-decoration:underline;filter:brightness(1.3)}
@@ -412,7 +412,8 @@ function wire(root) {
   root.querySelectorAll("[data-issue]").forEach(e => e.onclick = ev => { ev.stopPropagation(); showIssue(+e.dataset.issue); });
   root.querySelectorAll("[data-focus]").forEach(e => e.onclick = ev => { ev.stopPropagation(); go(e.dataset.view || "electrical", {focus: e.dataset.focus, edit: e.dataset.edit ? true : undefined}); });
 }
-const reqChip = r => `<span class="chip" data-req="${H(r.id)}"><span class="pill ${H(r.status)}"><i>${ICON[r.status] ?? "?"}</i></span><span class="mono">${H(r.id)}</span></span>`;
+const REQC = {Verified: "var(--good)", Failed: "var(--crit)"};  // tested requirements show their result on the chip border
+const reqChip = r => `<span class="chip${REQC[r.status] ? " rc" : ""}" data-req="${H(r.id)}"${REQC[r.status] ? ` style="--sc:${REQC[r.status]};border-color:${REQC[r.status]}"` : ""}><span class="pill ${H(r.status)}"><i>${ICON[r.status] ?? "?"}</i></span><span class="mono">${H(r.id)}</span></span>`;
 function reqList(rs, path) {
   if (!rs.length) return `<div class="dsub">None yet.</div>`;
   return `<div class="mini">${rs.map(r => `<div class="mitem" data-req="${H(r.id)}"><div class="h"><span class="id">${H(r.id)}</span>${pill(r.status)}${path && r.parts.includes(path) ? `<span class="chip" style="margin-left:auto">this part</span>` : ""}</div>${H(r.text)}</div>`).join("")}</div>`;
