@@ -585,7 +585,7 @@ for certain, so it is listed as a gap instead of guessed.
 **+ Node** plans a node that does not exist yet: its name, what it does, where
 it runs, and the topics it publishes and subscribes to. Planned nodes, topics
 and arrows are **dashed** until doc-kit finds them in the code, then they turn
-solid by themselves. In a node's panel, **Plan topics** / **Edit plan** changes
+solid by themselves. In a node's panel, **Plan node** / **Edit plan** changes
 the plan and **✕** drops one planned topic.
 
 The plan is kept in the arch file as SysML actions, next to the hardware:
