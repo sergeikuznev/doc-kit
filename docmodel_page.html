@@ -232,7 +232,7 @@ nav button .lbl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-
 /* everything clickable: a pointing hand and a slight highlight */
 a,button:not(:disabled),select,summary,.lnk,.xref,.ilink,.chip[data-part],.chip[data-node],.chip[data-focus],.chip[data-topic],[data-form],[data-part],[data-node],[data-topic],[data-go],[data-iss],[data-req],[data-fault],[data-dec],[data-v],.issl,.leaf,.sysnode,.rosnode,.topic,.cont,.ehit,.rhit,.addph,.counter,.icard .t,tr.row{cursor:pointer}
 :is(.ilink,a,.icard .t):hover{filter:brightness(1.3);text-decoration:underline;text-underline-offset:2px}
-:is(.chip[data-part],.chip[data-node],.chip[data-focus],.chip[data-topic],.chip[data-iss],.counter,.lab,.stpill,.fchip,.itab):hover{filter:brightness(1.25);border-color:var(--accent)}
+:is(.chip[data-part],.chip[data-node],.chip[data-focus],.chip[data-topic],.chip[data-iss],.counter,.lab,.stpill,.fchip,.itab):hover{filter:brightness(1.25);border-color:var(--accent)}:is(.chip[data-req],.chip[data-fault],.chip[data-dec],.chip[data-issue]){cursor:pointer}:is(.chip[data-req],.chip[data-dec],.chip[data-issue]):hover{background:var(--sunk);border-color:var(--faint)!important;filter:brightness(1.2)}.chip[data-fault]:hover{background:var(--sunk);filter:brightness(1.25)}
 tr.row:hover td,
 .counter:hover{border-color:var(--faint)!important;filter:brightness(1.2)}.counter.gap:hover{border-color:var(--warn)!important}.counter.bad:hover{border-color:var(--crit)!important}
 .issl:hover text{text-decoration:underline;filter:brightness(1.3)}
@@ -316,7 +316,7 @@ const ICON = {Verified: SVGI('<path d="M2.2 5.2 4.2 7.2 7.8 3" fill="none" strok
   Deleted: SVGI('<path d="M2.5 5h5" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>')};
 const pill = s => `<span class="pill ${H(s)}"><i>${ICON[s] ?? "?"}</i><span class="pt">${H(s)}</span></span>`;
 let reqById = Object.fromEntries(M.requirements.map(r => [r.id, r]));
-const partReqs = path => { const p = M.parts[path]; return M.requirements.filter(r => r.parts.includes(path) || (p.depth === 1 && r.subsystem === p.name) || (p.depth >= 2 && r.subsystem === p.subsystem && !r.parts.length) || (p.depth === 0 && r.subsystem === M.top)); };
+const partReqs = path => { const p = M.parts[path]; return M.requirements.filter(r => r.parts.includes(path) || (p.depth === 1 && (r.subsystem === p.name || r.parts.some(x => x.startsWith(path + ".")))) || (p.depth >= 2 && r.subsystem === p.subsystem && !r.parts.length) || (p.depth === 0 && r.subsystem === M.top)); };
 const faultsFor = ids => M.faults.filter(f => f.reqs.some(x => ids.includes(x)));
 const decisionsFor = (path, ids) => M.decisions.filter(d => d.parts.includes(path) || d.reqs.some(x => ids.includes(x)));
 let conns = M.connections.filter(c => c.ok);
@@ -492,7 +492,7 @@ function showReq(id) { setTimeout(() => reopen = () => showReq(id), 0);
   const where = r.parts.length ? r.parts : (r.subsystem ? [r.subsystem === M.top ? M.top : `${M.top}.${r.subsystem}`] : []);
   openDrawer(`<div class="dsub">Requirement · ${H(METHOD[r.method] || r.method || "no method")}</div><div class="dh mono">${H(r.id)}</div><div style="margin:6px 0">${pill(r.status)}</div>
     <p style="font-size:15px">${H(r.text)}</p><div class="dsub">${H(r.rationale)}</div>
-    <h4>Belongs to</h4><div class="links">${where.map(w => `<span class="chip" data-part="${w}">${H(short(w) || M.top)}</span>`).join("") || `<span class="warnline">No subsystem named ${H(r.prefix)}</span>`}${SERVED ? `<button class="act" data-form="satisfy" data-rid="${H(r.id)}">${r.parts.length ? "Change parts" : "Pin to a part"}</button>` : ""}</div>
+    <h4>Belongs to</h4><div class="links">${where.filter(w => w !== M.top).map(w => `<span class="chip" data-part="${w}">${H(short(w))}</span>`).join("") || (where.length ? `<span class="dsub">the whole system</span>` : `<span class="warnline">No subsystem named ${H(r.prefix)}</span>`)}${SERVED ? `<button class="act" data-form="satisfy" data-rid="${H(r.id)}">${r.parts.length ? "Change parts" : "Pin to a part"}</button>` : ""}</div>
     ${SERVED ? `<div class="links" style="margin:10px 0"><button class="act" data-form="test" data-rid="${H(r.id)}">Record test</button><button class="act" data-form="update_req" data-rid="${H(r.id)}">Edit</button><button class="act dz" data-form="delete_req" data-rid="${H(r.id)}">Mark deleted</button></div>` : ""}
     <h4>Evidence</h4>${r.evidence.map(e => `<div class="ev" style="font-size:12.5px;border-left:2px solid var(--hair);padding-left:8px;margin-bottom:6px">${H(e)}</div>`).join("") || `<div class="dsub">None yet.</div>`}
     ${(r.media || []).length ? thumbs(r.media) : ""}
