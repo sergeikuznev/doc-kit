@@ -1958,4 +1958,12 @@ async function quick(op, body) {
 loadHash(); const _sel = selected; chrome(); render(); if (_sel && M.parts[_sel]) setTimeout(() => showPart(_sel), 500);
 if (SERVED) { startPolling(); loadRates(); setInterval(loadRates, 3600e3); }
 document.addEventListener("keydown", e => { if (e.key === "Escape") { if (pend) cancelPend(); else closeDrawer(); } });
+// a click on empty space in a page closes the panel (the diagrams handle their own canvas)
+$("#main").addEventListener("click", ev => {
+  if (!$("#drawer").classList.contains("open") || ev.target.closest("#cv")) return;
+  const t = ev.target;
+  if (t.closest("a,button,input,select,textarea,label,summary,details,[contenteditable],.cmenu,.csel,.modal") || getComputedStyle(t).cursor === "pointer") return;
+  if (String(getSelection() || "").trim()) return;  // selecting text, not dismissing
+  closeDrawer();
+});
 </script></body></html>
