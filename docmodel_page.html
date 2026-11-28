@@ -40,7 +40,7 @@ header h1{font-size:16px;margin:0;font-weight:650;letter-spacing:-.01em}header .
 .counters{margin-left:auto;display:flex;gap:8px}
 .counter{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;border:1px solid var(--hair);font-size:12.5px;cursor:pointer;background:var(--surface);color:var(--ink)}
 .counter b{font-variant-numeric:tabular-nums}.counter.bad{border-color:var(--crit);color:var(--crit-ink)}.counter.gap{border-color:var(--warn);color:var(--warn-ink)}
-.shell{flex:1;display:grid;grid-template-columns:228px 1fr auto;min-height:0}
+.shell{flex:1;display:grid;grid-template-columns:228px 1fr auto;min-height:0;position:relative}body[data-diagram="1"] aside{position:absolute;top:0;right:0;bottom:0;z-index:20;box-shadow:-12px 0 24px rgba(0,0,0,.35)}
 nav{border-right:1px solid var(--hair);padding:14px 10px;overflow:auto;background:var(--surface)}
 nav .grp{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);margin:14px 10px 6px}
 nav button{display:flex;width:100%;align-items:center;gap:9px;padding:7px 10px;border:0;background:none;color:var(--ink);font:inherit;border-radius:7px;cursor:pointer;text-align:left}
@@ -65,7 +65,7 @@ svg text{fill:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI"
 .leaf>rect.band{rx:2}.leaf.facts>rect.band{fill:var(--facts)}.leaf.arch>rect.band{fill:var(--arch)}
 .leaf text.t{font-size:12.5px;font-weight:650}.leaf text.ty{font-size:11px;fill:var(--muted)}.leaf text.more{font-size:10.5px;fill:var(--faint)}
 .leaf:hover>rect.b{stroke:var(--faint)}.sel>rect.b{stroke:var(--accent)!important;stroke-width:2.2!important}
-.port{fill:var(--surface);stroke-width:1.4}.plab{font-size:11px;fill:var(--muted)}
+.port{fill:var(--surface);stroke-width:1.4}.port.wired{fill:var(--ink)}.plab{font-size:11px;fill:var(--muted)}
 .edge{fill:none;stroke-width:1.6;opacity:.9}.edge.Signal{stroke:var(--sig)}.edge.Power{stroke:var(--pwr);stroke-width:2.2}.edge.Mechanical{stroke:var(--mech);stroke-dasharray:6 3}
 .edge.bad{stroke:var(--crit)!important;stroke-dasharray:5 4}.edge.dim{opacity:.12}.edge.hot{stroke-width:3.2;opacity:1}
 .elab rect{fill:var(--surface);stroke:var(--hair)}.elab text{font-size:10.5px;fill:var(--muted)}
@@ -109,7 +109,7 @@ aside h4{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:va
 .rgrid{display:grid;grid-template-columns:1fr;gap:12px}
 .rcard{background:var(--surface);border:1px solid var(--ring);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:8px}
 .rcard .top{display:flex;align-items:center;gap:10px}.rcard .id{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;font-weight:600}
-.rcard .meth{margin-left:auto;font-size:11.5px;color:var(--muted);border:1px solid var(--hair);border-radius:6px;padding:1px 7px}
+.rcard .meth{font-size:11.5px;color:var(--muted);border:1px solid var(--hair);border-radius:6px;padding:1px 7px}
 .rcard .txt{font-size:14px;line-height:1.45}.rcard .why{color:var(--muted);font-size:12.5px}
 .rcard .ev{font-size:12px;color:var(--muted);border-left:2px solid var(--hair);padding-left:8px}
 .links{display:flex;gap:6px;flex-wrap:wrap}.links .chip{font-size:11.5px}
@@ -353,6 +353,7 @@ const VIEWS = [
 ];
 let view = "overview", focus = null, selected = null, editing = SERVED, pend = null;
 function chrome() {
+  document.body.dataset.diagram = ["system", "electrical", "power", "software"].includes(view) ? "1" : "";  // diagram views: the panel floats over the canvas
   $("#title").textContent = M.name;
   $("#subtitle").textContent = `${Object.keys(M.parts).length - 1} parts · ${conns.length} connections · built ${(M.built || "").replace("T", " ")}${SERVED ? " · live" : ""}`;
   const verified = M.requirements.filter(r => r.status === "Verified").length;
@@ -801,6 +802,7 @@ async function drawParts(kinds, title, lead) {
     g.style.cursor = "pointer"; g.addEventListener("click", ev => { if (ev.target.closest(".leaf")) return; showPart(c.id); });
   });
   const missing = new Set(M.connections.filter(c => !c.ok).flatMap(c => [c.a_txt, c.b_txt]));
+  const wired = new Set(M.connections.filter(c => c.ok).flatMap(c => [`${M.top}.${c.a_txt}`, `${M.top}.${c.b_txt}`]));  // connected pins are drawn filled
   Object.values(abs).forEach(({x, y, n}) => { if (!n.children || !n.children.length || !M.parts[n.id] || M.parts[n.id].depth < 2) return;
     const g = el("g", {class: "cont asm", transform: `translate(${x},${y})`}, root); tagMv(g, n.id, abs, false); el("rect", {width: n.width, height: n.height, rx: 10}, g);
     el("text", {x: 12, y: 22, class: "t", style: "font-size:12px"}, g).textContent = M.parts[n.id].name;
@@ -820,7 +822,7 @@ async function drawParts(kinds, title, lead) {
     el("text", {x: 14, y: 35, class: "ty"}, g).textContent = p.type || "";
     const hidden = p.ports.filter(q => !q.missing).length - n.ports.filter(pt => !p.ports.find(x => `${n.id}.${x.name}` === pt.id)?.missing).length; if (hidden > 0) el("text", {x: 14, y: n.height - 7, class: "more"}, g).textContent = `+${hidden} port${hidden > 1 ? "s" : ""} not in this view`;
     n.ports.forEach(pt => { const q = p.ports.find(x => `${n.id}.${x.name}` === pt.id); const east = pt.x > n.width / 2;
-      const pr = el("rect", {class: "port", x: pt.x, y: pt.y, width: pt.width, height: pt.height, rx: 2, stroke: q.missing ? "var(--crit)" : KCOL[q.kind], "stroke-dasharray": q.missing ? "2 2" : ""}, g); pr.dataset.full = `${n.id}.${q.name}`;
+      const pr = el("rect", {class: wired.has(pt.id) ? "port wired" : "port", x: pt.x, y: pt.y, width: pt.width, height: pt.height, rx: 2, stroke: q.missing ? "var(--crit)" : KCOL[q.kind], "stroke-dasharray": q.missing ? "2 2" : ""}, g); pr.dataset.full = `${n.id}.${q.name}`;
       if (pend && pend.full === pr.dataset.full) pr.classList.add("pend");
       const t = el("text", {class: "plab", x: east ? pt.x - 5 : pt.x + pt.width + 5, y: pt.y + 8, "text-anchor": east ? "end" : "start", style: q.missing ? "fill:var(--crit-ink)" : ""}, g); t.textContent = q.missing ? `${q.name} (gone)` : q.name;
       if (editing && !q.missing) { const w = q.name.length * 6.4 + 8; const hit = el("rect", {class: "phit", x: east ? pt.x - w : pt.x, y: pt.y - 4, width: w + pt.width, height: pt.height + 8}, g);

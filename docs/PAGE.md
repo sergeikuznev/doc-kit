@@ -459,8 +459,9 @@ anywhere else shows it, without the editing buttons. The one shortcut kept:
 **+ Part here** in a subsystem's panel.
 
 **Zoom.** − / + / Fit in the toolbar. On a laptop, scroll to zoom and drag
-empty space to pan. The diagram keeps its size when the side panel opens or
-closes: the panel covers its right edge (pan to see it) instead of shrinking it. Clicking empty space closes the panel and drops the
+empty space to pan. In the diagram views the side panel slides in over the
+right edge of the diagram (pan to see what it covers); the diagram itself never
+changes size. Clicking empty space closes the panel and drops the
 selection.
 
 ### System
@@ -502,7 +503,8 @@ Here the view is focused on `COMM` (from its panel).
 3. **Legend**: part kinds and their colours.
 4. **The hint**: what clicks do.
 5. **A board**, from its `.ioc` (cyan band: an MCU), inside its subsystem's dashed box.
-6. **A port**: a pin or bus as CubeMX names it. Hover it for its pins.
+6. **A port**: a pin or bus as CubeMX names it. Filled when something is wired
+   to it, hollow when it is free. Hover it for its pins.
 7. **A part** you added; its band is the colour of its kind.
 8. **Ports not in this view**, e.g. its power input, drawn in Power.
 
