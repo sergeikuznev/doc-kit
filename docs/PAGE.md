@@ -465,8 +465,10 @@ selection.
    the pin names as CubeMX writes them (`SPI1 — spi`), up to four per line,
    then *+N more*. No arrows: a wire carries data both ways.
 3. **A power connection** (orange).
-4. **Requirements** verified out of total, and how many failed. **N open
-   issues** on a box opens Issues filtered to that subsystem.
+4. **Requirements**: tested out of total (verified and failed both count as
+   tested), then how many passed (✓, green) and how many failed (✕, red), e.g.
+   `2/4 · 1 ✓ · 1 ✕`. Requirements pinned to a part in the box count too.
+   **N open issues** on a box opens Issues filtered to that subsystem.
 5. **Legend.**
 6. **Zoom**: − / + / Fit.
 

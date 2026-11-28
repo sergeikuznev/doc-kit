@@ -811,7 +811,11 @@ async function drawSystem() {
     const full = (M.prefix_names || {})[s.name], y0 = full ? 16 : 0;
     if (full) el("text", {x: 14, y: 41, class: "ty"}, g).textContent = full;
     const rs = partReqs(n.id), v = rs.filter(r => r.status === "Verified").length, f = rs.filter(r => r.status === "Failed").length;
-    el("text", {x: n.width - 12, y: 24, class: "ty", "text-anchor": "end"}, g).textContent = rs.length ? `${v}/${rs.length} ✓${f ? ` · ${f} ✕` : ""}` : "no reqs";
+    { const t = el("text", {x: n.width - 12, y: 24, class: "ty", "text-anchor": "end"}, g);  // tested / total · passed · failed
+      if (!rs.length) t.textContent = "no reqs";
+      else { const sp = (txt, st) => { const e = el("tspan", st ? {style: st} : {}, t); e.textContent = txt; };
+        sp(`${v + f}/${rs.length}`); sp(" · "); sp(`${v} ✓`, v ? "fill:var(--good-ink)" : ""); sp(" · "); sp(`${f} ✕`, f ? "fill:var(--crit-ink)" : "");
+        el("title", {}, t).textContent = `${v + f} of ${rs.length} requirement${rs.length === 1 ? "" : "s"} tested: ${v} passed (Verified), ${f} failed`; } }
     src.kids.forEach((k, i) => { el("text", {x: 14, y: 46 + y0 + i * 17, class: "ty"}, g).textContent = M.parts[k].name + (M.parts[k].type ? ` : ${M.parts[k].type}` : M.parts[k].doc ? ` · ${M.parts[k].doc.slice(0, 28)}` : ""); });
     if (false) { const ph = el("g", {class: "addph", transform: `translate(14,${54 + y0 + src.kids.length * 17})`}, g); el("rect", {x: -6, y: -14, width: 62, height: 20, rx: 6}, ph); el("text", {x: 0, y: 0}, ph).textContent = "+ Part";
       ph.addEventListener("click", ev => { ev.stopPropagation(); openForm("part", {parent: n.id}); }); }
