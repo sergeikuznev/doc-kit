@@ -170,7 +170,12 @@ aside h4{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:va
 .prose pre{background:var(--sunk);padding:10px 12px;border-radius:8px;overflow:auto;font-size:12px}.prose code{background:var(--sunk);padding:1px 4px;border-radius:4px}
 .prose pre code{background:none;padding:0}.prose blockquote{border-left:3px solid var(--hair);margin:8px 0;padding:2px 12px;color:var(--muted)}
 .prose img{max-width:100%;border-radius:8px}.prose li.sub{margin-left:18px;list-style:circle}
-.xref,.lnk{color:var(--accent);cursor:pointer;border-bottom:1px dotted color-mix(in srgb,var(--accent) 75%,transparent);transition:filter .1s}.xref:hover,.lnk:hover{filter:brightness(1.35);border-bottom-style:solid;border-bottom-color:var(--accent)}.bom .pcell{display:flex;gap:4px;min-width:130px}.bom .pcell input{min-width:60px}.bom .pcell .csel{min-width:58px;padding:4px 7px;font-size:12.5px}.bom select.bcur{font:inherit;font-size:12.5px;background:var(--sunk);color:var(--ink);border:1px solid var(--hair);border-radius:5px;padding:3px 4px;cursor:pointer}.bom input.bcell{font:inherit;font-size:13px;width:100%;min-width:90px;background:var(--sunk);color:var(--ink);border:1px solid var(--hair);border-radius:5px;padding:4px 6px}.bom input.bcell:focus{outline:none;border-color:var(--accent)}.seg{display:inline-flex;border:1px solid var(--hair);border-radius:7px;overflow:hidden}.seg button{font:inherit;font-size:12.5px;padding:4px 10px;border:0;background:var(--surface);color:var(--muted);cursor:pointer}.seg button+button{border-left:1px solid var(--hair)}.seg button.on{background:var(--sunk);color:var(--ink);font-weight:600}.seg button:hover{color:var(--ink)}.src{font:10.5px var(--mono,ui-monospace,monospace);color:var(--faint);border:1px solid var(--hair);border-radius:4px;padding:0 4px;margin-left:4px;white-space:nowrap;cursor:help}
+.xref,.lnk{color:var(--accent);cursor:pointer;border-bottom:1px dotted color-mix(in srgb,var(--accent) 75%,transparent);transition:filter .1s}.xref:hover,.lnk:hover{filter:brightness(1.35);border-bottom-style:solid;border-bottom-color:var(--accent)}.bom .pcell{display:flex;gap:4px;min-width:130px}.bom .pcell input{min-width:60px}.bom .pcell .csel{min-width:58px;padding:4px 7px;font-size:12.5px}.bom select.bcur{font:inherit;font-size:12.5px;background:var(--sunk);color:var(--ink);border:1px solid var(--hair);border-radius:5px;padding:3px 4px;cursor:pointer}.bom input.bcell{font:inherit;font-size:13px;width:100%;min-width:90px;background:var(--sunk);color:var(--ink);border:1px solid var(--hair);border-radius:5px;padding:4px 6px}.bom input.bcell:focus{outline:none;border-color:var(--accent)}.bgrp{display:inline-flex;align-items:stretch;border:1px solid var(--hair);border-radius:7px;overflow:hidden;background:var(--surface);flex:none}
+.bgrp>button,.bgrp>.act,.bgrp>.btn{border:0!important;border-radius:0!important;margin:0!important;background:transparent}.bgrp>*+*{border-left:1px solid var(--hair)!important}
+.bgrp>button:hover:not(:disabled){background:var(--sunk)}.bgrp>.act.addb,.bgrp>.act.addbtn{background:color-mix(in srgb,var(--good) 8%,var(--surface))}
+.bgrp>.act.addb:hover,.bgrp>.act.addbtn:hover{background:color-mix(in srgb,var(--good) 16%,var(--surface))}.bgrp>.newbtn{border-radius:0}
+.links{gap:12px!important}.links .bgrp .act{font-size:12px}
+.seg{display:inline-flex;border:1px solid var(--hair);border-radius:7px;overflow:hidden}.seg button{font:inherit;font-size:12.5px;padding:4px 10px;border:0;background:var(--surface);color:var(--muted);cursor:pointer}.seg button+button{border-left:1px solid var(--hair)}.seg button.on{background:var(--sunk);color:var(--ink);font-weight:600}.filters .seg{align-self:center}.filters .seg button{padding:6px 12px;font-size:13px}.seg button:hover{color:var(--ink)}.src{font:10.5px var(--mono,ui-monospace,monospace);color:var(--faint);border:1px solid var(--hair);border-radius:4px;padding:0 4px;margin-left:4px;white-space:nowrap;cursor:help}
 a,a:visited{color:var(--accent);text-decoration-color:color-mix(in srgb,var(--accent) 45%,transparent);text-underline-offset:2px}a:hover{text-decoration-color:var(--accent)}
 .toc{font-size:12.5px;margin-top:6px}.toc a{display:block;color:var(--muted);text-decoration:none;padding:2px 8px}.toc a:hover{color:var(--accent)}.toc a.l3{padding-left:20px}
 .mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
@@ -189,11 +194,11 @@ a,a:visited{color:var(--accent);text-decoration-color:color-mix(in srgb,var(--ac
 .banner button{font:inherit;border:0;border-radius:8px;padding:5px 12px;background:var(--accent);color:#fff;cursor:pointer}
 .toast{position:fixed;right:18px;bottom:18px;background:var(--surface);border:1px solid var(--ring);padding:10px 14px;border-radius:10px;box-shadow:var(--shadow);z-index:60;font-size:13px}
 .toast.err{border-color:var(--crit);color:var(--crit-ink)}
-.h2acts{float:right;display:inline-flex;gap:6px}.isearch{width:100%;max-width:520px;margin-bottom:10px;font:inherit;padding:8px 10px;border:1px solid var(--hair);border-radius:8px;background:var(--surface);color:var(--ink)}.ifbar{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;border:1px solid var(--hair);background:var(--surface);padding:6px 10px;margin-bottom:14px;border-radius:8px}
+.h2acts{float:right;display:inline-flex;gap:12px}.isearch{width:100%;max-width:520px;margin-bottom:10px;font:inherit;padding:8px 10px;border:1px solid var(--hair);border-radius:8px;background:var(--surface);color:var(--ink)}.ifbar{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;border:1px solid var(--hair);background:var(--surface);padding:6px 10px;margin-bottom:14px;border-radius:8px}
 .itabs{display:flex;gap:2px}.itab{border:0;background:none;color:var(--muted);font:inherit;padding:5px 10px;cursor:pointer;border-radius:6px}.itab:hover{color:var(--ink)}.itab.on{color:var(--ink);font-weight:600}
 .itab .cnt{display:inline-block;min-width:20px;padding:0 6px;margin-left:4px;border-radius:9px;background:var(--sunk);border:1px solid var(--hair);font-size:11px;text-align:center}.itab.on .cnt{background:var(--accent-soft);color:var(--accent);border-color:transparent}
 .dd{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:12.5px}.dd select{font:inherit;color:var(--ink);background:var(--sunk);border:1px solid var(--hair);border-radius:6px;padding:4px 8px}
-.h2acts.prow2{float:none;display:flex;flex-wrap:wrap;margin:-6px 0 16px}.h2acts .act{font-size:12.5px;padding:4px 11px}
+.h2acts.prow2{float:none;display:flex;flex-wrap:wrap;gap:12px;margin:-6px 0 16px}.h2acts .act{font-size:12.5px;padding:4px 11px}
 .act.addb,.act.addbtn,.ebtn.addb{color:var(--good-ink);border-color:color-mix(in srgb,var(--good) 55%,transparent);background:color-mix(in srgb,var(--good) 8%,var(--surface));font-weight:600}
 .act.addb:hover,.act.addbtn:hover{border-color:var(--good);color:var(--good-ink)}
 .newbtn.addb{background:var(--good);border-color:var(--good)}
@@ -215,7 +220,7 @@ aside .in{position:relative}aside .dsub:first-of-type{padding-right:40px}.lightb
 .dtool .btn,.dtool .act,.dtool h2{white-space:nowrap}.dtool{flex-wrap:wrap;row-gap:8px}.dtool>div:first-child{flex:1 1 220px;min-width:180px;overflow:hidden}.dtool h2{overflow:hidden;text-overflow:ellipsis}
 nav button .lbl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}nav button .n{flex:none;width:24px;text-align:right;margin-left:6px;font-variant-numeric:tabular-nums;font-size:11px}
 .dtool{flex-direction:column;align-items:stretch!important;gap:8px!important}.dtool>div:first-child{flex:none!important;width:100%}
-.dbtns{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.dleg{padding:6px 18px;border-bottom:1px solid var(--hair);background:var(--surface)}.dleg .legend{flex-wrap:wrap;gap:6px 16px}
+.dbtns{display:flex;flex-wrap:wrap;gap:12px;align-items:center}.dleg{padding:6px 18px;border-bottom:1px solid var(--hair);background:var(--surface)}.dleg .legend{flex-wrap:wrap;gap:6px 16px}
 .cont.sel>rect{stroke:var(--accent)!important;stroke-width:2!important;stroke-dasharray:none!important}
 .navi path{stroke:var(--muted)!important}
 /* everything clickable: a pointing hand and a slight highlight */
@@ -372,7 +377,16 @@ let refit = null;
 const afterPanel = () => setTimeout(() => refit && refit(), 200);
 const SRC = s => s[2] ? ` <span class="src" title="${s[2].endsWith(".c") ? `Not in the .ioc (CubeMX default); read from the generated code in ${H(s[2])}` : H(s[2])}">${s[2].endsWith(".c") ? H(s[2]) : "computed"}</span>` : "";
 const SETV = s => `${H(s[1])}${SRC(s)}`;
-function openDrawer(html) { afterPanel(); $("#drawer-in").innerHTML = `<button class="xbtn" id="dx" title="Close (Esc)" aria-label="Close">✕</button>` + html; $("#drawer").classList.add("open"); $("#dx").onclick = closeDrawer; wire($("#drawer-in")); }
+const G = html => html ? `<span class="bgrp">${html}</span>` : "";
+function groupButtons(root) {  // runs of adjacent buttons become one block; a red (delete) button stays on its own
+  root.querySelectorAll(".h2acts, .links, .ibar").forEach(box => {
+    let run = [];
+    const flush = () => { if (run.length > 1) { const g = document.createElement("span"); g.className = "bgrp"; run[0].before(g); run.forEach(b => g.appendChild(b)); } run = []; };
+    [...box.children].forEach(el => { if (el.matches("button.act, button.btn") && !el.classList.contains("dz") && !el.closest(".bgrp, .seg")) run.push(el); else flush(); });
+    flush();
+  });
+}
+function openDrawer(html) { afterPanel(); $("#drawer-in").innerHTML = `<button class="xbtn" id="dx" title="Close (Esc)" aria-label="Close">✕</button>` + html; $("#drawer").classList.add("open"); $("#dx").onclick = closeDrawer; groupButtons($("#drawer-in")); wire($("#drawer-in")); }
 let reopen = null;
 function closeDrawer() { reopen = null; if ($("#drawer").classList.contains("open")) afterPanel(); $("#drawer").classList.remove("open"); const had = selected; selected = null; if (had) saveHash(); document.querySelectorAll(".sel").forEach(e => e.classList.remove("sel")); }
 function wire(root) {
@@ -647,8 +661,8 @@ function allEdges(n, out = []) { (n.edges || []).forEach(e => out.push([e, n]));
 
 let zoom = null; const vbMem = {};  // each view (and focus) keeps its own zoom and pan
 function canvasShell(title, lead, extra = "", edit = null) {
-  const eb = SERVED && edit && view === "electrical" ? `<button class="act addbtn" data-form="port_type">+ Port type</button><button class="act addbtn" data-form="part">+ Part</button><button class="act" data-form="kicad" title="Parts and wires from a KiCad netlist">Import from KiCad</button>` : "";
-  $("#main").innerHTML = `<div class="diagram"><div class="dtool"><div><h2>${title}</h2><p class="lead">${lead}</p></div><span class="sp"></span>${extra}${eb}<button class="btn" id="zout" title="Zoom out">−</button><button class="btn" id="zin" title="Zoom in">+</button><button class="btn" id="fit">Fit</button>${Object.keys(curOff()).length ? `<button class="btn" onclick="resetLayout()" title="Forget where you moved blocks in this view">Auto layout</button>` : ""}</div>${SERVED && edit ? `<div class="dhint">${edit}</div><div class="hintbar" id="hint" style="display:none"></div>` : ""}<div class="canvas ${editing && edit ? "editing" : ""}" id="cv"></div></div>`;
+  const eb = SERVED && edit && view === "electrical" ? G(`<button class="act addbtn" data-form="port_type">+ Port type</button><button class="act addbtn" data-form="part">+ Part</button><button class="act" data-form="kicad" title="Parts and wires from a KiCad netlist">Import from KiCad</button>`) : "";
+  $("#main").innerHTML = `<div class="diagram"><div class="dtool"><div><h2>${title}</h2><p class="lead">${lead}</p></div><span class="sp"></span>${extra}${eb}${G(`<button class="btn" id="zout" title="Zoom out">−</button><button class="btn" id="zin" title="Zoom in">+</button><button class="btn" id="fit">Fit</button>${Object.keys(curOff()).length ? `<button class="btn" onclick="resetLayout()" title="Forget where you moved blocks in this view">Auto layout</button>` : ""}`)}</div>${SERVED && edit ? `<div class="dhint">${edit}</div><div class="hintbar" id="hint" style="display:none"></div>` : ""}<div class="canvas ${editing && edit ? "editing" : ""}" id="cv"></div></div>`;
   const tb = $("#main .dtool");
   if (tb) { const leg = tb.querySelector(".legend"), row = document.createElement("div"); row.className = "dbtns";
     [...tb.children].slice(1).forEach(x => { if (x !== leg && !x.classList.contains("sp")) row.appendChild(x); else if (x.classList.contains("sp")) x.remove(); });
@@ -823,7 +837,7 @@ function buildSoftware() {
 async function drawSoftware() {
   const cv = canvasShell("Software (ROS2)", "Nodes and topics found in the code (the robot does not need to be on), grouped by the computer each node runs on, plus the ones you planned.",
     `<div class="legend"><span><i class="box" style="background:var(--sunk);border:1px solid var(--faint);border-radius:6px;width:16px"></i>topic</span><span><i class="box" style="background:var(--surface);border:1px solid var(--faint)"></i>node</span><span><i class="box" style="background:var(--arch)"></i>micro-ROS</span><span><i style="border-color:var(--muted)"></i>publish → subscribe</span><span><i style="border-color:var(--muted);border-top-style:dashed"></i>planned, not in the code</span><span><i style="border-color:var(--facts);border-top-width:3px"></i>ROS link (wire)</span></div>` +
-    (SERVED ? `<button class="act addbtn" data-form="ros_topic">+ Topic</button><button class="act addbtn" data-form="ros_node">+ Node</button>` : ""),
+    (SERVED ? G(`<button class="act addbtn" data-form="ros_topic">+ Topic</button><button class="act addbtn" data-form="ros_node">+ Node</button>`) : ""),
     SERVED ? "Drag computers and topics to move them; drag a node into another computer to run it there. Connect from the ● on a block's right edge: node → topic publishes, topic → node subscribes, node → node makes a new topic. Click a node, topic or arrow and press Delete to remove it. The wire that carries ROS is marked in Electrical (wire details: ros)." : null);
   if (!M.nodes.length && !SERVED) { cv.innerHTML = `<div class="empty">No ROS2 code found. Add ROS2 code folders in Setup (doc serve).</div>`; return; }
   const {graph} = buildSoftware(); const out = await lay(graph); const abs = absMap(out);
@@ -934,6 +948,7 @@ function hostWires(a, b) { const on = (p, h) => p === h || p.startsWith(h + ".")
 const addB = list => SERVED ? `<span class="h2acts">${list.map(([f, t]) => `<button class="act" data-form="${f}">+ ${t}</button>`).join("")}</span>` : "";
 function page(html) { refit = null; $("#main").innerHTML = `<div class="page">${html}</div>`;
   const a = $("#main .page h2 .h2acts"), l = $("#main .page > .lead"); if (a) { (l || a.closest("h2")).after(a); a.classList.add("prow2"); }
+  groupButtons($("#main"));
   wire($("#main")); }
 function overview() {
   const rs = M.requirements, st = s => rs.filter(r => r.status === s).length;
@@ -972,7 +987,7 @@ function requirements() {
       <div class="links">${r.parts.map(p => `<span class="chip" data-part="${p}">▣ ${H(short(p))}</span>`).join("")}${fs.map(f => `<span class="chip" data-fault="${f.id}" style="border-color:var(--sev${f.sev})">${f.id}</span>`).join("")}${ds.map(d => `<span class="chip" data-dec="${d.num}">decision ${d.num}</span>`).join("")}${issuesFor(null, [r.id]).filter(i => i.state === "open").map(i => `<span class="chip" data-issue="${i.number}">#${i.number}</span>`).join("")}</div>
       ${SERVED ? `<div class="links"><button class="act" data-form="test" data-rid="${H(r.id)}">Record test</button><button class="act" data-form="update_req" data-rid="${H(r.id)}">Edit</button></div>` : ""}</div>`; };
   page(`<h2>Requirements${addB([["req", "Requirement"], ["test", "Test result"]])}</h2><p class="lead">From docs/requirements.md. Each prefix lands in the subsystem of the same name (subsystems are set in Setup); <i>Pin to a part</i> in a requirement's panel ties it to one part.</p>
-    <div class="filters"><input id="rs" placeholder="Search requirements…" value="${H(rsearch)}">${["All", "Draft", "Approved", "Verified", "Failed"].map(s => `<button class="fchip ${s === rfilter ? "on" : ""}" data-f="${s}">${s} <span style="opacity:.6">${s === "All" ? M.requirements.length : M.requirements.filter(r => r.status === s).length}</span></button>`).join("")}</div>
+    <div class="filters"><input id="rs" placeholder="Search requirements…" value="${H(rsearch)}"><span class="seg">${["All", "Draft", "Approved", "Verified", "Failed"].map(s => `<button class="${s === rfilter ? "on" : ""}" data-f="${s}">${s} <span style="opacity:.6">${s === "All" ? M.requirements.length : M.requirements.filter(r => r.status === s).length}</span></button>`).join("")}</span></div>
     ${[...order, "__none"].filter(g => groups[g]).map(g => { const rs = groups[g].filter(vis); if (!rs.length) return ""; const v = groups[g].filter(r => r.status === "Verified").length;
       return `<div class="sgroup"><h3>${g === "__none" ? `<span style="color:var(--warn-ink)">No matching subsystem</span>` : g === M.top ? "Whole system" : `<span class="lnk" data-part="${M.top}.${g}" style="cursor:pointer">${H(g)}</span>`}</h3><span class="c">${v}/${groups[g].length} verified</span></div><div class="rgrid">${rs.map(card).join("")}</div>`; }).join("")}`);
   $("#rs").oninput = e => { rsearch = e.target.value.toLowerCase(); const pos = e.target.selectionStart; requirements(); $("#rs").focus(); $("#rs").setSelectionRange(pos, pos); };
@@ -1251,7 +1266,7 @@ function mediaPage() {
   const vis = all.filter(x => mkind === "all" || x.kind === mkind);
   page(`<div class="ibar"><h2 style="margin:0">Media</h2><span style="flex:1"></span>${SERVED ? `<label class="act">Upload<input type="file" id="up" multiple style="display:none"></label>` : ""}</div>
     <p class="lead">Files in docs/media/. A file whose name appears in a requirement's evidence shows up on that requirement and its part.</p>
-    <div class="filters">${kinds.map(k => `<button class="fchip ${k === mkind ? "on" : ""}" data-mk="${k}">${k} <span style="opacity:.6">${k === "all" ? all.length : all.filter(x => x.kind === k).length}</span></button>`).join("")}</div>
+    <div class="filters"><span class="seg">${kinds.map(k => `<button class="${k === mkind ? "on" : ""}" data-mk="${k}">${k} <span style="opacity:.6">${k === "all" ? all.length : all.filter(x => x.kind === k).length}</span></button>`).join("")}</span></div>
     <div class="mgrid">${vis.map(x => `<div class="mcard" data-media="${H(x.file)}"><div class="th">${x.kind === "image" ? `<img loading="lazy" src="${murl(x.file)}">` : x.kind === "video" ? `<video muted preload="metadata" src="${murl(x.file)}#t=0.5"></video>` : `<span class="ext">.${H(x.name.split(".").pop())}</span>`}</div>
       <div class="cap"><div class="n">${H(x.name)}</div><div class="d">${H(x.date)} · ${(x.size / 1024).toFixed(0)} KB</div><div class="links" style="margin-top:4px">${x.reqs.map(r => `<span class="chip" data-req="${H(r)}">${H(r)}</span>`).join("")}</div></div></div>`).join("") || `<div class="empty">No media yet. Put photos, videos and logs in docs/media/.</div>`}</div>`);
   document.querySelectorAll("[data-mk]").forEach(b => b.onclick = () => { mkind = b.dataset.mk; mediaPage(); });
@@ -1812,9 +1827,9 @@ function bomPage() {
   const rateNote = LIVE ? `Live market rates${LIVE.stale ? " (offline: last known)" : ""}, ${H(LIVE.source || "")}${LIVE.updated ? `, updated ${H(LIVE.updated.replace(/ \+0000$/, " UTC"))}` : ""}`
     : SERVED ? "Rates not loaded yet: rough defaults" : "Rough default rates (live rates need doc serve)";
   page(`<h2>Bill of materials<span class="h2acts">
-    ${SERVED ? bomEdit ? `<button class="act" id="bcancel">Cancel</button><button class="newbtn" id="bsave">Save changes</button>` : `<button class="act" data-form="bom_item">+ Item</button><button class="act" data-form="bom_columns">+ Column</button><button class="act" id="bedit">Edit</button>` : ""}
+    ${SERVED ? bomEdit ? G(`<button class="act" id="bcancel">Cancel</button><button class="newbtn" id="bsave">Save changes</button>`) : G(`<button class="act addb" data-form="bom_item">+ Item</button><button class="act addb" data-form="bom_columns">+ Column</button><button class="act" id="bedit">Edit</button>`) : ""}
     <span class="seg" title="Currency for unit cost and total">${Object.entries(CUR).map(([k, c]) => `<button class="${k === show ? "on" : ""}" data-cur="${k}">${c.sym.trim()}</button>`).join("")}</span>
-    <button class="act" id="bx">Excel</button><button class="act" id="bp">PNG</button><button class="act" id="bf">PDF</button></span></h2>
+    ${G(`<button class="act" id="bx">Excel</button><button class="act" id="bp">PNG</button><button class="act" id="bf">PDF</button>`)}</span></h2>
     <p class="lead">Built from the parts (grouped by part number), wires (total length per gauge), connectors, and extra items. Fill it in from each part's Details: part number, supplier, cost, or any column you add.</p>
     <div class="panel" style="overflow:auto"><table class="icd bom"><tr>${cols.map(c => `<th>${H(c[1])}</th>`).join("")}</tr>
     ${rows.map(({r, cells}, ri) => `<tr>${cells.map((c, i) => `<td class="${cols[i][0] === "item" || cols[i][0] === "where" ? "w" : ""}">${cell(r, c, cols[i][0], ri)}${!bomEdit && cols[i][0] === "item" && r.kind === "extra" && SERVED ? ` <span class="xref" data-form="bom_item" data-index="${r.index}">edit</span>` : ""}</td>`).join("")}</tr>`).join("")}

@@ -25,7 +25,9 @@ grey: signal wires; orange: power; violet: ROS). Everything clickable shows a
 pointing hand and lights up on hover; nothing else does. Names with a dotted
 underline are objects (parts, ports, subsystems, BOM items): click one to open
 it, and the underline turns solid as you point at it. Dropdowns are the page's own: ↑ / ↓,
-Enter and Esc work in them.
+Enter and Esc work in them. Buttons that belong together sit in one block (add
+and edit; zoom; export; a filter or currency switch), a little apart from the
+next block; Delete always stands on its own.
 
 Concepts (what a requirement is, what makes a good fault row) are in the
 [handbook](HANDBOOK.md). The few terminal commands (install, hooks, CI) are in
