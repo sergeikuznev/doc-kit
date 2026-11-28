@@ -434,6 +434,8 @@ function wire(root) {
   root.querySelectorAll("[data-focus]").forEach(e => e.onclick = ev => { ev.stopPropagation(); go(e.dataset.view || "electrical", {focus: e.dataset.focus, edit: e.dataset.edit ? true : undefined}); });
 }
 const REQC = {Verified: "var(--good)", Failed: "var(--crit)"};  // tested requirements show their result on the chip border
+// a subsystem chip opens the subsystem; a requirements-only group (SYS, FDIR) has no box to open, so it is just a label
+const subChip = s => M.parts[`${M.top}.${s}`] ? `<span class="chip" data-part="${M.top}.${H(s)}">${H(s)}</span>` : `<span class="chip" title="${H((M.prefix_names || {})[s] || s)}: requirements only, no box in the diagram">${H(s)}</span>`;
 const reqChip = r => `<span class="chip${REQC[r.status] ? " rc" : ""}" data-req="${H(r.id)}"${REQC[r.status] ? ` style="--sc:${REQC[r.status]};border-color:${REQC[r.status]}"` : ""}><span class="pill ${H(r.status)}"><i>${ICON[r.status] ?? "?"}</i></span><span class="mono">${H(r.id)}</span></span>`;
 function reqList(rs, path) {
   if (!rs.length) return `<div class="dsub">None yet.</div>`;
@@ -1143,7 +1145,7 @@ function issuesPage() {
       <label class="dd">Subsystem<select id="isub"><option value="">all</option>${LABELS().map(([v]) => v.toUpperCase()).map(x => `<option value="${x}" ${x === isub ? "selected" : ""}>${x}${(M.prefix_names || {})[x] ? ` · ${H(M.prefix_names[x])}` : ""}</option>`).join("")}</select></label></div>
     ${vis.map((i, k) => `${i.state === "closed" && (k === 0 || vis[k - 1].state !== "closed") ? `<div class="sgroup"><h3>Closed</h3><span class="c">most recently closed first</span></div>` : ""}<div class="icard ${i.state === "closed" ? "isdone" : ""}" id="i${i.number}"><div class="top">${stPill(i)}<span class="num">${i.number ? "#" + i.number : "#…"}</span><span class="t ilink" data-iss="${i.number}">${H(i.title)}</span>
       ${i.labels.filter(l => !l.startsWith("status: ")).map(l => labChip(l, (i.colors || {})[l])).join("")}<span class="meta">${H(i.author)} · ${i.state === "closed" && i.closed ? "closed " + tm(i.closed) : tm(i.updated)} · <a href="${H(i.url)}" target="_blank">GitHub ↗</a>${SERVED && i.number ? ` <button class="act dz" style="padding:0 7px;margin-left:6px" data-form="issue_delete" data-number="${i.number}" title="Delete this issue here and on GitHub">Delete</button>` : ""}</span></div>
-      <div class="links" style="margin-top:6px">${i.subsystems.map(s => `<span class="chip" data-part="${M.top}.${s}">${H(s)}</span>`).join("")}${i.reqs.map(r => reqChip(reqById[r])).join("")}</div>
+      <div class="links" style="margin-top:6px">${i.subsystems.map(subChip).join("")}${i.reqs.map(r => reqChip(reqById[r])).join("")}</div>
       ${i.body ? `<details><summary>Details</summary><div class="body">${mdLite(i.body)}</div></details>` : ""}</div>`).join("") || `<div class="empty">No issues match.</div>`}`);
   document.querySelectorAll("[data-iss]").forEach(e => e.onclick = () => showIssue(+e.dataset.iss));
   document.querySelectorAll("[data-stmenu]").forEach(e => e.onclick = ev => { ev.stopPropagation(); statusMenu(e, +e.dataset.stmenu); });
@@ -1198,7 +1200,7 @@ function showIssue(n) { panelAt(() => showIssue(n), "Issue:" + n); if (!n) retur
   const closed = i.state === "closed";
   openDrawer(`<div class="dsub">${i.kind === "bug" ? "Bug" : i.kind === "idea" ? "Idea" : "Issue"} · <a href="${H(i.url)}" target="_blank">GitHub ↗</a></div><div class="dh">${H(i.title)} <span style="color:var(--faint);font-weight:400">#${n}</span></div>
     <div class="links" style="margin:8px 0">${stPill(i)}${i.labels.filter(l => !l.startsWith("status: ")).map(l => labChip(l, (i.colors || {})[l])).join("")}</div>
-    <div class="links">${i.subsystems.map(s => `<span class="chip" data-part="${M.top}.${s}">${H(s)}</span>`).join("")}${i.reqs.map(r => reqChip(reqById[r])).join("")}</div>
+    <div class="links">${i.subsystems.map(subChip).join("")}${i.reqs.map(r => reqChip(reqById[r])).join("")}</div>
     <div class="tl2"><div class="tc">${avatar(i.author)}<div class="box"><div class="hd"><b>${H(i.author)}</b> opened ${tm(i.created)}</div><div class="bd">${i.body ? mdLite(i.body) : `<span class="dsub">No description.</span>`}</div></div></div>
       <div id="tlev"><div class="dsub" style="margin-left:42px">Loading activity…</div></div></div>
     ${SERVED ? `<h4>Add a comment</h4><div class="ed" id="ed"><div class="bar"><button class="tab on" data-tab="w">Write</button><button class="tab" data-tab="p">Preview</button>
