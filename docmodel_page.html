@@ -213,7 +213,7 @@ a,a:visited{color:var(--accent);text-decoration-color:color-mix(in srgb,var(--ac
 .dhint{padding:6px 18px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--hair);background:var(--surface)}
 .gapsp{border-color:color-mix(in srgb,var(--warn) 55%,transparent);background:color-mix(in srgb,var(--warn) 9%,var(--surface));box-shadow:inset 4px 0 0 color-mix(in srgb,var(--warn) 80%,transparent)}
 .gapsp h3{color:var(--warn-ink)}.gapsp .issue{border-top-color:color-mix(in srgb,var(--warn) 22%,transparent)}.gapsp .issue .k{color:var(--warn-ink)}
-.xbtn{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:8px;border:1px solid transparent;background:none;color:var(--muted);font-size:18px;line-height:1;cursor:pointer;display:grid;place-items:center}
+.bbtn{right:48px!important;font-size:17px!important}.xbtn{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:8px;border:1px solid transparent;background:none;color:var(--muted);font-size:18px;line-height:1;cursor:pointer;display:grid;place-items:center}
 .xbtn:hover{background:var(--sunk);color:var(--ink);border-color:var(--hair)}.modal .box{position:relative}.modal .box.narrow{width:min(520px,96vw)}.modal h3{padding-right:36px}
 aside .in{position:relative}aside .dsub:first-of-type{padding-right:40px}.lightbox .xbtn{position:fixed;top:16px;right:18px;color:#fff;font-size:22px}.lightbox .xbtn:hover{background:rgba(255,255,255,.12)}
 .sync{font-size:12px;color:var(--muted);align-self:center;white-space:nowrap}.sync.on{color:var(--accent)}.sync.ok{color:var(--good-ink)}.sync.bad{color:var(--crit-ink);cursor:help}
@@ -398,6 +398,26 @@ function groupButtons(root) {  // runs of adjacent buttons become one block; a r
 }
 function openDrawer(html) { afterPanel(); $("#drawer-in").innerHTML = `<button class="xbtn" id="dx" title="Close (Esc)" aria-label="Close">✕</button>` + html; $("#drawer").classList.add("open"); $("#dx").onclick = closeDrawer; groupButtons($("#drawer-in")); wire($("#drawer-in")); }
 let reopen = null;
+// panel history: moving from one item to another inside the panel can be undone with ←
+let panelKey = null, panelHist = [], panelBack = false, panelKeep = false;  // panelKeep: a refresh re-draws the same panel
+function panelAt(fn, key) {
+  const wasOpen = $("#drawer").classList.contains("open"), prev = reopen, prevKey = panelKey, keep = panelKeep; panelKeep = false;
+  setTimeout(() => {
+    if (keep && key === prevKey) { /* refresh of the same panel: history stays */ }
+    else if (panelBack) panelBack = false;
+    else if (!wasOpen || !prev) panelHist = [];
+    else if (prevKey && prevKey !== key) { panelHist.push({fn: prev, key: prevKey}); if (panelHist.length > 30) panelHist.shift(); }
+    reopen = fn; panelKey = key; backButton();
+  }, 0);
+}
+function backButton() {
+  const box = $("#drawer-in"); let b = $("#dback");
+  if (!panelHist.length) { if (b) b.remove(); return; }
+  if (!b) { b = document.createElement("button"); b.id = "dback"; b.className = "xbtn bbtn"; b.setAttribute("aria-label", "Back"); b.innerHTML = "←"; box.prepend(b);
+    b.onclick = ev => { ev.stopPropagation(); const h = panelHist.pop(); if (!h) return; panelBack = true; h.fn(); }; }
+  const [kind, ...rest] = panelHist[panelHist.length - 1].key.split(":"), id = rest.join(":"), last = kind === "Part" ? short(id) || id : kind === "Issue" ? "#" + id : id;
+  b.title = `Back to ${last} (Alt ←)`;
+}
 function closeDrawer() { reopen = null; if ($("#drawer").classList.contains("open")) afterPanel(); $("#drawer").classList.remove("open"); const had = selected; selected = null; if (had) saveHash(); document.querySelectorAll(".sel").forEach(e => e.classList.remove("sel")); }
 function wire(root) {
   root.querySelectorAll("[data-part]").forEach(e => e.onclick = ev => { ev.stopPropagation(); showPart(e.dataset.part); });
@@ -433,7 +453,7 @@ setKinds();
 const partKind = p => p.pkind || (p.attrs || {}).kind || "other";
 const kindCol = k => (PKINDS.find(x => x[0] === k) || PKINDS[PKINDS.length - 1])[2];
 const WIREV = () => SERVED && (view === "electrical" || view === "power");
-function showPart(path) { setTimeout(() => reopen = () => showPart(path), 0);
+function showPart(path) { panelAt(() => showPart(path), "Part:" + path);
   selected = path; markSel(); saveHash();
   const p = M.parts[path];
   if (!p) return;
@@ -485,7 +505,7 @@ function showPart(path) { setTimeout(() => reopen = () => showPart(path), 0);
   openDrawer(h);
   document.querySelectorAll("#drawer-in tr.row").forEach(tr => tr.onclick = () => { const d = $(`#drawer-in tr[data-d="${tr.dataset.i}"]`); d.style.display = d.style.display ? "" : "none"; tr.firstElementChild.textContent = tr.firstElementChild.textContent.replace(/^[▸▾]/, d.style.display ? "▸" : "▾"); });
 }
-function showReq(id) { setTimeout(() => reopen = () => showReq(id), 0);
+function showReq(id) { panelAt(() => showReq(id), "Req:" + id);
   const r = reqById[id];
   if (!r) return;
   const fs = M.faults.filter(f => f.reqs.includes(id));
@@ -499,14 +519,14 @@ function showReq(id) { setTimeout(() => reopen = () => showReq(id), 0);
     ${(r.media || []).length ? thumbs(r.media) : ""}
     <h4>Faults it covers</h4>${faultList(fs)}${ds.length ? `<h4>Decisions</h4><div class="mini">${ds.map(d => `<div class="mitem" data-dec="${d.num}"><span class="id">${d.num}</span> ${H(d.title)}</div>`).join("")}</div>` : ""}`);
 }
-function showFault(id) { setTimeout(() => reopen = () => showFault(id), 0);
+function showFault(id) { panelAt(() => showFault(id), "Fault:" + id);
   const f = M.faults.find(x => x.id === id);
   openDrawer(`<div class="dsub">Fault · severity ${H(f.sev)} (${H(SEVN[f.sev] || "?")})</div><div class="dh mono">${H(f.id)}</div><p style="font-size:15px;font-weight:600">${H(f.failure)}</p>
     ${SERVED ? `<div class="links" style="margin:0 0 10px"><button class="act" data-form="update_fault" data-fid="${H(f.id)}">Edit</button></div>` : ""}
     <div class="kv"><div>Effect</div><div>${H(f.effect)}</div><div>Detection</div><div>${H(f.detection)}</div><div>Response</div><div>${H(f.response)}</div><div>Recovery</div><div>${H(f.recovery)}</div></div>
     <h4>Covered by</h4>${f.reqs.length ? reqList(f.reqs.map(x => reqById[x]).filter(Boolean)) : `<div class="warnline">⚠ No requirement covers this fault</div>`}`);
 }
-function showNode(name) { setTimeout(() => reopen = () => showNode(name), 0);
+function showNode(name) { panelAt(() => showNode(name), "Node:" + name);
   const n = M.nodes.find(x => x.name === name);
   const row = (e, role) => `<tr class="row" data-topic="${H(e.topic)}"><td>${role}</td><td class="mono lnk">${H(e.topic)}</td><td class="mono">${H(e.type)}</td><td class="mono" style="white-space:nowrap">${e.planned ? `<span class="dsub">planned</span>${SERVED ? ` <button class="act dz" data-unplan="${H(n.name)}|${H(e.topic)}" title="Drop from the plan">✕</button>` : ""}` : e.unplanned ? `:${e.line} <span class="dsub">not in plan</span>` : `:${e.line}`}</td></tr>`;
   openDrawer(`<div class="dsub">ROS2 node · ${H(n.lang === "plan" ? "planned" : n.lang === "c" ? "micro-ROS (C)" : n.lang === "py" ? "Python" : "C++")}</div><div class="dh">${H(n.name)}</div>
@@ -518,7 +538,7 @@ function showNode(name) { setTimeout(() => reopen = () => showNode(name), 0);
     ${(n.launch || []).map(l => `<h4>Started by ${H(l.file.split("/").pop())}</h4><div class="kv"><div>File</div><div class="mono">${H(l.file)}</div>${l.package ? `<div>Package</div><div class="mono">${H(l.package)}</div>` : ""}${l.executable ? `<div>Executable</div><div class="mono">${H(l.executable)}</div>` : ""}${l.namespace ? `<div>Namespace</div><div class="mono">${H(l.namespace)}</div>` : ""}
       ${l.remappings.length ? `<div>Remappings</div><div class="mono">${l.remappings.map(r => `${H(r[0])} → ${H(r[1])}`).join("<br>")}</div>` : ""}${l.parameters ? `<div>Parameters</div><div class="mono">${H(l.parameters)}</div>` : ""}</div>`).join("")}`);
 }
-function showTopic(t) { setTimeout(() => reopen = () => showTopic(t), 0);
+function showTopic(t) { panelAt(() => showTopic(t), "Topic:" + t);
   const x = M.topics.find(y => y.topic === t);
   openDrawer(`<div class="dsub">ROS2 topic</div><div class="dh mono">${H(t)}</div><div class="dsub mono">${x.types.map(H).join(", ")}</div>
     <h4>Published by</h4><div class="links">${x.pub.map(n => `<span class="chip" data-node="${H(n)}">${H(n)}</span>`).join("") || `<span class="warnline">nobody</span>`}</div>
@@ -1152,11 +1172,11 @@ async function issueOp(op, body) {
   if (op === "issue_delete") { M.issues = M.issues.filter(x => x.number !== body.number); closeDrawer(); }
   if (op === "issue_comment" && body.body) { (pendingComments[body.number] ||= []).push({type: "comment", who: S_.me || "you", at: now, body: body.body}); setTimeout(() => delete pendingComments[body.number], 15000);
     if ($("#icom")) $("#icom").value = ""; }
-  const again = reopen; chrome(); if (["issues", "overview"].includes(view)) render(); if (again && op !== "issue_delete") again();
+  const again = reopen; chrome(); if (["issues", "overview"].includes(view)) render(); if (again && op !== "issue_delete") { panelKeep = true; again(); }
   issueChain = issueChain.then(() => post(`api/apply/${op}`, body)).then(() => { if (window.syncNow) syncNow(); })
     .catch(e => { delete issueWant[body.number]; toast(e.message, true); refreshModel(); });
 }
-function showIssue(n) { setTimeout(() => reopen = () => showIssue(n), 0); if (!n) return toast("Still being created on GitHub…");
+function showIssue(n) { panelAt(() => showIssue(n), "Issue:" + n); if (!n) return toast("Still being created on GitHub…");
   const i = (M.issues || []).find(x => x.number === n); if (!i) return;
   const closed = i.state === "closed";
   openDrawer(`<div class="dsub">${i.kind === "bug" ? "Bug" : i.kind === "idea" ? "Idea" : "Issue"} · <a href="${H(i.url)}" target="_blank">GitHub ↗</a></div><div class="dh">${H(i.title)} <span style="color:var(--faint);font-weight:400">#${n}</span></div>
@@ -1302,7 +1322,7 @@ async function refreshModel() {
   try { const r = await fetch("api/model", {cache: "no-store"}); if (!r.ok) return; const data = await r.json(); if (!data.parts) return;
     M = data; applyIssueWants(); derive(); if (!layoutTimer && SERVED) LAYOUT = JSON.parse(JSON.stringify(M.layout || {})); } catch (e) { return; }
   const again = reopen, top = $("#main").scrollTop;
-  chrome(); render(); $("#main").scrollTop = top; if (again) again(); else markSel && markSel();
+  chrome(); render(); $("#main").scrollTop = top; if (again) { panelKeep = true; again(); } else markSel && markSel();
 }
 let pendingSync = 0, lastSyncErr = null;
 function syncPill(v) {
@@ -1963,6 +1983,7 @@ async function quick(op, body) {
 loadHash(); const _sel = selected; chrome(); render(); if (_sel && M.parts[_sel]) setTimeout(() => showPart(_sel), 500);
 if (SERVED) { startPolling(); loadRates(); setInterval(loadRates, 3600e3); }
 document.addEventListener("keydown", e => { if (e.key === "Escape") { if (pend) cancelPend(); else closeDrawer(); } });
+document.addEventListener("keydown", e => { if (e.altKey && e.key === "ArrowLeft" && $("#dback") && $("#drawer").classList.contains("open")) { e.preventDefault(); $("#dback").click(); } });
 // a click on empty space in a page closes the panel (the diagrams handle their own canvas)
 $("#main").addEventListener("click", ev => {
   if (!$("#drawer").classList.contains("open") || ev.target.closest("#cv")) return;

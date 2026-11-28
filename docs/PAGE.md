@@ -39,6 +39,10 @@ pointing hand and lights up on hover; nothing else does.
   a dash. The icon and the capitals are centred in the badge in any font (this
   uses CSS `text-box`, in Safari 18.2+ and Chrome 133+; older browsers centre
   the text approximately).
+- **The side panel.** Clicking an item opens it in the panel on the right;
+  clicking a link inside the panel (a part, a requirement, a fault) opens that
+  one in the same panel, and **←** (next to ✕, or Alt ←) goes back, step by
+  step. ✕, Esc or a click on empty space closes it.
 - **Dropdowns** are the page's own: ↑ / ↓, Enter and Esc work in them.
 
 Concepts (what a requirement is, what makes a good fault row) are in the
