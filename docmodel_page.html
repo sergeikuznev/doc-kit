@@ -177,6 +177,7 @@ aside h4{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:va
 :is(#main,#drawer) .bgrp>:is(.addb,.addbtn){border-color:color-mix(in srgb,var(--good) 55%,transparent)!important;z-index:1}
 :is(#main,#drawer) :is(.bgrp,.seg)>:hover:not(:disabled){z-index:2;border-color:var(--faint)!important}
 :is(#main,#drawer) .bgrp>:is(.addb,.addbtn):hover{border-color:var(--good)!important}
+:is(#main,#drawer) .bgrp>.act:not(.addb):not(.addbtn):hover:not(:disabled){border-color:var(--accent)!important;color:var(--accent)}
 :is(#main,#drawer) .bgrp>.newbtn{border-color:var(--accent)!important;z-index:1}
 .links{gap:12px!important}.links .bgrp .act{font-size:12px}
 .seg{display:inline-flex}.seg button{font:inherit;font-size:12.5px;padding:4px 10px;border:0;background:var(--surface);color:var(--muted);cursor:pointer}.seg button.on{background:var(--sunk);color:var(--ink);font-weight:600}.filters .seg{align-self:center}.filters .seg button{padding:6px 12px;font-size:13px}.seg button:hover{color:var(--ink)}.src{font:10.5px var(--mono,ui-monospace,monospace);color:var(--faint);border:1px solid var(--hair);border-radius:4px;padding:0 4px;margin-left:4px;white-space:nowrap;cursor:help}
