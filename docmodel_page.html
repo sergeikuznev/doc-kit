@@ -1809,10 +1809,10 @@ function bomPage() {
     : k === "unit_cost" && (r.values || {}).unit_cost ? `<span title="${H(rows.find(x => x.r === r)?.src || "")}">${H(c)}</span>` : H(c);
   const rateNote = LIVE ? `Live market rates${LIVE.stale ? " (offline: last known)" : ""}, ${H(LIVE.source || "")}${LIVE.updated ? `, updated ${H(LIVE.updated.replace(/ \+0000$/, " UTC"))}` : ""}`
     : SERVED ? "Rates not loaded yet: rough defaults" : "Rough default rates (live rates need doc serve)";
-  page(`<div class="ibar"><h2 style="margin:0">Bill of materials</h2><span style="flex:1"></span>
+  page(`<h2>Bill of materials<span class="h2acts">
     ${SERVED ? bomEdit ? `<button class="act" id="bcancel">Cancel</button><button class="newbtn" id="bsave">Save changes</button>` : `<button class="act" data-form="bom_item">+ Item</button><button class="act" data-form="bom_columns">+ Column</button><button class="act" id="bedit">Edit</button>` : ""}
     <span class="seg" title="Currency for unit cost and total">${Object.entries(CUR).map(([k, c]) => `<button class="${k === show ? "on" : ""}" data-cur="${k}">${c.sym.trim()}</button>`).join("")}</span>
-    <button class="act" id="bx">Excel</button><button class="act" id="bp">PNG</button><button class="act" id="bf">PDF</button></div>
+    <button class="act" id="bx">Excel</button><button class="act" id="bp">PNG</button><button class="act" id="bf">PDF</button></span></h2>
     <p class="lead">Built from the parts (grouped by part number), wires (total length per gauge), connectors, and extra items. Fill it in from each part's Details: part number, supplier, cost, or any column you add.</p>
     <div class="panel" style="overflow:auto"><table class="icd bom"><tr>${cols.map(c => `<th>${H(c[1])}</th>`).join("")}</tr>
     ${rows.map(({r, cells}, ri) => `<tr>${cells.map((c, i) => `<td class="${cols[i][0] === "item" || cols[i][0] === "where" ? "w" : ""}">${cell(r, c, cols[i][0], ri)}${!bomEdit && cols[i][0] === "item" && r.kind === "extra" && SERVED ? ` <span class="xref" data-form="bom_item" data-index="${r.index}">edit</span>` : ""}</td>`).join("")}</tr>`).join("")}
